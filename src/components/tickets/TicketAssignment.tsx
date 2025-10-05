@@ -29,7 +29,8 @@ export function TicketAssignment({ ticket, onUpdate }: TicketAssignmentProps) {
   const [partsCost, setPartsCost] = useState(ticket.custo_pecas || '0');
   const [loading, setLoading] = useState(false);
 
-  const canManage = profile?.role && ['admin_provedor', 'tecnico'].includes(profile.role);
+  const canManage = profile?.roles?.some(r => ['admin_provedor', 'tecnico'].includes(r)) || false;
+  const canEditFinancials = profile?.roles?.some(r => ['admin_provedor', 'gestor_cliente'].includes(r)) || false;
 
   useEffect(() => {
     if (canManage) {
@@ -121,29 +122,33 @@ export function TicketAssignment({ ticket, onUpdate }: TicketAssignmentProps) {
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="timeSpent">Tempo Gasto (horas)</Label>
-          <Input
-            id="timeSpent"
-            type="number"
-            step="0.5"
-            min="0"
-            value={timeSpent}
-            onChange={(e) => setTimeSpent(e.target.value)}
-          />
-        </div>
+        {canEditFinancials && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="timeSpent">Tempo Gasto (horas)</Label>
+              <Input
+                id="timeSpent"
+                type="number"
+                step="0.5"
+                min="0"
+                value={timeSpent}
+                onChange={(e) => setTimeSpent(e.target.value)}
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="partsCost">Custo de Peças (R$)</Label>
-          <Input
-            id="partsCost"
-            type="number"
-            step="0.01"
-            min="0"
-            value={partsCost}
-            onChange={(e) => setPartsCost(e.target.value)}
-          />
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="partsCost">Custo de Peças (R$)</Label>
+              <Input
+                id="partsCost"
+                type="number"
+                step="0.01"
+                min="0"
+                value={partsCost}
+                onChange={(e) => setPartsCost(e.target.value)}
+              />
+            </div>
+          </>
+        )}
 
         <Button onClick={handleUpdate} disabled={loading} className="w-full">
           {loading ? 'Atualizando...' : 'Salvar Alterações'}

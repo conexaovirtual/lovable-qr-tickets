@@ -14,7 +14,8 @@ interface AssetCardProps {
 export function AssetCard({ asset, onEdit }: AssetCardProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
-  const canManage = profile?.role && ['admin_provedor', 'tecnico', 'gestor_cliente'].includes(profile.role);
+  const canManage = profile?.roles?.some(r => ['admin_provedor', 'tecnico', 'gestor_cliente'].includes(r)) || false;
+  const canViewDetails = profile?.roles?.some(r => ['admin_provedor', 'gestor_cliente'].includes(r)) || false;
 
   const handleDownloadQR = async () => {
     try {
@@ -71,13 +72,13 @@ export function AssetCard({ asset, onEdit }: AssetCardProps) {
               <span className="font-mono">{asset.tag_patrimonial}</span>
             </div>
           )}
-          {asset.numero_serie && (
+          {asset.numero_serie && canViewDetails && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Série:</span>
               <span className="font-mono text-xs">{asset.numero_serie}</span>
             </div>
           )}
-          {asset.local && (
+          {asset.local && canViewDetails && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Local:</span>
               <span>{asset.local}</span>

@@ -72,7 +72,8 @@ export default function TicketDetail() {
     );
   }
 
-  const canManage = profile?.role && ['admin_provedor', 'tecnico', 'gestor_cliente'].includes(profile.role);
+  const canManage = profile?.roles?.some(r => ['admin_provedor', 'tecnico', 'gestor_cliente'].includes(r)) || false;
+  const canViewFinancials = profile?.roles?.some(r => ['admin_provedor', 'gestor_cliente'].includes(r)) || false;
 
   const getSLAStatus = () => {
     if (!ticket.sla_solucao_limite) return null;
