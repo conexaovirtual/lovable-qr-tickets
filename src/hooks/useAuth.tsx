@@ -93,6 +93,14 @@ export function useAuth() {
     navigate('/auth');
   };
 
+  const hasRole = (role: string): boolean => {
+    return profile?.roles?.includes(role) || false;
+  };
+
+  const isAdmin = (): boolean => {
+    return hasRole('admin_provedor');
+  };
+
   return {
     user,
     session,
@@ -100,5 +108,7 @@ export function useAuth() {
     loading,
     signOut,
     isAuthenticated: !!user,
+    hasRole,
+    isAdmin,
   };
 }

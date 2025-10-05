@@ -9,7 +9,7 @@ import { AssetDialog } from '@/components/assets/AssetDialog';
 
 export default function Assets() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, hasRole, isAdmin } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<any>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -20,7 +20,7 @@ export default function Assets() {
     }
   }, [profile, navigate]);
 
-  const canManageAssets = profile?.role && ['admin_provedor', 'tecnico', 'gestor_cliente'].includes(profile.role);
+  const canManageAssets = isAdmin() || hasRole('tecnico') || hasRole('gestor_cliente');
 
   const handleEdit = (asset: any) => {
     setEditingAsset(asset);

@@ -9,7 +9,7 @@ import { CompanyDialog } from '@/components/companies/CompanyDialog';
 
 export default function Companies() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<any>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -17,10 +17,10 @@ export default function Companies() {
   useEffect(() => {
     if (!profile) {
       navigate('/auth');
-    } else if (profile.role !== 'admin_provedor') {
+    } else if (!isAdmin()) {
       navigate('/dashboard');
     }
-  }, [profile, navigate]);
+  }, [profile, navigate, isAdmin]);
 
   const handleEdit = (company: any) => {
     setEditingCompany(company);
@@ -36,7 +36,7 @@ export default function Companies() {
     setRefreshTrigger(prev => prev + 1);
   };
 
-  if (!profile || profile.role !== 'admin_provedor') {
+  if (!profile || !isAdmin()) {
     return null;
   }
 
