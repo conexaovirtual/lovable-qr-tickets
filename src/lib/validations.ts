@@ -40,12 +40,61 @@ export const commentSchema = z.object({
   is_internal: z.boolean().optional(),
 });
 
+/**
+ * Validates Brazilian CNPJ using check digit algorithm
+ */
+const validateCNPJ = (cnpj: string): boolean => {
+  const cleaned = cnpj.replace(/[^\d]/g, '');
+  
+  if (cleaned.length !== 14) return false;
+  if (/^(\d)\1+$/.test(cleaned)) return false; // Reject sequences like 00000000000000
+  
+  // Calculate first check digit
+  let sum = 0;
+  let pos = 5;
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(cleaned[i]) * pos--;
+    if (pos < 2) pos = 9;
+  }
+  let digit = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  if (digit !== parseInt(cleaned[12])) return false;
+  
+  // Calculate second check digit
+  sum = 0;
+  pos = 6;
+  for (let i = 0; i < 13; i++) {
+    sum += parseInt(cleaned[i]) * pos--;
+    if (pos < 2) pos = 9;
+  }
+  digit = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  return digit === parseInt(cleaned[13]);
+};
+
+/**
+ * Validates Brazilian phone number (landline or mobile)
+ */
+const validateBrazilianPhone = (phone: string): boolean => {
+  const cleaned = phone.replace(/[^\d]/g, '');
+  // Formats: (XX) XXXX-XXXX or (XX) 9XXXX-XXXX
+  return /^(\d{2})9?\d{8}$/.test(cleaned);
+};
+
 export const companySchema = z.object({
   nome_fantasia: z.string().trim().min(1, 'Nome fantasia é obrigatório').max(200, 'Nome muito longo'),
   razao_social: z.string().trim().max(200, 'Razão social muito longa').optional(),
-  cnpj: z.string().trim().max(18, 'CNPJ inválido').optional(),
+  cnpj: z.string()
+    .trim()
+    .optional()
+    .refine((val) => !val || val.length === 0 || validateCNPJ(val), {
+      message: 'CNPJ inválido. Verifique o formato 00.000.000/0000-00'
+    }),
   email: z.string().trim().email('E-mail inválido').max(255, 'E-mail muito longo').optional().or(z.literal('')),
-  telefone: z.string().trim().max(20, 'Telefone muito longo').optional(),
+  telefone: z.string()
+    .trim()
+    .optional()
+    .refine((val) => !val || val.length === 0 || validateBrazilianPhone(val), {
+      message: 'Telefone inválido. Use o formato (00) 00000-0000'
+    }),
   endereco: z.string().trim().max(300, 'Endereço muito longo').optional(),
   status: z.boolean().default(true),
   sla_primeiro_atendimento_horas: z.number().min(1, 'SLA deve ser maior que 0').default(4),

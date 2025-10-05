@@ -23,9 +23,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  // Initialize Supabase client for audit logging
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  )
+
   try {
     const { email, password } = await req.json()
     const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
+    const userAgent = req.headers.get('user-agent') || 'unknown'
     
     // Rate limit: 5 attempts per minute per IP
     const now = Date.now()
@@ -36,6 +43,16 @@ Deno.serve(async (req) => {
       if (now < rateLimit.resetAt) {
         if (rateLimit.count >= 5) {
           console.warn(`Rate limit exceeded for IP: ${clientIp}`)
+          
+          // Log rate limit violation
+          await supabase.from('security_audit_logs').insert({
+            event_type: 'rate_limit_exceeded',
+            ip_address: clientIp,
+            user_agent: userAgent,
+            metadata: { email, attempts: rateLimit.count },
+            severity: 'warning'
+          })
+          
           return new Response(
             JSON.stringify({ 
               error: 'Muitas tentativas de login. Aguarde 1 minuto antes de tentar novamente.' 
@@ -56,11 +73,6 @@ Deno.serve(async (req) => {
     }
 
     // Authentication via Supabase
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    )
-
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -68,6 +80,19 @@ Deno.serve(async (req) => {
 
     if (error) {
       console.error('Login failed:', error.message)
+      
+      // Log failed login attempt
+      await supabase.from('security_audit_logs').insert({
+        event_type: 'login_failed',
+        ip_address: clientIp,
+        user_agent: userAgent,
+        metadata: { 
+          email,
+          error_message: error.message
+        },
+        severity: 'warning'
+      })
+      
       return new Response(
         JSON.stringify({ error: error.message }),
         { 
@@ -76,6 +101,16 @@ Deno.serve(async (req) => {
         }
       )
     }
+
+    // Log successful login
+    await supabase.from('security_audit_logs').insert({
+      event_type: 'login_success',
+      user_id: data.user?.id,
+      ip_address: clientIp,
+      user_agent: userAgent,
+      metadata: { email },
+      severity: 'info'
+    })
 
     // Clear rate limit on successful login
     rateLimitStore.delete(rateLimitKey)

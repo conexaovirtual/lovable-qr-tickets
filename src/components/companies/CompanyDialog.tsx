@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { companySchema, type CompanyFormData } from '@/lib/validations';
+import { formatCNPJ, formatPhone } from '@/lib/formatters';
 import {
   Dialog,
   DialogContent,
@@ -160,7 +161,14 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                   <FormItem>
                     <FormLabel>CNPJ</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="00.000.000/0000-00" />
+                      <Input 
+                        {...field} 
+                        placeholder="00.000.000/0000-00"
+                        onChange={(e) => {
+                          const formatted = formatCNPJ(e.target.value);
+                          field.onChange(formatted);
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -188,7 +196,14 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                   <FormItem>
                     <FormLabel>Telefone</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="(00) 0000-0000" />
+                      <Input 
+                        {...field} 
+                        placeholder="(00) 00000-0000"
+                        onChange={(e) => {
+                          const formatted = formatPhone(e.target.value);
+                          field.onChange(formatted);
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
