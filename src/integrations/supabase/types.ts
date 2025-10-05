@@ -456,6 +456,10 @@ export type Database = {
         }
         Returns: Database["public"]["Enums"]["priority_level"]
       }
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
     }
     Enums: {
       asset_status: "em_uso" | "estoque" | "manutencao" | "baixado"
