@@ -9,18 +9,20 @@ import { CompanyDialog } from '@/components/companies/CompanyDialog';
 
 export default function Companies() {
   const navigate = useNavigate();
-  const { profile, isAdmin } = useAuth();
+  const { profile, isAdmin, loading } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<any>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    if (!profile) {
-      navigate('/auth');
-    } else if (!isAdmin()) {
-      navigate('/dashboard');
+    if (!loading) {
+      if (!profile) {
+        navigate('/auth');
+      } else if (!isAdmin()) {
+        navigate('/dashboard');
+      }
     }
-  }, [profile, navigate, isAdmin]);
+  }, [profile, navigate, isAdmin, loading]);
 
   const handleEdit = (company: any) => {
     setEditingCompany(company);
@@ -36,7 +38,7 @@ export default function Companies() {
     setRefreshTrigger(prev => prev + 1);
   };
 
-  if (!profile || !isAdmin()) {
+  if (loading || !profile || !isAdmin()) {
     return null;
   }
 

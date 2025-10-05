@@ -9,16 +9,16 @@ import { AssetDialog } from '@/components/assets/AssetDialog';
 
 export default function Assets() {
   const navigate = useNavigate();
-  const { profile, hasRole, isAdmin } = useAuth();
+  const { profile, hasRole, isAdmin, loading } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<any>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    if (!profile) {
+    if (!loading && !profile) {
       navigate('/auth');
     }
-  }, [profile, navigate]);
+  }, [profile, navigate, loading]);
 
   const canManageAssets = isAdmin() || hasRole('tecnico') || hasRole('gestor_cliente');
 
@@ -35,6 +35,10 @@ export default function Assets() {
   const handleSuccess = () => {
     setRefreshTrigger(prev => prev + 1);
   };
+
+  if (loading) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
