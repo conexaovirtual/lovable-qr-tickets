@@ -36,6 +36,19 @@ export const commentSchema = z.object({
   is_internal: z.boolean().optional(),
 });
 
+export const companySchema = z.object({
+  nome_fantasia: z.string().min(1, 'Nome fantasia é obrigatório').max(200, 'Nome muito longo'),
+  razao_social: z.string().max(200, 'Razão social muito longa').optional(),
+  cnpj: z.string().max(18, 'CNPJ inválido').optional(),
+  email: z.string().email('E-mail inválido').max(255, 'E-mail muito longo').optional().or(z.literal('')),
+  telefone: z.string().max(20, 'Telefone muito longo').optional(),
+  endereco: z.string().max(300, 'Endereço muito longo').optional(),
+  status: z.boolean().default(true),
+  sla_primeiro_atendimento_horas: z.number().min(1, 'SLA deve ser maior que 0').default(4),
+  sla_solucao_horas: z.number().min(1, 'SLA deve ser maior que 0').default(16),
+});
+
 export type TicketFormData = z.infer<typeof ticketSchema>;
 export type AssetFormData = z.infer<typeof assetSchema>;
 export type CommentFormData = z.infer<typeof commentSchema>;
+export type CompanyFormData = z.infer<typeof companySchema>;

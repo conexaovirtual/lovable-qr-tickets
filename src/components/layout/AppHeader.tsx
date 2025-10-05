@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, User, LogOut, LayoutDashboard, Ticket, Package } from 'lucide-react';
+import { Menu, User, LogOut, LayoutDashboard, Ticket, Package, Building2 } from 'lucide-react';
 
 export function AppHeader() {
   const { profile, signOut } = useAuth();
@@ -48,6 +48,14 @@ export function AppHeader() {
                   Ativos
                 </Button>
               </Link>
+              {profile.role === 'admin_provedor' && (
+                <Link to="/companies">
+                  <Button variant="ghost" size="sm">
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Empresas
+                  </Button>
+                </Link>
+              )}
             </nav>
           </div>
 
@@ -71,6 +79,12 @@ export function AppHeader() {
                   <Package className="h-4 w-4 mr-2" />
                   Ativos
                 </DropdownMenuItem>
+                {profile.role === 'admin_provedor' && (
+                  <DropdownMenuItem onClick={() => navigate('/companies')}>
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Empresas
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
