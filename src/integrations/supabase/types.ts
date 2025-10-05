@@ -229,6 +229,24 @@ export type Database = {
           },
         ]
       }
+      profiles_company_mapping: {
+        Row: {
+          company_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       security_audit_logs: {
         Row: {
           created_at: string | null
