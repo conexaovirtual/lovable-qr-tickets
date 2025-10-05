@@ -17,7 +17,7 @@ import {
 
 export default function Tickets() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const [filters, setFilters] = useState({
     status: '',
     prioridade: '',
@@ -25,10 +25,25 @@ export default function Tickets() {
   });
 
   useEffect(() => {
-    if (!profile) {
+    if (!authLoading && !profile) {
       navigate('/auth');
     }
-  }, [profile, navigate]);
+  }, [authLoading, profile, navigate]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <div className="container mx-auto px-4 py-6">
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 w-full animate-pulse rounded-md bg-muted" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

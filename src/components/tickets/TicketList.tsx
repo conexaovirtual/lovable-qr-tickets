@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { TicketCard } from './TicketCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 interface TicketListProps {
   filters: {
@@ -14,6 +15,7 @@ interface TicketListProps {
 
 export function TicketList({ filters }: TicketListProps) {
   const { profile } = useAuth();
+  const { toast } = useToast();
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,7 +24,10 @@ export function TicketList({ filters }: TicketListProps) {
   }, [profile, filters]);
 
   const loadTickets = async () => {
-    if (!profile) return;
+    if (!profile) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     let query = supabase
@@ -46,7 +51,12 @@ export function TicketList({ filters }: TicketListProps) {
       query = query.eq('category_id', filters.categoria);
     }
 
-    const { data } = await query;
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error loading tickets:', error);
+    }
+    
     if (data) setTickets(data);
     setLoading(false);
   };
