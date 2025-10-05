@@ -12,6 +12,23 @@ const badgeVariants = cva(
         secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground",
+        success: "border-transparent bg-success text-success-foreground",
+        warning: "border-transparent bg-warning text-warning-foreground",
+        info: "border-transparent bg-info text-info-foreground",
+        // Status badges
+        novo: "border-transparent bg-info text-info-foreground",
+        triagem: "border-transparent bg-warning/20 text-warning-foreground border-warning",
+        em_atendimento: "border-transparent bg-primary/20 text-primary border-primary",
+        aguardando_usuario: "border-transparent bg-warning text-warning-foreground",
+        aguardando_peca: "border-transparent bg-warning/60 text-warning-foreground",
+        resolvido: "border-transparent bg-success/20 text-success border-success",
+        validando_cliente: "border-transparent bg-info/20 text-info border-info",
+        fechado: "border-transparent bg-muted text-muted-foreground",
+        // Priority badges
+        critica: "border-transparent bg-destructive text-destructive-foreground",
+        alta: "border-transparent bg-warning text-warning-foreground",
+        media: "border-transparent bg-info text-info-foreground",
+        baixa: "border-transparent bg-success text-success-foreground",
       },
     },
     defaultVariants: {
