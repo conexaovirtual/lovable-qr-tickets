@@ -12,6 +12,7 @@ import { ptBR } from 'date-fns/locale';
 import { TicketTimeline } from '@/components/tickets/TicketTimeline';
 import { TicketComments } from '@/components/tickets/TicketComments';
 import { TicketStatusUpdate } from '@/components/tickets/TicketStatusUpdate';
+import { TicketAssignment } from '@/components/tickets/TicketAssignment';
 
 export default function TicketDetail() {
   const { id } = useParams();
@@ -144,7 +145,10 @@ export default function TicketDetail() {
 
           <div className="space-y-4">
             {canManage && (
-              <TicketStatusUpdate ticket={ticket} onUpdate={loadTicket} />
+              <>
+                <TicketStatusUpdate ticket={ticket} onUpdate={loadTicket} />
+                <TicketAssignment ticket={ticket} onUpdate={loadTicket} />
+              </>
             )}
 
             <Card>

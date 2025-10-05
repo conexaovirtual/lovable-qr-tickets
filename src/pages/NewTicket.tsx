@@ -15,7 +15,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { ticketSchema, type TicketFormData } from '@/lib/validations';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function NewTicket() {
   const navigate = useNavigate();
@@ -23,6 +25,7 @@ export default function NewTicket() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [categories, setCategories] = useState<any[]>([]);
   const [subcategories, setSubcategories] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
@@ -79,6 +82,24 @@ export default function NewTicket() {
     e.preventDefault();
     if (!profile) return;
 
+    // Validar formulário
+    try {
+      ticketSchema.parse(formData);
+      setValidationErrors({});
+    } catch (error: any) {
+      const errors: Record<string, string> = {};
+      error.errors.forEach((err: any) => {
+        errors[err.path[0]] = err.message;
+      });
+      setValidationErrors(errors);
+      toast({
+        title: 'Erro de validação',
+        description: 'Verifique os campos destacados',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase.from('tickets').insert({
       ...formData,
@@ -118,6 +139,15 @@ export default function NewTicket() {
 
       <main className="container mx-auto px-4 py-6 max-w-2xl">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {Object.keys(validationErrors).length > 0 && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Por favor, corrija os erros no formulário antes de continuar.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="titulo">Título *</Label>
             <Input
@@ -126,7 +156,11 @@ export default function NewTicket() {
               value={formData.titulo}
               onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
               placeholder="Resumo do problema"
+              className={validationErrors.titulo ? 'border-destructive' : ''}
             />
+            {validationErrors.titulo && (
+              <p className="text-sm text-destructive">{validationErrors.titulo}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -138,7 +172,11 @@ export default function NewTicket() {
               onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
               placeholder="Descreva o problema em detalhes"
               rows={5}
+              className={validationErrors.descricao ? 'border-destructive' : ''}
             />
+            {validationErrors.descricao && (
+              <p className="text-sm text-destructive">{validationErrors.descricao}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
