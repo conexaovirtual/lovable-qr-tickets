@@ -90,6 +90,22 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
           description: 'Os dados foram salvos com sucesso.',
         });
       } else {
+        // Validação client-side: verificar se empresa já existe
+        const { data: existing } = await supabase
+          .from('companies')
+          .select('id')
+          .or(`cnpj.eq.${data.cnpj},nome_fantasia.eq.${data.nome_fantasia}`)
+          .maybeSingle();
+
+        if (existing) {
+          toast({
+            title: 'Empresa já cadastrada',
+            description: 'Já existe uma empresa com este CNPJ ou nome.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
         const { error } = await supabase
           .from('companies')
           .insert([data]);
@@ -106,9 +122,20 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       form.reset();
       onSuccess?.();
     } catch (error: any) {
+      let errorMessage = error.message;
+      
+      // Detectar erro de constraint UNIQUE do banco
+      if (error.code === '23505') {
+        if (error.message.includes('companies_cnpj_unique_idx')) {
+          errorMessage = 'Este CNPJ já está cadastrado.';
+        } else if (error.message.includes('companies_nome_fantasia_unique')) {
+          errorMessage = 'Já existe uma empresa com este nome.';
+        }
+      }
+      
       toast({
         title: 'Erro ao salvar empresa',
-        description: error.message,
+        description: errorMessage,
         variant: 'destructive',
       });
     }
@@ -289,8 +316,8 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
               >
                 Cancelar
               </Button>
-              <Button type="submit">
-                {company ? 'Salvar' : 'Criar'}
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Salvando...' : (company ? 'Salvar' : 'Criar')}
               </Button>
             </div>
           </form>
