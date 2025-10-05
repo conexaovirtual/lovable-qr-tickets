@@ -98,6 +98,36 @@ password: z.string()
 #### Políticas RLS
 Todas as políticas de acesso utilizam as funções `has_role()` e `is_admin()` para verificação de permissões de forma segura.
 
+### 4. Isolamento de Perfis por Empresa
+
+#### Problema Resolvido
+Anteriormente, usuários podiam potencialmente acessar perfis de outras empresas se soubessem o user_id. Isso representava um risco de:
+- Espionagem corporativa
+- Vazamento de dados pessoais (PII)
+- Ataques de phishing direcionados
+
+#### Solução Implementada
+Nova política RLS que garante que usuários só podem visualizar perfis dentro da própria empresa:
+
+```sql
+CREATE POLICY "Users can view profiles in their company" 
+ON public.profiles 
+FOR SELECT 
+USING (
+  company_id IN (
+    SELECT company_id 
+    FROM profiles 
+    WHERE id = auth.uid()
+  )
+);
+```
+
+#### Casos de Uso Permitidos
+- ✅ Ver próprio perfil
+- ✅ Ver perfis de colegas da mesma empresa (solicitantes, técnicos)
+- ✅ Admins veem todos os perfis (todas as empresas)
+- ❌ **Bloqueado:** Ver perfis de usuários de outras empresas
+
 ---
 
 ## Checklist de Segurança
@@ -111,6 +141,7 @@ Todas as políticas de acesso utilizam as funções `has_role()` e `is_admin()` 
 - [x] RLS em todas as tabelas sensíveis
 - [x] Security Definer Functions para verificação de roles
 - [x] Auto-confirm email habilitado (desenvolvimento)
+- [x] **Isolamento de perfis por empresa** (usuários só veem perfis da própria empresa)
 
 ### Pendente 🔄
 - [ ] Auditoria de segurança (logs de tentativas de login)
@@ -119,6 +150,7 @@ Todas as políticas de acesso utilizam as funções `has_role()` e `is_admin()` 
 - [ ] Rate limiting no backend (Edge Function para tickets)
 - [ ] Proteção contra ataques de timing
 - [ ] Monitoramento de acessos suspeitos
+- [ ] Otimização de políticas RLS (remover política redundante "Users can view own profile")
 
 ---
 
