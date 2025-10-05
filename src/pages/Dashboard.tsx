@@ -13,7 +13,8 @@ import {
   AlertCircle,
   TrendingUp,
   Package,
-  Plus
+  Plus,
+  Building2
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -26,6 +27,7 @@ export default function Dashboard() {
     resolvidos: 0,
     violados: 0,
     ativos: 0,
+    empresas: 0,
   });
   const [loading, setLoading] = useState(true);
   const [recentTickets, setRecentTickets] = useState<any[]>([]);
@@ -68,6 +70,7 @@ export default function Dashboard() {
           return new Date(t.sla_solucao_limite) < now && !['resolvido', 'fechado'].includes(t.status);
         }).length,
         ativos: 0,
+        empresas: 0,
       });
     }
 
@@ -78,6 +81,17 @@ export default function Dashboard() {
     
     if (assets) {
       setStats(prev => ({ ...prev, ativos: assets.length }));
+    }
+
+    // Carregar empresas (apenas para admins)
+    if (profile?.roles?.includes('admin_provedor')) {
+      const { count } = await supabase
+        .from('companies')
+        .select('id', { count: 'exact', head: true });
+      
+      if (count !== null) {
+        setStats(prev => ({ ...prev, empresas: count }));
+      }
     }
 
     // Carregar chamados recentes
@@ -184,6 +198,22 @@ export default function Dashboard() {
                   <p className="text-xs text-muted-foreground">Equipamentos cadastrados</p>
                 </CardContent>
               </Card>
+
+              {profile?.roles?.includes('admin_provedor') && (
+                <Card 
+                  className="hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => navigate('/companies')}
+                >
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Empresas</CardTitle>
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.empresas}</div>
+                    <p className="text-xs text-muted-foreground">Clientes cadastrados</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
