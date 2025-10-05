@@ -116,7 +116,7 @@ export default function NewTicket() {
     setLoading(true);
     const { error } = await supabase.from('tickets').insert({
       ...formData,
-      asset_id: formData.asset_id || null,
+      asset_id: formData.asset_id === 'none' ? null : formData.asset_id || null,
       company_id: profile.company_id!,
       solicitante_id: profile.id,
       canal: preSelectedAssetId ? 'qrcode' : 'web',
@@ -250,7 +250,7 @@ export default function NewTicket() {
                 } />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhum</SelectItem>
+                <SelectItem value="none">Nenhum</SelectItem>
                 {assets.map((asset) => (
                   <SelectItem key={asset.id} value={asset.id}>
                     {asset.tipo} - {asset.tag_patrimonial || asset.numero_serie}
