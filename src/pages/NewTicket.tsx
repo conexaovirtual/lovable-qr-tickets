@@ -29,6 +29,8 @@ export default function NewTicket() {
   const [categories, setCategories] = useState<any[]>([]);
   const [subcategories, setSubcategories] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [lastSubmit, setLastSubmit] = useState<number>(0);
 
   const preSelectedAssetId = searchParams.get('ativo');
@@ -40,16 +42,35 @@ export default function NewTicket() {
     category_id: '',
     subcategory_id: '',
     asset_id: preSelectedAssetId || '',
+    company_id: preSelectedCompanyId || '',
     impacto: 'medio' as const,
     urgencia: 'media' as const,
   });
 
   useEffect(() => {
     loadCategories();
-    if (profile?.company_id) {
-      loadAssets();
+    
+    // Se for admin/técnico, carregar empresas
+    if (profile?.roles.includes('admin_provedor') || profile?.roles.includes('tecnico')) {
+      loadCompanies();
+      // Se já veio empresa pré-selecionada
+      if (preSelectedCompanyId) {
+        setSelectedCompanyId(preSelectedCompanyId);
+      }
+    } else if (profile?.company_id) {
+      // Usuário comum: carregar ativos da própria empresa
+      setSelectedCompanyId(profile.company_id);
+      setFormData(prev => ({ ...prev, company_id: profile.company_id! }));
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (selectedCompanyId) {
+      loadAssets(selectedCompanyId);
+    } else {
+      setAssets([]);
+    }
+  }, [selectedCompanyId]);
 
   useEffect(() => {
     if (formData.category_id) {
@@ -70,11 +91,20 @@ export default function NewTicket() {
     if (data) setSubcategories(data);
   };
 
-  const loadAssets = async () => {
+  const loadCompanies = async () => {
+    const { data } = await supabase
+      .from('companies')
+      .select('id, nome_fantasia')
+      .eq('status', true)
+      .order('nome_fantasia');
+    if (data) setCompanies(data);
+  };
+
+  const loadAssets = async (companyId: string) => {
     const { data } = await supabase
       .from('assets')
       .select('*')
-      .eq('company_id', profile?.company_id!)
+      .eq('company_id', companyId)
       .neq('estado', 'baixado');
     if (data) setAssets(data);
   };
@@ -117,7 +147,7 @@ export default function NewTicket() {
     const { error } = await supabase.from('tickets').insert({
       ...formData,
       asset_id: formData.asset_id === 'none' ? null : formData.asset_id || null,
-      company_id: profile.company_id!,
+      company_id: formData.company_id,
       solicitante_id: profile.id,
       canal: preSelectedAssetId ? 'qrcode' : 'web',
     });
@@ -160,6 +190,32 @@ export default function NewTicket() {
                 Por favor, corrija os erros no formulário antes de continuar.
               </AlertDescription>
             </Alert>
+          )}
+
+          {/* Campo Empresa - Apenas para admins/técnicos */}
+          {(profile?.roles.includes('admin_provedor') || profile?.roles.includes('tecnico')) && (
+            <div className="space-y-2">
+              <Label htmlFor="company">Empresa *</Label>
+              <Select
+                required
+                value={formData.company_id}
+                onValueChange={(value) => {
+                  setFormData({ ...formData, company_id: value, asset_id: '' });
+                  setSelectedCompanyId(value);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a empresa cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.nome_fantasia}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
 
           <div className="space-y-2">
@@ -240,13 +296,15 @@ export default function NewTicket() {
             <Select
               value={formData.asset_id}
               onValueChange={(value) => setFormData({ ...formData, asset_id: value })}
-              disabled={!!preSelectedAssetId}
+              disabled={!!preSelectedAssetId || !selectedCompanyId}
             >
               <SelectTrigger>
                 <SelectValue placeholder={
-                  assets.length === 0 
-                    ? "Nenhum ativo disponível" 
-                    : "Selecione o equipamento (opcional)"
+                  !selectedCompanyId
+                    ? "Selecione uma empresa primeiro"
+                    : assets.length === 0 
+                      ? "Nenhum ativo disponível" 
+                      : "Selecione o equipamento (opcional)"
                 } />
               </SelectTrigger>
               <SelectContent>
