@@ -29,6 +29,7 @@ export default function NewTicket() {
   const [categories, setCategories] = useState<any[]>([]);
   const [subcategories, setSubcategories] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
+  const [lastSubmit, setLastSubmit] = useState<number>(0);
 
   const preSelectedAssetId = searchParams.get('ativo');
   const preSelectedCompanyId = searchParams.get('empresa');
@@ -82,10 +83,22 @@ export default function NewTicket() {
     e.preventDefault();
     if (!profile) return;
 
+    // Rate limiting: prevent ticket spam (10 seconds between submissions)
+    const now = Date.now();
+    if (now - lastSubmit < 10000) {
+      toast({
+        title: 'Aguarde',
+        description: 'Aguarde alguns segundos antes de criar outro chamado',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Validar formulário
     try {
       ticketSchema.parse(formData);
       setValidationErrors({});
+      setLastSubmit(now);
     } catch (error: any) {
       const errors: Record<string, string> = {};
       error.errors.forEach((err: any) => {

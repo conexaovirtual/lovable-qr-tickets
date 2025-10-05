@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Ticket, Loader2 } from 'lucide-react';
 import { authSchema } from '@/lib/validations';
+import { zxcvbn } from '@zxcvbn-ts/core';
+import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator';
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nome, setNome] = useState('');
+  const [passwordStrength, setPasswordStrength] = useState<number>(0);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -40,18 +43,30 @@ export default function Auth() {
       // Validate input
       const validatedData = authSchema.parse({ email, password });
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: validatedData.email,
-        password: validatedData.password,
-      });
+      // Use rate-limited edge function for authentication
+      const { data, error } = await supabase.functions.invoke(
+        'auth-with-rate-limit',
+        {
+          body: { email: validatedData.email, password: validatedData.password }
+        }
+      );
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('tentativas') || error.message?.includes('Muitas')) {
+          toast.error('Muitas tentativas de login. Aguarde 1 minuto.');
+        } else {
+          toast.error('E-mail ou senha inválidos');
+        }
+        return;
+      }
 
       toast.success('Login realizado com sucesso!');
       navigate('/dashboard');
     } catch (error: any) {
       if (error.errors) {
         toast.error(error.errors[0]?.message || 'Dados inválidos');
+      } else if (error.message?.includes('429') || error.message?.includes('tentativas')) {
+        toast.error('Muitas tentativas de login. Aguarde antes de tentar novamente.');
       } else {
         toast.error(error.message || 'Erro ao fazer login');
       }
@@ -180,16 +195,21 @@ export default function Auth() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Senha</Label>
+                  <Label htmlFor="signup-password">Senha (mínimo 8 caracteres)</Label>
                   <Input
                     id="signup-password"
                     type="password"
                     placeholder="••••••••"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      const result = zxcvbn(e.target.value);
+                      setPasswordStrength(result.score);
+                    }}
                     required
-                    minLength={6}
+                    minLength={8}
                   />
+                  <PasswordStrengthIndicator strength={passwordStrength} />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? (

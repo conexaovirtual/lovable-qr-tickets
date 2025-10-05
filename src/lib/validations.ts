@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { zxcvbn } from '@zxcvbn-ts/core';
 
 export const ticketSchema = z.object({
   titulo: z.string()
@@ -53,7 +54,23 @@ export const companySchema = z.object({
 
 export const authSchema = z.object({
   email: z.string().trim().email('E-mail inválido').min(1, 'E-mail é obrigatório'),
-  password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres'),
+  password: z.string()
+    .min(8, 'A senha deve ter no mínimo 8 caracteres')
+    .refine((password) => {
+      const result = zxcvbn(password);
+      return result.score >= 3; // 0-4 scale (3 = good, 4 = strong)
+    }, {
+      message: 'Senha fraca. Use maiúsculas, minúsculas, números e caracteres especiais.'
+    })
+    .refine((password) => {
+      // Block common leaked passwords
+      const commonPasswords = ['123456', 'password', 'admin', 'qwerty', '12345678', 'abc123'];
+      return !commonPasswords.some(common => 
+        password.toLowerCase().includes(common)
+      );
+    }, {
+      message: 'Senha muito comum. Escolha uma senha mais segura.'
+    }),
   nome: z.string().trim().min(1, 'Nome é obrigatório').optional(),
 });
 
