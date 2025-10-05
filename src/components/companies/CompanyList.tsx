@@ -7,9 +7,10 @@ import { useToast } from '@/hooks/use-toast';
 
 interface CompanyListProps {
   onEdit: (company: any) => void;
+  refreshTrigger?: number;
 }
 
-export function CompanyList({ onEdit }: CompanyListProps) {
+export function CompanyList({ onEdit, refreshTrigger }: CompanyListProps) {
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -35,7 +36,7 @@ export function CompanyList({ onEdit }: CompanyListProps) {
 
   useEffect(() => {
     loadCompanies();
-  }, []);
+  }, [refreshTrigger]);
 
   if (loading) {
     return (

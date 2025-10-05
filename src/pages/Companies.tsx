@@ -12,6 +12,7 @@ export default function Companies() {
   const { profile } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<any>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (!profile) {
@@ -29,6 +30,10 @@ export default function Companies() {
   const handleClose = () => {
     setDialogOpen(false);
     setEditingCompany(null);
+  };
+
+  const handleSuccess = () => {
+    setRefreshTrigger(prev => prev + 1);
   };
 
   if (!profile || profile.role !== 'admin_provedor') {
@@ -54,13 +59,14 @@ export default function Companies() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        <CompanyList onEdit={handleEdit} />
+        <CompanyList onEdit={handleEdit} refreshTrigger={refreshTrigger} />
       </main>
 
       <CompanyDialog
         open={dialogOpen}
         onOpenChange={handleClose}
         company={editingCompany}
+        onSuccess={handleSuccess}
       />
     </div>
   );

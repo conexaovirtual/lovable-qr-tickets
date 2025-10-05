@@ -8,9 +8,10 @@ import { Search } from 'lucide-react';
 
 interface AssetListProps {
   onEdit: (asset: any) => void;
+  refreshTrigger?: number;
 }
 
-export function AssetList({ onEdit }: AssetListProps) {
+export function AssetList({ onEdit, refreshTrigger }: AssetListProps) {
   const { profile } = useAuth();
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +19,7 @@ export function AssetList({ onEdit }: AssetListProps) {
 
   useEffect(() => {
     loadAssets();
-  }, [profile]);
+  }, [profile, refreshTrigger]);
 
   const loadAssets = async () => {
     if (!profile) return;

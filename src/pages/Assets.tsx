@@ -12,6 +12,7 @@ export default function Assets() {
   const { profile } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<any>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (!profile) {
@@ -29,6 +30,10 @@ export default function Assets() {
   const handleClose = () => {
     setDialogOpen(false);
     setEditingAsset(null);
+  };
+
+  const handleSuccess = () => {
+    setRefreshTrigger(prev => prev + 1);
   };
 
   return (
@@ -52,13 +57,14 @@ export default function Assets() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        <AssetList onEdit={handleEdit} />
+        <AssetList onEdit={handleEdit} refreshTrigger={refreshTrigger} />
       </main>
 
       <AssetDialog
         open={dialogOpen}
         onOpenChange={handleClose}
         asset={editingAsset}
+        onSuccess={handleSuccess}
       />
     </div>
   );

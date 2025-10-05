@@ -25,9 +25,10 @@ interface AssetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   asset?: any;
+  onSuccess?: () => void;
 }
 
-export function AssetDialog({ open, onOpenChange, asset }: AssetDialogProps) {
+export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialogProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -130,7 +131,7 @@ export function AssetDialog({ open, onOpenChange, asset }: AssetDialogProps) {
         title: asset ? 'Ativo atualizado' : 'Ativo cadastrado',
       });
       onOpenChange(false);
-      window.location.reload();
+      onSuccess?.();
     }
     setLoading(false);
   };

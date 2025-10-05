@@ -26,9 +26,10 @@ interface CompanyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   company?: any;
+  onSuccess?: () => void;
 }
 
-export function CompanyDialog({ open, onOpenChange, company }: CompanyDialogProps) {
+export function CompanyDialog({ open, onOpenChange, company, onSuccess }: CompanyDialogProps) {
   const { toast } = useToast();
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -102,6 +103,7 @@ export function CompanyDialog({ open, onOpenChange, company }: CompanyDialogProp
 
       onOpenChange(false);
       form.reset();
+      onSuccess?.();
     } catch (error: any) {
       toast({
         title: 'Erro ao salvar empresa',
