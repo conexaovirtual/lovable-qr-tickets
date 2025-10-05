@@ -7,9 +7,10 @@ export interface UserProfile {
   id: string;
   nome: string;
   telefone: string | null;
-  role: 'admin_provedor' | 'tecnico' | 'gestor_cliente' | 'solicitante';
+  role: 'admin_provedor' | 'tecnico' | 'gestor_cliente' | 'solicitante'; // Kept for backwards compatibility
   company_id: string | null;
   avatar_url: string | null;
+  roles?: string[]; // New: primary roles from user_roles table
 }
 
 export function useAuth() {
@@ -27,14 +28,25 @@ export function useAuth() {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile
+          // Fetch user profile and roles
           const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
           
-          setProfile(profileData);
+          // Fetch roles from user_roles table (new secure method)
+          const { data: rolesData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id);
+          
+          if (profileData) {
+            setProfile({
+              ...profileData,
+              roles: rolesData?.map(r => r.role) || []
+            });
+          }
         } else {
           setProfile(null);
         }
@@ -55,7 +67,18 @@ export function useAuth() {
           .eq('id', session.user.id)
           .single();
         
-        setProfile(profileData);
+        // Fetch roles from user_roles table
+        const { data: rolesData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id);
+        
+        if (profileData) {
+          setProfile({
+            ...profileData,
+            roles: rolesData?.map(r => r.role) || []
+          });
+        }
       }
       
       setLoading(false);
