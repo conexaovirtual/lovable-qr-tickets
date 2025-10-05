@@ -20,9 +20,13 @@ export default function Auth() {
   useEffect(() => {
     // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('[Auth] Checking session:', session);
+      if (import.meta.env.DEV) {
+        console.log('[Auth] Checking session:', session);
+      }
       if (session) {
-        console.log('[Auth] Session found, redirecting to /dashboard');
+        if (import.meta.env.DEV) {
+          console.log('[Auth] Session found, redirecting to /dashboard');
+        }
         navigate('/dashboard');
       }
     });

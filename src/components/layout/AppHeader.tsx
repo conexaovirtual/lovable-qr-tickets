@@ -48,7 +48,7 @@ export function AppHeader() {
                   Ativos
                 </Button>
               </Link>
-              {profile.role === 'admin_provedor' && (
+              {profile.roles?.includes('admin_provedor') && (
                 <Link to="/companies">
                   <Button variant="ghost" size="sm">
                     <Building2 className="h-4 w-4 mr-2" />
@@ -79,7 +79,7 @@ export function AppHeader() {
                   <Package className="h-4 w-4 mr-2" />
                   Ativos
                 </DropdownMenuItem>
-                {profile.role === 'admin_provedor' && (
+                {profile.roles?.includes('admin_provedor') && (
                   <DropdownMenuItem onClick={() => navigate('/companies')}>
                     <Building2 className="h-4 w-4 mr-2" />
                     Empresas
@@ -99,7 +99,9 @@ export function AppHeader() {
                 <DropdownMenuLabel>
                   <div>
                     <p className="font-medium">{profile.nome}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{profile.role.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {profile.roles?.[0]?.replace(/_/g, ' ') || 'Usuário'}
+                    </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

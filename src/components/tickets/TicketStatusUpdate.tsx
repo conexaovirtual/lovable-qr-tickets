@@ -26,7 +26,7 @@ export function TicketStatusUpdate({ ticket, onUpdate }: TicketStatusUpdateProps
   const [solucao, setSolucao] = useState(ticket.solucao || '');
   const [loading, setLoading] = useState(false);
 
-  const isTechnician = profile?.role && ['admin_provedor', 'tecnico'].includes(profile.role);
+  const isTechnician = profile?.roles?.some(r => ['admin_provedor', 'tecnico'].includes(r)) || false;
 
   const handleUpdate = async () => {
     setLoading(true);

@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Send } from 'lucide-react';
+import { commentSchema } from '@/lib/validations';
 
 interface TicketCommentsProps {
   ticketId: string;
@@ -20,18 +21,33 @@ export function TicketComments({ ticketId }: TicketCommentsProps) {
   const [isInternal, setIsInternal] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const canAddInternal = profile?.role && ['admin_provedor', 'tecnico'].includes(profile.role);
+  const canAddInternal = profile?.roles?.some(r => ['admin_provedor', 'tecnico'].includes(r)) || false;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || !comment.trim()) return;
 
+    // Validate input
+    const validation = commentSchema.safeParse({
+      comentario: comment,
+      is_internal: isInternal,
+    });
+
+    if (!validation.success) {
+      toast({
+        title: 'Erro de validação',
+        description: validation.error.issues[0].message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase.from('ticket_comments').insert({
       ticket_id: ticketId,
       user_id: profile.id,
-      comentario: comment.trim(),
-      is_internal: isInternal,
+      comentario: validation.data.comentario,
+      is_internal: validation.data.is_internal || false,
     });
 
     if (error) {

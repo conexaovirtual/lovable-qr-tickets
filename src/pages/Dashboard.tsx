@@ -31,13 +31,19 @@ export default function Dashboard() {
   const [recentTickets, setRecentTickets] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[Dashboard] Auth loading:', authLoading, 'Profile:', profile);
+    if (import.meta.env.DEV) {
+      console.log('[Dashboard] Auth loading:', authLoading, 'Profile:', profile);
+    }
     
     if (!authLoading && !profile) {
-      console.log('[Dashboard] No profile found, redirecting to /auth');
+      if (import.meta.env.DEV) {
+        console.log('[Dashboard] No profile found, redirecting to /auth');
+      }
       navigate('/auth');
     } else if (profile) {
-      console.log('[Dashboard] Profile loaded, loading dashboard data');
+      if (import.meta.env.DEV) {
+        console.log('[Dashboard] Profile loaded, loading dashboard data');
+      }
       loadDashboardData();
     }
   }, [profile, authLoading, navigate]);

@@ -56,7 +56,9 @@ export function useAuth() {
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      console.log('[useAuth] Fetching profile for user:', userId);
+      if (import.meta.env.DEV) {
+        console.log('[useAuth] Fetching profile for user:', userId);
+      }
       
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -64,20 +66,26 @@ export function useAuth() {
         .eq('id', userId)
         .single();
       
-      console.log('[useAuth] Profile data:', profileData);
-      console.log('[useAuth] Profile error:', profileError);
+      if (import.meta.env.DEV) {
+        console.log('[useAuth] Profile data:', profileData);
+        console.log('[useAuth] Profile error:', profileError);
+      }
       
       if (profileError) throw profileError;
       
       // Fetch roles from user_roles table (SECURITY: Using separate table to prevent privilege escalation)
-      console.log('[useAuth] Fetching roles for user:', userId);
+      if (import.meta.env.DEV) {
+        console.log('[useAuth] Fetching roles for user:', userId);
+      }
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId);
       
-      console.log('[useAuth] Roles data:', rolesData);
-      console.log('[useAuth] Roles error:', rolesError);
+      if (import.meta.env.DEV) {
+        console.log('[useAuth] Roles data:', rolesData);
+        console.log('[useAuth] Roles error:', rolesError);
+      }
       
       if (rolesError && rolesError.code !== 'PGRST116') {
         console.error('[useAuth] Error fetching roles:', rolesError);
@@ -88,10 +96,14 @@ export function useAuth() {
           ...profileData,
           roles: rolesData?.map(r => r.role) || []
         };
-        console.log('[useAuth] Setting profile:', userProfile);
+        if (import.meta.env.DEV) {
+          console.log('[useAuth] Setting profile:', userProfile);
+        }
         setProfile(userProfile);
       } else {
-        console.warn('[useAuth] No profile data found for user:', userId);
+        if (import.meta.env.DEV) {
+          console.warn('[useAuth] No profile data found for user:', userId);
+        }
         setProfile(null);
       }
     } catch (error) {
