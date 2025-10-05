@@ -83,6 +83,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "assets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_basic"
+            referencedColumns: ["id"]
+          },
         ]
       }
       categories: {
@@ -161,6 +168,9 @@ export type Database = {
           created_at: string | null
           id: string
           nome: string
+          phone_visibility:
+            | Database["public"]["Enums"]["phone_visibility"]
+            | null
           telefone: string | null
           updated_at: string | null
         }
@@ -170,6 +180,9 @@ export type Database = {
           created_at?: string | null
           id: string
           nome: string
+          phone_visibility?:
+            | Database["public"]["Enums"]["phone_visibility"]
+            | null
           telefone?: string | null
           updated_at?: string | null
         }
@@ -179,6 +192,9 @@ export type Database = {
           created_at?: string | null
           id?: string
           nome?: string
+          phone_visibility?:
+            | Database["public"]["Enums"]["phone_visibility"]
+            | null
           telefone?: string | null
           updated_at?: string | null
         }
@@ -188,6 +204,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_basic"
             referencedColumns: ["id"]
           },
         ]
@@ -452,6 +475,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tickets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_basic"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tickets_solicitante_id_fkey"
             columns: ["solicitante_id"]
             isOneToOne: false
@@ -500,7 +530,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      companies_basic: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          nome_fantasia: string | null
+          status: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          nome_fantasia?: string | null
+          status?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          nome_fantasia?: string | null
+          status?: boolean | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_priority: {
@@ -551,6 +601,7 @@ export type Database = {
         | "periferico"
         | "outro"
       impact_level: "alto" | "medio" | "baixo"
+      phone_visibility: "everyone" | "managers_only" | "private"
       priority_level: "critica" | "alta" | "media" | "baixa"
       ticket_status:
         | "novo"
@@ -703,6 +754,7 @@ export const Constants = {
         "outro",
       ],
       impact_level: ["alto", "medio", "baixo"],
+      phone_visibility: ["everyone", "managers_only", "private"],
       priority_level: ["critica", "alta", "media", "baixa"],
       ticket_status: [
         "novo",
