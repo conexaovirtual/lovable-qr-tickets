@@ -507,10 +507,6 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
-      user_company_id: {
-        Args: { _user_id: string }
-        Returns: string
-      }
     }
     Enums: {
       asset_status: "em_uso" | "estoque" | "manutencao" | "baixado"
