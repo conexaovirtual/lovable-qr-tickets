@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Ticket, Loader2 } from 'lucide-react';
+import { authSchema } from '@/lib/validations';
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -30,9 +31,12 @@ export default function Auth() {
     setLoading(true);
 
     try {
+      // Validate input
+      const validatedData = authSchema.parse({ email, password });
+
       const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: validatedData.email,
+        password: validatedData.password,
       });
 
       if (error) throw error;
@@ -40,7 +44,11 @@ export default function Auth() {
       toast.success('Login realizado com sucesso!');
       navigate('/dashboard');
     } catch (error: any) {
-      toast.error(error.message || 'Erro ao fazer login');
+      if (error.errors) {
+        toast.error(error.errors[0]?.message || 'Dados inválidos');
+      } else {
+        toast.error(error.message || 'Erro ao fazer login');
+      }
     } finally {
       setLoading(false);
     }
@@ -51,13 +59,16 @@ export default function Auth() {
     setLoading(true);
 
     try {
+      // Validate input
+      const validatedData = authSchema.parse({ email, password, nome });
+
       const { error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: validatedData.email,
+        password: validatedData.password,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
-            nome: nome,
+            nome: validatedData.nome,
           },
         },
       });
@@ -70,7 +81,11 @@ export default function Auth() {
       setPassword('');
       setNome('');
     } catch (error: any) {
-      toast.error(error.message || 'Erro ao criar conta');
+      if (error.errors) {
+        toast.error(error.errors[0]?.message || 'Dados inválidos');
+      } else {
+        toast.error(error.message || 'Erro ao criar conta');
+      }
     } finally {
       setLoading(false);
     }
