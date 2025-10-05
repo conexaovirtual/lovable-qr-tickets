@@ -90,6 +90,13 @@ export type Database = {
             referencedRelation: "companies_basic"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "assets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       categories: {
@@ -213,6 +220,13 @@ export type Database = {
             referencedRelation: "companies_basic"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       security_audit_logs: {
@@ -320,6 +334,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ticket_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ticket_comments: {
@@ -360,6 +381,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -482,10 +510,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tickets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tickets_solicitante_id_fkey"
             columns: ["solicitante_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_solicitante_id_fkey"
+            columns: ["solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
             referencedColumns: ["id"]
           },
           {
@@ -500,6 +542,13 @@ export type Database = {
             columns: ["tecnico_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_tecnico_id_fkey"
+            columns: ["tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -551,6 +600,112 @@ export type Database = {
         }
         Relationships: []
       }
+      companies_safe: {
+        Row: {
+          cnpj: string | null
+          created_at: string | null
+          email: string | null
+          endereco: string | null
+          id: string | null
+          nome_fantasia: string | null
+          razao_social: string | null
+          sla_primeiro_atendimento_horas: number | null
+          sla_solucao_horas: number | null
+          status: boolean | null
+          telefone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cnpj?: never
+          created_at?: string | null
+          email?: never
+          endereco?: never
+          id?: string | null
+          nome_fantasia?: string | null
+          razao_social?: never
+          sla_primeiro_atendimento_horas?: never
+          sla_solucao_horas?: never
+          status?: boolean | null
+          telefone?: never
+          updated_at?: string | null
+        }
+        Update: {
+          cnpj?: never
+          created_at?: string | null
+          email?: never
+          endereco?: never
+          id?: string | null
+          nome_fantasia?: string | null
+          razao_social?: never
+          sla_primeiro_atendimento_horas?: never
+          sla_solucao_horas?: never
+          status?: boolean | null
+          telefone?: never
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles_safe: {
+        Row: {
+          avatar_url: string | null
+          company_id: string | null
+          created_at: string | null
+          id: string | null
+          nome: string | null
+          phone_visibility:
+            | Database["public"]["Enums"]["phone_visibility"]
+            | null
+          telefone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          nome?: string | null
+          phone_visibility?:
+            | Database["public"]["Enums"]["phone_visibility"]
+            | null
+          telefone?: never
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          nome?: string | null
+          phone_visibility?:
+            | Database["public"]["Enums"]["phone_visibility"]
+            | null
+          telefone?: never
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_basic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       calculate_priority: {
@@ -566,6 +721,10 @@ export type Database = {
       }
       can_view_financial_data: {
         Args: { _user_id: string }
+        Returns: boolean
+      }
+      can_view_phone: {
+        Args: { target_user_id: string; viewer_user_id: string }
         Returns: boolean
       }
       get_user_role: {
@@ -586,6 +745,14 @@ export type Database = {
       is_admin: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      log_phone_access_attempt: {
+        Args: {
+          access_granted: boolean
+          target_user_id: string
+          viewer_user_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
