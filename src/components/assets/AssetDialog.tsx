@@ -20,6 +20,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { z } from 'zod';
+
+// Phase 5: JSONB Validation Schema for asset configurations
+const configuracoesSchema = z.object({
+  ram: z.string().optional(),
+  processador: z.string().optional(),
+  armazenamento: z.string().optional(),
+  placa_video: z.string().optional(),
+}).passthrough().optional(); // Allow additional fields
 
 interface AssetDialogProps {
   open: boolean;

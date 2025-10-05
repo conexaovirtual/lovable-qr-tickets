@@ -9,6 +9,7 @@ export interface UserProfile {
   telefone: string | null;
   company_id: string | null;
   avatar_url: string | null;
+  phone_visibility?: 'everyone' | 'managers_only' | 'private'; // Phase 3: Privacy enhancement
   roles: string[]; // Primary roles from user_roles table (SECURITY: Separate table prevents privilege escalation)
 }
 
