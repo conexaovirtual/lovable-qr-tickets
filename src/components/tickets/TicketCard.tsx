@@ -54,7 +54,7 @@ export function TicketCard({ ticket }: TicketCardProps) {
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <User className="h-4 w-4" />
-            {ticket.profiles?.nome || 'Sem solicitante'}
+            {ticket.profiles_safe?.nome || ticket.profiles?.nome || 'Sem solicitante'}
           </div>
           {ticket.categories && (
             <div className="flex items-center gap-1">

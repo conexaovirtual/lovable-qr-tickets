@@ -18,7 +18,7 @@ export function CompanyList({ onEdit, refreshTrigger }: CompanyListProps) {
   const loadCompanies = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('companies')
+      .from('companies_safe')
       .select('*')
       .order('nome_fantasia');
 

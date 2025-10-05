@@ -53,12 +53,14 @@ export function CompanyCard({ company, onEdit }: CompanyCardProps) {
           </div>
         )}
 
-        <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t">
-          <Clock className="h-4 w-4" />
-          <span>
-            SLA: {company.sla_primeiro_atendimento_horas}h / {company.sla_solucao_horas}h
-          </span>
-        </div>
+        {(company.sla_primeiro_atendimento_horas !== null && company.sla_solucao_horas !== null) && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t">
+            <Clock className="h-4 w-4" />
+            <span>
+              SLA: {company.sla_primeiro_atendimento_horas}h / {company.sla_solucao_horas}h
+            </span>
+          </div>
+        )}
 
         <Button 
           variant="outline" 
