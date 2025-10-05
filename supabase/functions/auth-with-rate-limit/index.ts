@@ -122,8 +122,13 @@ Deno.serve(async (req) => {
     rateLimitStore.delete(rateLimitKey)
 
     console.log(`Successful login for email: ${email}`)
+    
+    // Return complete session data for client-side session management
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify({
+        session: data.session,
+        user: data.user
+      }),
       { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

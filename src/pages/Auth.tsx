@@ -60,6 +60,19 @@ export default function Auth() {
         return;
       }
 
+      // Set the session on the client to sync authentication state
+      if (data?.session) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+
+        if (sessionError) {
+          toast.error('Erro ao configurar sessão');
+          return;
+        }
+      }
+
       toast.success('Login realizado com sucesso!');
       navigate('/dashboard');
     } catch (error: any) {
