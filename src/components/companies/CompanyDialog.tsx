@@ -101,7 +101,7 @@ export function CompanyDialog({ open, onOpenChange, company }: CompanyDialogProp
       }
 
       onOpenChange(false);
-      window.location.reload();
+      form.reset();
     } catch (error: any) {
       toast({
         title: 'Erro ao salvar empresa',

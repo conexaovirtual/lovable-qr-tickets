@@ -31,6 +31,7 @@ export function AssetDialog({ open, onOpenChange, asset }: AssetDialogProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [companies, setCompanies] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     tipo: '',
     fabricante: '',
@@ -44,9 +45,24 @@ export function AssetDialog({ open, onOpenChange, asset }: AssetDialogProps) {
     data_compra: '',
     garantia_fim: '',
     observacoes: '',
+    company_id: '',
   });
 
   useEffect(() => {
+    const fetchCompanies = async () => {
+      const { data } = await supabase
+        .from('companies')
+        .select('id, nome_fantasia')
+        .eq('status', true)
+        .order('nome_fantasia');
+      
+      if (data) setCompanies(data);
+    };
+
+    if (open) {
+      fetchCompanies();
+    }
+
     if (asset) {
       setFormData({
         tipo: asset.tipo || '',
@@ -61,6 +77,7 @@ export function AssetDialog({ open, onOpenChange, asset }: AssetDialogProps) {
         data_compra: asset.data_compra || '',
         garantia_fim: asset.garantia_fim || '',
         observacoes: asset.observacoes || '',
+        company_id: asset.company_id || '',
       });
     } else {
       setFormData({
@@ -76,18 +93,26 @@ export function AssetDialog({ open, onOpenChange, asset }: AssetDialogProps) {
         data_compra: '',
         garantia_fim: '',
         observacoes: '',
+        company_id: profile?.company_id || '',
       });
     }
-  }, [asset, open]);
+  }, [asset, open, profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile?.company_id) return;
+    
+    if (!formData.company_id) {
+      toast({
+        title: 'Erro',
+        description: 'Selecione uma empresa',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setLoading(true);
     const payload: any = {
       ...formData,
-      company_id: profile.company_id,
     };
 
     const { error } = asset
@@ -121,6 +146,26 @@ export function AssetDialog({ open, onOpenChange, asset }: AssetDialogProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="company_id">Empresa *</Label>
+              <Select
+                required
+                value={formData.company_id}
+                onValueChange={(value) => setFormData({ ...formData, company_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.nome_fantasia}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="tipo">Tipo *</Label>
               <Select
