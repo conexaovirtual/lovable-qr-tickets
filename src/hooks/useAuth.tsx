@@ -7,10 +7,9 @@ export interface UserProfile {
   id: string;
   nome: string;
   telefone: string | null;
-  role: 'admin_provedor' | 'tecnico' | 'gestor_cliente' | 'solicitante'; // Kept for backwards compatibility
   company_id: string | null;
   avatar_url: string | null;
-  roles?: string[]; // New: primary roles from user_roles table
+  roles: string[]; // Primary roles from user_roles table (SECURITY: Separate table prevents privilege escalation)
 }
 
 export function useAuth() {

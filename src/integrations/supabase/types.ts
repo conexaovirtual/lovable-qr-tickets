@@ -161,7 +161,6 @@ export type Database = {
           created_at: string | null
           id: string
           nome: string
-          role: Database["public"]["Enums"]["user_role"]
           telefone: string | null
           updated_at: string | null
         }
@@ -171,7 +170,6 @@ export type Database = {
           created_at?: string | null
           id: string
           nome: string
-          role?: Database["public"]["Enums"]["user_role"]
           telefone?: string | null
           updated_at?: string | null
         }
@@ -181,7 +179,6 @@ export type Database = {
           created_at?: string | null
           id?: string
           nome?: string
-          role?: Database["public"]["Enums"]["user_role"]
           telefone?: string | null
           updated_at?: string | null
         }

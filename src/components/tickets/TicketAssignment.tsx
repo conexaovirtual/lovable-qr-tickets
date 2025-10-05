@@ -39,12 +39,20 @@ export function TicketAssignment({ ticket, onUpdate }: TicketAssignmentProps) {
   }, [canManage]);
 
   const loadTechnicians = async () => {
+    // SECURITY: Query user_roles table instead of profiles.role to prevent privilege escalation
     const { data } = await supabase
-      .from('profiles')
-      .select('id, nome')
+      .from('user_roles')
+      .select('user_id, profiles!inner(id, nome)')
       .in('role', ['admin_provedor', 'tecnico']);
 
-    if (data) setTechnicians(data);
+    if (data) {
+      // Transform the data to match the expected format
+      const techs = data.map(item => ({
+        id: item.user_id,
+        nome: (item.profiles as any).nome
+      }));
+      setTechnicians(techs);
+    }
   };
 
   const handleUpdate = async () => {
