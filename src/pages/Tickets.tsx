@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Plus, Filter } from 'lucide-react';
+import { AppHeader } from '@/components/layout/AppHeader';
 import { TicketList } from '@/components/tickets/TicketList';
 import { TicketFilters } from '@/components/tickets/TicketFilters';
 import {
@@ -23,8 +24,15 @@ export default function Tickets() {
     categoria: '',
   });
 
+  useEffect(() => {
+    if (!profile) {
+      navigate('/auth');
+    }
+  }, [profile, navigate]);
+
   return (
     <div className="min-h-screen bg-background">
+      <AppHeader />
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">

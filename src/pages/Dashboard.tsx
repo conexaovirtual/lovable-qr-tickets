@@ -1,203 +1,238 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Ticket, Package, Users, BarChart3, Plus, LogOut } from 'lucide-react';
+import { AppHeader } from '@/components/layout/AppHeader';
+import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  Ticket, 
+  Clock, 
+  CheckCircle2, 
+  AlertCircle,
+  TrendingUp,
+  Package,
+  Plus
+} from 'lucide-react';
 
 export default function Dashboard() {
-  const { user, loading, profile, signOut } = useAuth();
+  const navigate = useNavigate();
+  const { profile, loading: authLoading } = useAuth();
+  const [stats, setStats] = useState({
+    total: 0,
+    novos: 0,
+    em_atendimento: 0,
+    resolvidos: 0,
+    violados: 0,
+    ativos: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [recentTickets, setRecentTickets] = useState<any[]>([]);
 
-  if (loading) {
+  useEffect(() => {
+    if (!authLoading && !profile) {
+      navigate('/auth');
+    } else if (profile) {
+      loadDashboardData();
+    }
+  }, [profile, authLoading, navigate]);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+
+    // Carregar estatísticas de chamados
+    const { data: tickets } = await supabase
+      .from('tickets')
+      .select('status, sla_solucao_limite');
+
+    if (tickets) {
+      const now = new Date();
+      setStats({
+        total: tickets.length,
+        novos: tickets.filter(t => t.status === 'novo').length,
+        em_atendimento: tickets.filter(t => t.status === 'em_atendimento').length,
+        resolvidos: tickets.filter(t => t.status === 'resolvido' || t.status === 'fechado').length,
+        violados: tickets.filter(t => {
+          if (!t.sla_solucao_limite) return false;
+          return new Date(t.sla_solucao_limite) < now && !['resolvido', 'fechado'].includes(t.status);
+        }).length,
+        ativos: 0,
+      });
+    }
+
+    // Carregar ativos
+    const { data: assets } = await supabase
+      .from('assets')
+      .select('id');
+    
+    if (assets) {
+      setStats(prev => ({ ...prev, ativos: assets.length }));
+    }
+
+    // Carregar chamados recentes
+    const { data: recent } = await supabase
+      .from('tickets')
+      .select('id, numero, titulo, status, prioridade, created_at')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (recent) setRecentTickets(recent);
+
+    setLoading(false);
+  };
+
+  if (authLoading || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Skeleton className="h-96 w-full max-w-md" />
       </div>
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  const isAdmin = profile?.role === 'admin_provedor';
-  const isTech = profile?.role === 'tecnico';
-  const isManager = profile?.role === 'gestor_cliente';
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-primary rounded-lg">
-                <Ticket className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">Help Desk TI</h1>
-                <p className="text-sm text-muted-foreground">
-                  Olá, {profile?.nome}
-                </p>
-              </div>
+      <AppHeader />
+      
+      <main className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">Bem-vindo, {profile.nome}</p>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Chamados</CardTitle>
+                  <Ticket className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.total}</div>
+                  <p className="text-xs text-muted-foreground">Todos os chamados</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Novos</CardTitle>
+                  <AlertCircle className="h-4 w-4 text-info" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.novos}</div>
+                  <p className="text-xs text-muted-foreground">Aguardando triagem</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Em Atendimento</CardTitle>
+                  <Clock className="h-4 w-4 text-warning" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.em_atendimento}</div>
+                  <p className="text-xs text-muted-foreground">Sendo atendidos</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Resolvidos</CardTitle>
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.resolvidos}</div>
+                  <p className="text-xs text-muted-foreground">Concluídos</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow border-destructive/50">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">SLA Violado</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-destructive" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-destructive">{stats.violados}</div>
+                  <p className="text-xs text-muted-foreground">Fora do prazo</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Ativos</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.ativos}</div>
+                  <p className="text-xs text-muted-foreground">Equipamentos cadastrados</p>
+                </CardContent>
+              </Card>
             </div>
-            <Button variant="outline" onClick={signOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sair
-            </Button>
-          </div>
-        </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Dashboard</h2>
-          <p className="text-muted-foreground">
-            Gerencie chamados, ativos e muito mais
-          </p>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer bg-gradient-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                Novo Chamado
-              </CardTitle>
-              <Plus className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full">
-                Abrir Chamado
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer bg-gradient-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                Meus Chamados
-              </CardTitle>
-              <Ticket className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">
-                Chamados abertos
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer bg-gradient-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                Ativos
-              </CardTitle>
-              <Package className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">
-                Equipamentos cadastrados
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer bg-gradient-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                Relatórios
-              </CardTitle>
-              <BarChart3 className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" className="w-full">
-                Ver Métricas
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Chamados Recentes</CardTitle>
-              <CardDescription>
-                Últimos chamados criados ou atualizados
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Ticket className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum chamado encontrado</p>
-                <p className="text-sm">Abra seu primeiro chamado!</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>SLA e Prioridades</CardTitle>
-              <CardDescription>
-                Acompanhe prazos e urgências
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/20">
-                  <div>
-                    <p className="font-medium text-success">Dentro do SLA</p>
-                    <p className="text-sm text-muted-foreground">0 chamados</p>
-                  </div>
-                  <div className="text-2xl font-bold text-success">100%</div>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-warning/10 border border-warning/20">
-                  <div>
-                    <p className="font-medium text-warning">Em Risco</p>
-                    <p className="text-sm text-muted-foreground">0 chamados</p>
-                  </div>
-                  <div className="text-2xl font-bold text-warning">0%</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Admin/Tech Only Sections */}
-        {(isAdmin || isTech || isManager) && (
-          <div className="mt-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gestão Rápida</CardTitle>
-                <CardDescription>
-                  Acesso rápido a funções administrativas
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-3">
-                  {(isAdmin || isManager) && (
-                    <Button variant="outline" className="h-auto py-4">
-                      <Users className="mr-2 h-5 w-5" />
-                      Gerenciar Usuários
-                    </Button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Chamados Recentes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {recentTickets.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhum chamado recente
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentTickets.map((ticket) => (
+                        <div
+                          key={ticket.id}
+                          className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent cursor-pointer transition-colors"
+                          onClick={() => navigate(`/tickets/${ticket.id}`)}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-mono text-muted-foreground">
+                                #{ticket.numero}
+                              </span>
+                              <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary capitalize">
+                                {ticket.status.replace(/_/g, ' ')}
+                              </span>
+                            </div>
+                            <p className="text-sm font-medium truncate">{ticket.titulo}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
-                  {(isAdmin || isTech || isManager) && (
-                    <Button variant="outline" className="h-auto py-4">
-                      <Package className="mr-2 h-5 w-5" />
-                      Cadastrar Ativo
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <Button variant="outline" className="h-auto py-4">
-                      <BarChart3 className="mr-2 h-5 w-5" />
-                      Configurações
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Ações Rápidas</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button onClick={() => navigate('/tickets/new')} className="w-full justify-start">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Chamado
+                  </Button>
+                  <Button onClick={() => navigate('/tickets')} variant="outline" className="w-full justify-start">
+                    <Ticket className="h-4 w-4 mr-2" />
+                    Ver Todos os Chamados
+                  </Button>
+                  <Button onClick={() => navigate('/assets')} variant="outline" className="w-full justify-start">
+                    <Package className="h-4 w-4 mr-2" />
+                    Gerenciar Ativos
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </>
         )}
       </main>
     </div>
