@@ -56,32 +56,46 @@ export function useAuth() {
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log('[useAuth] Fetching profile for user:', userId);
+      
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
       
+      console.log('[useAuth] Profile data:', profileData);
+      console.log('[useAuth] Profile error:', profileError);
+      
       if (profileError) throw profileError;
       
       // Fetch roles from user_roles table (SECURITY: Using separate table to prevent privilege escalation)
+      console.log('[useAuth] Fetching roles for user:', userId);
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId);
       
+      console.log('[useAuth] Roles data:', rolesData);
+      console.log('[useAuth] Roles error:', rolesError);
+      
       if (rolesError && rolesError.code !== 'PGRST116') {
-        console.error('Error fetching roles:', rolesError);
+        console.error('[useAuth] Error fetching roles:', rolesError);
       }
       
       if (profileData) {
-        setProfile({
+        const userProfile = {
           ...profileData,
           roles: rolesData?.map(r => r.role) || []
-        });
+        };
+        console.log('[useAuth] Setting profile:', userProfile);
+        setProfile(userProfile);
+      } else {
+        console.warn('[useAuth] No profile data found for user:', userId);
+        setProfile(null);
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('[useAuth] Error fetching profile:', error);
       setProfile(null);
     } finally {
       setLoading(false);
