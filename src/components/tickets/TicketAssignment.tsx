@@ -24,7 +24,7 @@ export function TicketAssignment({ ticket, onUpdate }: TicketAssignmentProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [technicians, setTechnicians] = useState<any[]>([]);
-  const [selectedTech, setSelectedTech] = useState(ticket.tecnico_id || '');
+  const [selectedTech, setSelectedTech] = useState(ticket.tecnico_id || 'unassigned');
   const [timeSpent, setTimeSpent] = useState(ticket.tempo_gasto_horas || '0');
   const [partsCost, setPartsCost] = useState(ticket.custo_pecas || '0');
   const [loading, setLoading] = useState(false);
@@ -60,7 +60,7 @@ export function TicketAssignment({ ticket, onUpdate }: TicketAssignmentProps) {
     const updates: any = {};
 
     if (selectedTech !== ticket.tecnico_id) {
-      updates.tecnico_id = selectedTech || null;
+      updates.tecnico_id = selectedTech === 'unassigned' ? null : selectedTech || null;
     }
 
     if (parseFloat(timeSpent) !== ticket.tempo_gasto_horas) {
@@ -120,7 +120,7 @@ export function TicketAssignment({ ticket, onUpdate }: TicketAssignmentProps) {
               <SelectValue placeholder="Selecione um técnico" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Nenhum</SelectItem>
+              <SelectItem value="unassigned">Nenhum</SelectItem>
               {technicians.map((tech) => (
                 <SelectItem key={tech.id} value={tech.id}>
                   {tech.nome}
