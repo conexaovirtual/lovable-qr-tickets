@@ -27,7 +27,10 @@ export function AssetList({ onEdit, refreshTrigger }: AssetListProps) {
     setLoading(true);
     const { data } = await supabase
       .from('assets')
-      .select('*')
+      .select(`
+        *,
+        company:companies(nome_fantasia)
+      `)
       .order('created_at', { ascending: false });
 
     if (data) setAssets(data);

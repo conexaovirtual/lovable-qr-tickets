@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle, QrCode } from 'lucide-react';
 import { ticketSchema, type TicketFormData } from '@/lib/validations';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -32,9 +32,13 @@ export default function NewTicket() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [lastSubmit, setLastSubmit] = useState<number>(0);
+  const [selectedAssetInfo, setSelectedAssetInfo] = useState<any>(null);
+  const [tokenValid, setTokenValid] = useState(false);
+  const [tokenError, setTokenError] = useState(false);
 
   const preSelectedAssetId = searchParams.get('ativo');
   const preSelectedCompanyId = searchParams.get('empresa');
+  const qrCodeToken = searchParams.get('token');
 
   const [formData, setFormData] = useState({
     titulo: '',
@@ -49,6 +53,11 @@ export default function NewTicket() {
 
   useEffect(() => {
     loadCategories();
+    
+    // Validar token do QR Code se presente
+    if (preSelectedAssetId && qrCodeToken) {
+      validateQRCodeToken();
+    }
     
     // Se for admin/técnico, carregar empresas
     if (profile?.roles.includes('admin_provedor') || profile?.roles.includes('tecnico')) {
@@ -103,15 +112,55 @@ export default function NewTicket() {
   const loadAssets = async (companyId: string) => {
     const { data } = await supabase
       .from('assets')
-      .select('*')
+      .select(`
+        *,
+        company:companies(nome_fantasia)
+      `)
       .eq('company_id', companyId)
       .neq('estado', 'baixado');
     if (data) setAssets(data);
   };
 
+  const validateQRCodeToken = async () => {
+    if (!preSelectedAssetId || !qrCodeToken) return;
+
+    const { data: asset, error } = await supabase
+      .from('assets')
+      .select(`
+        *,
+        company:companies(nome_fantasia)
+      `)
+      .eq('id', preSelectedAssetId)
+      .eq('qrcode_token', qrCodeToken)
+      .single();
+
+    if (error || !asset) {
+      setTokenError(true);
+      toast({
+        title: 'QR Code inválido',
+        description: 'O código QR escaneado não é válido ou expirou',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setTokenValid(true);
+    setSelectedAssetInfo(asset);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
+
+    // Validar token se vier de QR Code
+    if (preSelectedAssetId && qrCodeToken && !tokenValid) {
+      toast({
+        title: 'QR Code inválido',
+        description: 'O código QR escaneado não é válido',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     // Rate limiting: prevent ticket spam (10 seconds between submissions)
     const now = Date.now();
@@ -183,6 +232,33 @@ export default function NewTicket() {
 
       <main className="container mx-auto px-4 py-6 max-w-2xl">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {tokenError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                QR Code inválido. Por favor, escaneie novamente ou crie o chamado manualmente.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {tokenValid && selectedAssetInfo && (
+            <Alert>
+              <QrCode className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  <p className="font-medium">Chamado via QR Code</p>
+                  <div className="text-sm space-y-0.5">
+                    <p><span className="text-muted-foreground">Ativo:</span> {selectedAssetInfo.tipo}</p>
+                    {selectedAssetInfo.tag_patrimonial && (
+                      <p><span className="text-muted-foreground">Tag:</span> {selectedAssetInfo.tag_patrimonial}</p>
+                    )}
+                    <p><span className="text-muted-foreground">Empresa:</span> {selectedAssetInfo.company?.nome_fantasia}</p>
+                  </div>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {Object.keys(validationErrors).length > 0 && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
