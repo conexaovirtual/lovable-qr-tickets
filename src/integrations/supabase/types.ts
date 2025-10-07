@@ -97,6 +97,13 @@ export type Database = {
             referencedRelation: "companies_safe"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "assets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_statistics"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       categories: {
@@ -226,6 +233,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies_safe"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_statistics"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -535,6 +549,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tickets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_statistics"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "tickets_solicitante_id_fkey"
             columns: ["solicitante_id"]
             isOneToOne: false
@@ -663,6 +684,30 @@ export type Database = {
         }
         Relationships: []
       }
+      company_statistics: {
+        Row: {
+          ativos_baixados: number | null
+          ativos_em_uso: number | null
+          ativos_estoque: number | null
+          ativos_manutencao: number | null
+          cnpj: string | null
+          company_id: string | null
+          media_avaliacao: number | null
+          nome_fantasia: string | null
+          sla_primeiro_atendimento_horas: number | null
+          sla_solucao_horas: number | null
+          status: boolean | null
+          tempo_medio_resolucao_horas: number | null
+          tickets_em_atendimento: number | null
+          tickets_fechados: number | null
+          tickets_novos: number | null
+          tickets_resolvidos: number | null
+          tickets_sla_violado: number | null
+          total_ativos: number | null
+          total_tickets: number | null
+        }
+        Relationships: []
+      }
       profiles_safe: {
         Row: {
           avatar_url: string | null
@@ -721,6 +766,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies_safe"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_statistics"
+            referencedColumns: ["company_id"]
           },
         ]
       }

@@ -11,6 +11,8 @@ import NewTicket from "./pages/NewTicket";
 import TicketDetail from "./pages/TicketDetail";
 import Assets from "./pages/Assets";
 import Companies from "./pages/Companies";
+import Technicians from "./pages/Technicians";
+import Reports from "./pages/Reports";
 import ProfileSettings from "./pages/ProfileSettings";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +33,8 @@ const App = () => (
           <Route path="/tickets/:id" element={<TicketDetail />} />
           <Route path="/assets" element={<Assets />} />
           <Route path="/companies" element={<Companies />} />
+          <Route path="/technicians" element={<Technicians />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/profile/settings" element={<ProfileSettings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
