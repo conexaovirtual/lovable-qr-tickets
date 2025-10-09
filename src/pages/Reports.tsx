@@ -3,8 +3,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { CompanyReportList } from '@/components/reports/CompanyReportList';
+import { ReportPrintDialog } from '@/components/reports/ReportPrintDialog';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileBarChart, Building2, Package, Ticket } from 'lucide-react';
+import { FileBarChart, Building2, Package, Ticket, Printer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -14,6 +16,7 @@ export default function Reports() {
   const [reports, setReports] = useState<any[]>([]);
   const [stats, setStats] = useState({ companies: 0, assets: 0, tickets: 0 });
   const [loadingData, setLoadingData] = useState(true);
+  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !profile) {
@@ -73,14 +76,21 @@ export default function Reports() {
       <AppHeader />
       
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <FileBarChart className="h-8 w-8 text-primary" />
-            Relatórios de Empresas
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Visão completa de empresas, ativos e ordens de serviço
-          </p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <FileBarChart className="h-8 w-8 text-primary" />
+              Relatórios de Empresas
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Visão completa de empresas, ativos e ordens de serviço
+            </p>
+          </div>
+          
+          <Button onClick={() => setIsPrintDialogOpen(true)} className="gap-2">
+            <Printer className="h-4 w-4" />
+            Imprimir Relatório
+          </Button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3 mb-6">
@@ -117,6 +127,11 @@ export default function Reports() {
 
         <CompanyReportList reports={reports} loading={loadingData} />
       </main>
+
+      <ReportPrintDialog
+        open={isPrintDialogOpen}
+        onOpenChange={setIsPrintDialogOpen}
+      />
     </div>
   );
 }

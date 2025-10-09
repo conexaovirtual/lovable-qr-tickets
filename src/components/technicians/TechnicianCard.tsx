@@ -61,12 +61,20 @@ export function TechnicianCard({ technician, onUpdate }: TechnicianCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {technician.company && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Building2 className="h-4 w-4" />
-            {technician.company.nome_fantasia}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {technician.company_id ? (
+            technician.company && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Building2 className="h-4 w-4" />
+                {technician.company.nome_fantasia}
+              </div>
+            )
+          ) : (
+            <Badge variant="outline" className="text-xs">
+              Multi-empresa
+            </Badge>
+          )}
+        </div>
         
         {technician.telefone && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -74,11 +82,6 @@ export function TechnicianCard({ technician, onUpdate }: TechnicianCardProps) {
             {technician.telefone}
           </div>
         )}
-
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Mail className="h-4 w-4" />
-          {technician.id}
-        </div>
 
         {isAdmin && (
           <div className="flex gap-2 pt-2">

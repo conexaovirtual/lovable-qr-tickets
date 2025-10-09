@@ -54,9 +54,15 @@ export default function Technicians() {
         .select('user_id')
         .eq('role', 'tecnico');
 
-      if (technicianRoles) {
+      if (technicianRoles && technicianRoles.length > 0) {
         const technicianIds = technicianRoles.map(r => r.user_id);
         query = query.in('id', technicianIds);
+      } else {
+        // No technicians found
+        setTechnicians([]);
+        setStats({ total: 0, active: 0 });
+        setLoadingData(false);
+        return;
       }
 
       const { data, error } = await query;

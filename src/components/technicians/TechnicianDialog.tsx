@@ -51,7 +51,7 @@ export function TechnicianDialog({ open, onOpenChange, onSuccess }: TechnicianDi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.nome || !formData.email || !formData.password || !formData.company_id) {
+    if (!formData.nome || !formData.email || !formData.password) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
@@ -59,42 +59,21 @@ export function TechnicianDialog({ open, onOpenChange, onSuccess }: TechnicianDi
     setLoading(true);
 
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Create user with metadata - the trigger will handle profile and role creation
+      const { error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
             nome: formData.nome,
+            telefone: formData.telefone,
+            company_id: formData.company_id || null, // null = todas as empresas
+            role: 'tecnico',
           },
-          emailRedirectTo: `${window.location.origin}/`,
         },
       });
 
       if (authError) throw authError;
-      if (!authData.user) throw new Error('Usuário não foi criado');
-
-      // Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          nome: formData.nome,
-          telefone: formData.telefone || null,
-          company_id: formData.company_id,
-        });
-
-      if (profileError) throw profileError;
-
-      // Assign technician role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: 'tecnico',
-        });
-
-      if (roleError) throw roleError;
 
       toast.success('Técnico cadastrado com sucesso');
       setFormData({ nome: '', email: '', telefone: '', password: '', company_id: '' });
@@ -162,15 +141,16 @@ export function TechnicianDialog({ open, onOpenChange, onSuccess }: TechnicianDi
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company">Empresa *</Label>
+            <Label htmlFor="company">Empresa</Label>
             <Select
-              value={formData.company_id}
-              onValueChange={(value) => setFormData({ ...formData, company_id: value })}
+              value={formData.company_id || 'all'}
+              onValueChange={(value) => setFormData({ ...formData, company_id: value === 'all' ? '' : value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a empresa" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">Todas as empresas</SelectItem>
                 {companies.map((company) => (
                   <SelectItem key={company.id} value={company.id}>
                     {company.nome_fantasia}
