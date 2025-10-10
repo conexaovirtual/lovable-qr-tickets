@@ -28,7 +28,7 @@ export function PrintableReport({ data }: PrintableReportProps) {
   }
 
   return (
-    <div className="hidden print:block fixed inset-0 bg-white z-50 overflow-auto">
+    <div id="printable-report" className="hidden print:block fixed inset-0 bg-white z-50 overflow-auto">
       <style>{`
         @media print {
           @page {
@@ -39,6 +39,23 @@ export function PrintableReport({ data }: PrintableReportProps) {
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+          }
+          
+          /* Esconder tudo exceto o relatório */
+          body * {
+            visibility: hidden;
+          }
+          
+          #printable-report,
+          #printable-report * {
+            visibility: visible;
+          }
+          
+          #printable-report {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
           }
           
           .page-break {

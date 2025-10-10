@@ -95,11 +95,14 @@ export function ReportPrintDialog({ open, onOpenChange }: ReportPrintDialogProps
 
       toast.success(`Relatório gerado com ${data.length} empresa(s)`);
 
-      // Aumentar timeout para garantir renderização completa
+      // Fechar o diálogo ANTES de imprimir
+      onOpenChange(false);
+
+      // Aumentar timeout para garantir que diálogo fechou e relatório renderizou
       setTimeout(() => {
         console.log('🖨️ Abrindo janela de impressão...');
         window.print();
-      }, 1000);
+      }, 1500);
     } catch (error: any) {
       console.error('Error generating report:', error);
       toast.error('Erro ao gerar relatório');
