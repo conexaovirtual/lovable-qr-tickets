@@ -17,6 +17,16 @@ export function PrintableReport({ data }: PrintableReportProps) {
     return new Date(date).toLocaleDateString('pt-BR');
   };
 
+  if (!data?.companies || data.companies.length === 0) {
+    return (
+      <div className="hidden print:block fixed inset-0 bg-white z-50 p-8">
+        <div className="text-center py-8">
+          <p className="text-lg text-muted-foreground">Nenhum dado disponível para impressão.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="hidden print:block fixed inset-0 bg-white z-50 overflow-auto">
       <style>{`

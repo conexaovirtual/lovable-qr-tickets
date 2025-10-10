@@ -59,6 +59,20 @@ export function TechnicianDialog({ open, onOpenChange, onSuccess }: TechnicianDi
     setLoading(true);
 
     try {
+      // Verificar se o email já existe
+      const { data, error: searchError } = await supabase.auth.admin.listUsers();
+      
+      if (searchError) {
+        console.error('Error checking existing users:', searchError);
+      } else if (data?.users) {
+        const existingUser = data.users.find((u: any) => u.email === formData.email);
+        if (existingUser) {
+          toast.error('Este email já está cadastrado no sistema');
+          setLoading(false);
+          return;
+        }
+      }
+
       // Create user with metadata - the trigger will handle profile and role creation
       const { error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -75,13 +89,30 @@ export function TechnicianDialog({ open, onOpenChange, onSuccess }: TechnicianDi
 
       if (authError) throw authError;
 
-      toast.success('Técnico cadastrado com sucesso');
+      const companyText = formData.company_id 
+        ? 'Vinculado a uma empresa específica' 
+        : 'Acesso a todas as empresas';
+      
+      toast.success(`Técnico ${formData.nome} cadastrado com sucesso!`, {
+        description: companyText
+      });
+      
       setFormData({ nome: '', email: '', telefone: '', password: '', company_id: '' });
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
       console.error('Error creating technician:', error);
-      toast.error(error.message || 'Erro ao cadastrar técnico');
+      
+      // Mensagens específicas por tipo de erro
+      if (error.message?.includes('already registered') || error.message?.includes('User already registered')) {
+        toast.error('Email já cadastrado. Use outro email.');
+      } else if (error.message?.includes('Invalid email')) {
+        toast.error('Email inválido. Verifique o formato.');
+      } else if (error.message?.includes('Password') || error.message?.includes('password')) {
+        toast.error('Senha muito fraca. Use pelo menos 6 caracteres.');
+      } else {
+        toast.error(error.message || 'Erro ao cadastrar técnico');
+      }
     } finally {
       setLoading(false);
     }

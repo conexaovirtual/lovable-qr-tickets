@@ -59,6 +59,12 @@ export function ReportPrintDialog({ open, onOpenChange }: ReportPrintDialogProps
     try {
       setLoading(true);
 
+      console.log('🔍 Iniciando geração de relatório...', {
+        company: selectedCompany,
+        period: { start: startDate, end: endDate },
+        options
+      });
+
       let query = supabase
         .from('company_statistics')
         .select('*')
@@ -72,16 +78,28 @@ export function ReportPrintDialog({ open, onOpenChange }: ReportPrintDialogProps
 
       if (error) throw error;
 
+      console.log('📊 Dados retornados:', data);
+      console.log('📝 Total de empresas:', data?.length || 0);
+
+      if (!data || data.length === 0) {
+        toast.warning('Nenhum dado encontrado para os filtros selecionados');
+        setLoading(false);
+        return;
+      }
+
       setReportData({
         companies: data,
         period: { start: startDate, end: endDate },
         options,
       });
 
-      // Wait for render then print
+      toast.success(`Relatório gerado com ${data.length} empresa(s)`);
+
+      // Aumentar timeout para garantir renderização completa
       setTimeout(() => {
+        console.log('🖨️ Abrindo janela de impressão...');
         window.print();
-      }, 500);
+      }, 1000);
     } catch (error: any) {
       console.error('Error generating report:', error);
       toast.error('Erro ao gerar relatório');
