@@ -39,44 +39,51 @@ export default function Technicians() {
     try {
       setLoadingData(true);
       
-      let query = supabase
-        .from('profiles')
-        .select(`
-          *,
-          company:companies(nome_fantasia),
-          roles:user_roles(role)
-        `)
-        .order('nome');
-
-      // Filter technicians by role
-      const { data: technicianRoles } = await supabase
+      // 1. Buscar IDs dos técnicos
+      const { data: technicianRoles, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id')
+        .select('user_id, role')
         .eq('role', 'tecnico');
 
-      if (technicianRoles && technicianRoles.length > 0) {
-        const technicianIds = technicianRoles.map(r => r.user_id);
-        query = query.in('id', technicianIds);
-      } else {
-        // No technicians found
+      if (rolesError) throw rolesError;
+
+      if (!technicianRoles || technicianRoles.length === 0) {
         setTechnicians([]);
         setStats({ total: 0, active: 0 });
         setLoadingData(false);
         return;
       }
 
-      const { data, error } = await query;
+      const technicianIds = technicianRoles.map(r => r.user_id);
 
-      if (error) throw error;
+      // 2. Buscar perfis dos técnicos
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          company:companies(nome_fantasia)
+        `)
+        .in('id', technicianIds)
+        .order('nome');
 
-      setTechnicians(data || []);
+      if (profilesError) throw profilesError;
+
+      // 3. Combinar dados manualmente
+      const techniciansWithRoles = profiles?.map(profile => ({
+        ...profile,
+        roles: technicianRoles
+          .filter(r => r.user_id === profile.id)
+          .map(r => ({ role: r.role }))
+      })) || [];
+
+      setTechnicians(techniciansWithRoles);
       setStats({
-        total: data?.length || 0,
-        active: data?.length || 0, // Simplified - can add inactive logic later
+        total: techniciansWithRoles.length,
+        active: techniciansWithRoles.length,
       });
     } catch (error: any) {
       console.error('Error loading technicians:', error);
-      toast.error('Erro ao carregar técnicos');
+      toast.error('Erro ao carregar técnicos: ' + error.message);
     } finally {
       setLoadingData(false);
     }
