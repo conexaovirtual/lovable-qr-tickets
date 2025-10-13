@@ -1,10 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { companySchema, type CompanyFormData } from '@/lib/validations';
 import { formatCNPJ, formatPhone } from '@/lib/formatters';
+import { useCNPJLookup } from '@/hooks/useCNPJLookup';
+import { Search, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +34,10 @@ interface CompanyDialogProps {
 
 export function CompanyDialog({ open, onOpenChange, company, onSuccess }: CompanyDialogProps) {
   const { toast } = useToast();
+  const { lookupCNPJ, isLoading: isLoadingCNPJ } = useCNPJLookup();
+  const [cnpjValidated, setCnpjValidated] = useState(false);
+  const [companySituation, setCompanySituation] = useState<'ativa' | 'baixada' | null>(null);
+  
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
     defaultValues: {
@@ -72,8 +78,64 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         sla_primeiro_atendimento_horas: 4,
         sla_solucao_horas: 16,
       });
+      setCnpjValidated(false);
+      setCompanySituation(null);
     }
   }, [company, form]);
+
+  const handleCNPJLookup = async () => {
+    const cnpj = form.getValues('cnpj');
+    
+    if (!cnpj || cnpj.replace(/[^\d]/g, '').length !== 14) {
+      toast({
+        title: 'CNPJ inválido',
+        description: 'Digite um CNPJ válido com 14 dígitos.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const data = await lookupCNPJ(cnpj);
+    
+    if (data) {
+      form.setValue('razao_social', data.razao_social);
+      form.setValue('nome_fantasia', data.nome_fantasia);
+      form.setValue('endereco', data.endereco_completo);
+      if (data.telefone) form.setValue('telefone', data.telefone);
+      if (data.email) form.setValue('email', data.email);
+      
+      setCnpjValidated(true);
+      setCompanySituation(data.ativa ? 'ativa' : 'baixada');
+      
+      toast({
+        title: '✓ Dados encontrados',
+        description: 'Os campos foram preenchidos automaticamente.',
+      });
+      
+      if (!data.ativa) {
+        toast({
+          title: '⚠ Atenção',
+          description: 'Esta empresa está com situação cadastral BAIXADA na Receita Federal.',
+          variant: 'destructive',
+        });
+      }
+    }
+  };
+
+  const handleCNPJBlur = () => {
+    const cnpj = form.getValues('cnpj');
+    const nome = form.getValues('nome_fantasia');
+    const razao = form.getValues('razao_social');
+    
+    // Busca automática apenas se CNPJ válido e campos vazios
+    if (cnpj && 
+        cnpj.replace(/[^\d]/g, '').length === 14 && 
+        !nome && 
+        !razao && 
+        !company) {
+      handleCNPJLookup();
+    }
+  };
 
   const onSubmit = async (data: CompanyFormData) => {
     try {
@@ -186,17 +248,47 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                 name="cnpj"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>CNPJ</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field} 
-                        placeholder="00.000.000/0000-00"
-                        onChange={(e) => {
-                          const formatted = formatCNPJ(e.target.value);
-                          field.onChange(formatted);
-                        }}
-                      />
-                    </FormControl>
+                    <FormLabel className="flex items-center gap-2">
+                      CNPJ
+                      {cnpjValidated && companySituation === 'ativa' && (
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      )}
+                      {cnpjValidated && companySituation === 'baixada' && (
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                      )}
+                    </FormLabel>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          placeholder="00.000.000/0000-00"
+                          disabled={!!company}
+                          onChange={(e) => {
+                            const formatted = formatCNPJ(e.target.value);
+                            field.onChange(formatted);
+                            setCnpjValidated(false);
+                            setCompanySituation(null);
+                          }}
+                          onBlur={handleCNPJBlur}
+                        />
+                      </FormControl>
+                      {!company && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={handleCNPJLookup}
+                          disabled={isLoadingCNPJ || !field.value || field.value.replace(/[^\d]/g, '').length !== 14}
+                          title="Buscar dados da empresa"
+                        >
+                          {isLoadingCNPJ ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Search className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
