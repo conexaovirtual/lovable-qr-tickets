@@ -17,6 +17,47 @@ export const ticketSchema = z.object({
   urgencia: z.enum(['baixa', 'media', 'alta']),
 });
 
+// Schema para configurações JSONB de ativos
+export const assetConfigSchema = z.object({
+  // Processador
+  processador: z.string().trim().max(200).optional(),
+  processador_cores: z.number().int().min(1).max(128).optional(),
+  processador_threads: z.number().int().min(1).max(256).optional(),
+  processador_ghz: z.number().min(0.1).max(10).optional(),
+  
+  // Memória RAM
+  memoria_ram_gb: z.number().int().min(1).max(2048).optional(),
+  memoria_ram_tipo: z.enum(['DDR3', 'DDR4', 'DDR5', 'DDR6', 'Outro']).optional(),
+  memoria_ram_slots: z.number().int().min(1).max(16).optional(),
+  
+  // Armazenamento
+  armazenamento_principal_gb: z.number().int().min(1).optional(),
+  armazenamento_principal_tipo: z.enum(['HDD', 'SSD', 'NVMe', 'M.2', 'Outro']).optional(),
+  armazenamento_secundario_gb: z.number().int().optional(),
+  armazenamento_secundario_tipo: z.enum(['HDD', 'SSD', 'NVMe', 'M.2', 'Outro']).optional(),
+  
+  // Placa de Vídeo
+  placa_video: z.string().trim().max(200).optional(),
+  placa_video_memoria_gb: z.number().int().min(1).max(128).optional(),
+  placa_video_integrada: z.boolean().optional(),
+  
+  // Monitor
+  tela_polegadas: z.number().min(10).max(100).optional(),
+  tela_resolucao: z.string().trim().max(50).optional(),
+  tela_touchscreen: z.boolean().optional(),
+  
+  // Rede
+  rede_ethernet: z.boolean().optional(),
+  rede_wifi: z.boolean().optional(),
+  rede_wifi_standard: z.enum(['Wi-Fi 4', 'Wi-Fi 5', 'Wi-Fi 6', 'Wi-Fi 6E', 'Wi-Fi 7']).optional(),
+  rede_bluetooth: z.boolean().optional(),
+  
+  // Outros
+  peso_kg: z.number().min(0.1).max(1000).optional(),
+  dimensoes: z.string().trim().max(100).optional(),
+  fonte_watts: z.number().int().min(50).max(5000).optional(),
+}).passthrough();
+
 export const assetSchema = z.object({
   tipo: z.string().trim().min(1, 'Selecione o tipo'),
   fabricante: z.string().trim().max(100, 'Fabricante muito longo').optional(),
@@ -30,6 +71,7 @@ export const assetSchema = z.object({
   data_compra: z.string().trim().optional(),
   garantia_fim: z.string().trim().optional(),
   observacoes: z.string().trim().max(500, 'Observações muito longas').optional(),
+  configuracoes: assetConfigSchema.optional(),
 });
 
 export const commentSchema = z.object({

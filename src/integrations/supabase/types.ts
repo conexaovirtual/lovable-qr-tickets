@@ -80,6 +80,13 @@ export type Database = {
             foreignKeyName: "assets_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "asset_inventory_by_company"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "assets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
@@ -213,6 +220,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "asset_inventory_by_company"
+            referencedColumns: ["company_id"]
+          },
           {
             foreignKeyName: "profiles_company_id_fkey"
             columns: ["company_id"]
@@ -531,6 +545,13 @@ export type Database = {
             foreignKeyName: "tickets_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
+            referencedRelation: "asset_inventory_by_company"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "tickets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
@@ -618,6 +639,32 @@ export type Database = {
       }
     }
     Views: {
+      asset_inventory_by_company: {
+        Row: {
+          ativos_baixados: number | null
+          ativos_em_garantia: number | null
+          ativos_em_uso: number | null
+          ativos_estoque: number | null
+          ativos_fora_garantia: number | null
+          ativos_garantia_expirando: number | null
+          ativos_manutencao: number | null
+          cnpj: string | null
+          company_id: string | null
+          media_armazenamento_gb: number | null
+          media_ram_gb: number | null
+          nome_fantasia: string | null
+          total_ativos: number | null
+          total_desktops: number | null
+          total_impressoras: number | null
+          total_monitores: number | null
+          total_notebooks: number | null
+          total_perifericos: number | null
+          total_roteadores: number | null
+          total_servidores: number | null
+          total_switches: number | null
+        }
+        Relationships: []
+      }
       companies_basic: {
         Row: {
           created_at: string | null
@@ -746,6 +793,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "asset_inventory_by_company"
+            referencedColumns: ["company_id"]
+          },
           {
             foreignKeyName: "profiles_company_id_fkey"
             columns: ["company_id"]

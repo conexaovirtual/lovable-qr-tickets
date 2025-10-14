@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { CompanyReportList } from '@/components/reports/CompanyReportList';
 import { ReportPrintDialog } from '@/components/reports/ReportPrintDialog';
+import { InventoryReport } from '@/components/reports/InventoryReport';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileBarChart, Building2, Package, Ticket, Printer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -125,7 +127,22 @@ export default function Reports() {
           </Card>
         </div>
 
-        <CompanyReportList reports={reports} loading={loadingData} />
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="inventory">Inventário</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview">
+            <CompanyReportList reports={reports} loading={loadingData} />
+          </TabsContent>
+
+          <TabsContent value="inventory" className="space-y-4">
+            {reports.map((report) => (
+              <InventoryReport key={report.company_id} companyId={report.company_id} />
+            ))}
+          </TabsContent>
+        </Tabs>
       </main>
 
       <ReportPrintDialog

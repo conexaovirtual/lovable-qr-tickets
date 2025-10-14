@@ -10,6 +10,7 @@ import Tickets from "./pages/Tickets";
 import NewTicket from "./pages/NewTicket";
 import TicketDetail from "./pages/TicketDetail";
 import Assets from "./pages/Assets";
+import Inventory from "./pages/Inventory";
 import Companies from "./pages/Companies";
 import Technicians from "./pages/Technicians";
 import Reports from "./pages/Reports";
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/tickets/new" element={<NewTicket />} />
           <Route path="/tickets/:id" element={<TicketDetail />} />
           <Route path="/assets" element={<Assets />} />
+          <Route path="/inventory" element={<Inventory />} />
           <Route path="/companies" element={<Companies />} />
           <Route path="/technicians" element={<Technicians />} />
           <Route path="/reports" element={<Reports />} />

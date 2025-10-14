@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, User, LogOut, LayoutDashboard, Ticket, Package, Building2, Wrench, FileBarChart } from 'lucide-react';
+import { Menu, User, LogOut, LayoutDashboard, Ticket, Package, Building2, Wrench, FileBarChart, PackageSearch } from 'lucide-react';
 
 export function AppHeader() {
   const { profile, signOut } = useAuth();
@@ -46,6 +46,12 @@ export function AppHeader() {
                 <Button variant="ghost" size="sm">
                   <Package className="h-4 w-4 mr-2" />
                   Ativos
+                </Button>
+              </Link>
+              <Link to="/inventory">
+                <Button variant="ghost" size="sm">
+                  <PackageSearch className="h-4 w-4 mr-2" />
+                  Inventário
                 </Button>
               </Link>
               {profile.roles?.includes('admin_provedor') && (
@@ -100,6 +106,10 @@ export function AppHeader() {
                 <DropdownMenuItem onClick={() => navigate('/assets')}>
                   <Package className="h-4 w-4 mr-2" />
                   Ativos
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/inventory')}>
+                  <PackageSearch className="h-4 w-4 mr-2" />
+                  Inventário
                 </DropdownMenuItem>
                 {profile.roles?.includes('admin_provedor') && (
                   <>

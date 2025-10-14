@@ -19,16 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { z } from 'zod';
+import { Cpu, MemoryStick, HardDrive, Monitor } from 'lucide-react';
 
-// Phase 5: JSONB Validation Schema for asset configurations
-const configuracoesSchema = z.object({
-  ram: z.string().optional(),
-  processador: z.string().optional(),
-  armazenamento: z.string().optional(),
-  placa_video: z.string().optional(),
-}).passthrough().optional(); // Allow additional fields
 
 interface AssetDialogProps {
   open: boolean;
@@ -56,6 +51,27 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
     garantia_fim: '',
     observacoes: '',
     company_id: '',
+  });
+
+  const [configs, setConfigs] = useState<any>({
+    processador: '',
+    processador_cores: undefined,
+    processador_ghz: undefined,
+    memoria_ram_gb: undefined,
+    memoria_ram_tipo: '',
+    memoria_ram_slots: undefined,
+    armazenamento_principal_gb: undefined,
+    armazenamento_principal_tipo: '',
+    armazenamento_secundario_gb: undefined,
+    armazenamento_secundario_tipo: '',
+    placa_video: '',
+    placa_video_memoria_gb: undefined,
+    placa_video_integrada: false,
+    tela_polegadas: undefined,
+    tela_resolucao: '',
+    rede_ethernet: false,
+    rede_wifi: false,
+    rede_wifi_standard: '',
   });
 
   useEffect(() => {
@@ -89,6 +105,7 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
         observacoes: asset.observacoes || '',
         company_id: asset.company_id || '',
       });
+      setConfigs(asset.configuracoes || {});
     } else {
       setFormData({
         tipo: '',
@@ -105,6 +122,7 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
         observacoes: '',
         company_id: profile?.company_id || '',
       });
+      setConfigs({});
     }
   }, [asset, open, profile]);
 
@@ -123,6 +141,7 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
     setLoading(true);
     const payload: any = {
       ...formData,
+      configuracoes: configs,
     };
 
     const { error } = asset
@@ -155,164 +174,306 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="company_id">Empresa *</Label>
-              <Select
-                required
-                value={formData.company_id}
-                onValueChange={(value) => setFormData({ ...formData, company_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map((company) => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.nome_fantasia}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <Tabs defaultValue="basic" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
+              <TabsTrigger value="hardware">Hardware</TabsTrigger>
+              <TabsTrigger value="additional">Adicionais</TabsTrigger>
+            </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="tipo">Tipo *</Label>
-              <Select
-                required
-                value={formData.tipo}
-                onValueChange={(value) => setFormData({ ...formData, tipo: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="desktop">Desktop</SelectItem>
-                  <SelectItem value="notebook">Notebook</SelectItem>
-                  <SelectItem value="impressora">Impressora</SelectItem>
-                  <SelectItem value="monitor">Monitor</SelectItem>
-                  <SelectItem value="roteador">Roteador</SelectItem>
-                  <SelectItem value="switch">Switch</SelectItem>
-                  <SelectItem value="servidor">Servidor</SelectItem>
-                  <SelectItem value="periferico">Periférico</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <TabsContent value="basic" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="company_id">Empresa *</Label>
+                  <Select
+                    required
+                    value={formData.company_id}
+                    onValueChange={(value) => setFormData({ ...formData, company_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.nome_fantasia}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="estado">Estado *</Label>
-              <Select
-                required
-                value={formData.estado}
-                onValueChange={(value: any) => setFormData({ ...formData, estado: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="em_uso">Em Uso</SelectItem>
-                  <SelectItem value="estoque">Estoque</SelectItem>
-                  <SelectItem value="manutencao">Manutenção</SelectItem>
-                  <SelectItem value="baixado">Baixado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tipo">Tipo *</Label>
+                  <Select
+                    required
+                    value={formData.tipo}
+                    onValueChange={(value) => setFormData({ ...formData, tipo: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="desktop">Desktop</SelectItem>
+                      <SelectItem value="notebook">Notebook</SelectItem>
+                      <SelectItem value="impressora">Impressora</SelectItem>
+                      <SelectItem value="monitor">Monitor</SelectItem>
+                      <SelectItem value="roteador">Roteador</SelectItem>
+                      <SelectItem value="switch">Switch</SelectItem>
+                      <SelectItem value="servidor">Servidor</SelectItem>
+                      <SelectItem value="periferico">Periférico</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="fabricante">Fabricante</Label>
-              <Input
-                id="fabricante"
-                value={formData.fabricante}
-                onChange={(e) => setFormData({ ...formData, fabricante: e.target.value })}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estado">Estado *</Label>
+                  <Select
+                    required
+                    value={formData.estado}
+                    onValueChange={(value: any) => setFormData({ ...formData, estado: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="em_uso">Em Uso</SelectItem>
+                      <SelectItem value="estoque">Estoque</SelectItem>
+                      <SelectItem value="manutencao">Manutenção</SelectItem>
+                      <SelectItem value="baixado">Baixado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="modelo">Modelo</Label>
-              <Input
-                id="modelo"
-                value={formData.modelo}
-                onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Fabricante</Label>
+                  <Input
+                    value={formData.fabricante}
+                    onChange={(e) => setFormData({ ...formData, fabricante: e.target.value })}
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="numero_serie">Número de Série</Label>
-              <Input
-                id="numero_serie"
-                value={formData.numero_serie}
-                onChange={(e) => setFormData({ ...formData, numero_serie: e.target.value })}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Modelo</Label>
+                  <Input
+                    value={formData.modelo}
+                    onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="tag_patrimonial">Tag Patrimonial</Label>
-              <Input
-                id="tag_patrimonial"
-                value={formData.tag_patrimonial}
-                onChange={(e) => setFormData({ ...formData, tag_patrimonial: e.target.value })}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Número de Série</Label>
+                  <Input
+                    value={formData.numero_serie}
+                    onChange={(e) => setFormData({ ...formData, numero_serie: e.target.value })}
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="local">Local</Label>
-              <Input
-                id="local"
-                value={formData.local}
-                onChange={(e) => setFormData({ ...formData, local: e.target.value })}
-                placeholder="Ex: Sala 101"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Tag Patrimonial</Label>
+                  <Input
+                    value={formData.tag_patrimonial}
+                    onChange={(e) => setFormData({ ...formData, tag_patrimonial: e.target.value })}
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="setor">Setor</Label>
-              <Input
-                id="setor"
-                value={formData.setor}
-                onChange={(e) => setFormData({ ...formData, setor: e.target.value })}
-                placeholder="Ex: TI, Financeiro"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Local</Label>
+                  <Input
+                    value={formData.local}
+                    onChange={(e) => setFormData({ ...formData, local: e.target.value })}
+                    placeholder="Ex: Sala 101"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="sistema_operacional">Sistema Operacional</Label>
-              <Input
-                id="sistema_operacional"
-                value={formData.sistema_operacional}
-                onChange={(e) => setFormData({ ...formData, sistema_operacional: e.target.value })}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Setor</Label>
+                  <Input
+                    value={formData.setor}
+                    onChange={(e) => setFormData({ ...formData, setor: e.target.value })}
+                    placeholder="Ex: TI, Financeiro"
+                  />
+                </div>
+              </div>
+            </TabsContent>
 
-            <div className="space-y-2">
-              <Label htmlFor="data_compra">Data de Compra</Label>
-              <Input
-                id="data_compra"
-                type="date"
-                value={formData.data_compra}
-                onChange={(e) => setFormData({ ...formData, data_compra: e.target.value })}
-              />
-            </div>
+            <TabsContent value="hardware" className="space-y-4">
+              {/* Processador */}
+              <div className="p-4 border rounded-lg space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Cpu className="h-4 w-4" />
+                  Processador
+                </h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <Label>Modelo</Label>
+                    <Input
+                      value={configs.processador}
+                      onChange={(e) => setConfigs({...configs, processador: e.target.value})}
+                      placeholder="Ex: Intel Core i7-12700K"
+                    />
+                  </div>
+                  <div>
+                    <Label>Cores</Label>
+                    <Input
+                      type="number"
+                      value={configs.processador_cores || ''}
+                      onChange={(e) => setConfigs({...configs, processador_cores: e.target.value ? parseInt(e.target.value) : undefined})}
+                    />
+                  </div>
+                </div>
+              </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="garantia_fim">Garantia até</Label>
-              <Input
-                id="garantia_fim"
-                type="date"
-                value={formData.garantia_fim}
-                onChange={(e) => setFormData({ ...formData, garantia_fim: e.target.value })}
-              />
-            </div>
-          </div>
+              {/* Memória RAM */}
+              <div className="p-4 border rounded-lg space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <MemoryStick className="h-4 w-4" />
+                  Memória RAM
+                </h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label>Capacidade (GB)</Label>
+                    <Input
+                      type="number"
+                      value={configs.memoria_ram_gb || ''}
+                      onChange={(e) => setConfigs({...configs, memoria_ram_gb: e.target.value ? parseInt(e.target.value) : undefined})}
+                    />
+                  </div>
+                  <div>
+                    <Label>Tipo</Label>
+                    <Select
+                      value={configs.memoria_ram_tipo}
+                      onValueChange={(value) => setConfigs({...configs, memoria_ram_tipo: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DDR3">DDR3</SelectItem>
+                        <SelectItem value="DDR4">DDR4</SelectItem>
+                        <SelectItem value="DDR5">DDR5</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Slots</Label>
+                    <Input
+                      type="number"
+                      value={configs.memoria_ram_slots || ''}
+                      onChange={(e) => setConfigs({...configs, memoria_ram_slots: e.target.value ? parseInt(e.target.value) : undefined})}
+                    />
+                  </div>
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="observacoes">Observações</Label>
-            <Textarea
-              id="observacoes"
-              value={formData.observacoes}
-              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-              rows={3}
-            />
-          </div>
+              {/* Armazenamento */}
+              <div className="p-4 border rounded-lg space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <HardDrive className="h-4 w-4" />
+                  Armazenamento
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Capacidade (GB)</Label>
+                    <Input
+                      type="number"
+                      value={configs.armazenamento_principal_gb || ''}
+                      onChange={(e) => setConfigs({...configs, armazenamento_principal_gb: e.target.value ? parseInt(e.target.value) : undefined})}
+                    />
+                  </div>
+                  <div>
+                    <Label>Tipo</Label>
+                    <Select
+                      value={configs.armazenamento_principal_tipo}
+                      onValueChange={(value) => setConfigs({...configs, armazenamento_principal_tipo: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="HDD">HDD</SelectItem>
+                        <SelectItem value="SSD">SSD</SelectItem>
+                        <SelectItem value="NVMe">NVMe</SelectItem>
+                        <SelectItem value="M.2">M.2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Placa de Vídeo */}
+              <div className="p-4 border rounded-lg space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Monitor className="h-4 w-4" />
+                  Placa de Vídeo
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Modelo</Label>
+                    <Input
+                      value={configs.placa_video}
+                      onChange={(e) => setConfigs({...configs, placa_video: e.target.value})}
+                      placeholder="Ex: NVIDIA RTX 4070"
+                    />
+                  </div>
+                  <div>
+                    <Label>VRAM (GB)</Label>
+                    <Input
+                      type="number"
+                      value={configs.placa_video_memoria_gb || ''}
+                      onChange={(e) => setConfigs({...configs, placa_video_memoria_gb: e.target.value ? parseInt(e.target.value) : undefined})}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={configs.placa_video_integrada}
+                    onCheckedChange={(checked) => setConfigs({...configs, placa_video_integrada: checked as boolean})}
+                  />
+                  <Label>Placa integrada</Label>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="additional" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Sistema Operacional</Label>
+                  <Input
+                    value={formData.sistema_operacional}
+                    onChange={(e) => setFormData({ ...formData, sistema_operacional: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Data de Compra</Label>
+                  <Input
+                    type="date"
+                    value={formData.data_compra}
+                    onChange={(e) => setFormData({ ...formData, data_compra: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Garantia até</Label>
+                  <Input
+                    type="date"
+                    value={formData.garantia_fim}
+                    onChange={(e) => setFormData({ ...formData, garantia_fim: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Observações</Label>
+                <Textarea
+                  value={formData.observacoes}
+                  onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
 
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
