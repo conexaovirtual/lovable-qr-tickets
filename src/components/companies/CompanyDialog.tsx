@@ -153,16 +153,33 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         });
       } else {
         // Validação client-side: verificar se empresa já existe
-        const { data: existing } = await supabase
-          .from('companies')
-          .select('id')
-          .or(`cnpj.eq.${data.cnpj},nome_fantasia.eq.${data.nome_fantasia}`)
-          .maybeSingle();
+        // SECURITY FIX: Use separate queries instead of .or() to prevent SQL injection
+        const [existingByCnpj, existingByName] = await Promise.all([
+          supabase
+            .from('companies')
+            .select('id, nome_fantasia')
+            .eq('cnpj', data.cnpj)
+            .maybeSingle(),
+          supabase
+            .from('companies')
+            .select('id, cnpj')
+            .eq('nome_fantasia', data.nome_fantasia)
+            .maybeSingle()
+        ]);
 
-        if (existing) {
+        if (existingByCnpj.data) {
           toast({
-            title: 'Empresa já cadastrada',
-            description: 'Já existe uma empresa com este CNPJ ou nome.',
+            title: 'CNPJ já cadastrado',
+            description: `Já existe uma empresa com este CNPJ: ${existingByCnpj.data.nome_fantasia}`,
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        if (existingByName.data) {
+          toast({
+            title: 'Nome fantasia já cadastrado',
+            description: `Já existe uma empresa com este nome: ${existingByName.data.cnpj || 'CNPJ não informado'}`,
             variant: 'destructive',
           });
           return;

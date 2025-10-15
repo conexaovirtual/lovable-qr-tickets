@@ -705,12 +705,12 @@ export type Database = {
           cnpj?: never
           created_at?: string | null
           email?: never
-          endereco?: never
+          endereco?: string | null
           id?: string | null
           nome_fantasia?: string | null
-          razao_social?: never
-          sla_primeiro_atendimento_horas?: never
-          sla_solucao_horas?: never
+          razao_social?: string | null
+          sla_primeiro_atendimento_horas?: number | null
+          sla_solucao_horas?: number | null
           status?: boolean | null
           telefone?: never
           updated_at?: string | null
@@ -719,12 +719,12 @@ export type Database = {
           cnpj?: never
           created_at?: string | null
           email?: never
-          endereco?: never
+          endereco?: string | null
           id?: string | null
           nome_fantasia?: string | null
-          razao_social?: never
-          sla_primeiro_atendimento_horas?: never
-          sla_solucao_horas?: never
+          razao_social?: string | null
+          sla_primeiro_atendimento_horas?: number | null
+          sla_solucao_horas?: number | null
           status?: boolean | null
           telefone?: never
           updated_at?: string | null
@@ -830,6 +830,36 @@ export type Database = {
           },
         ]
       }
+      security_rls_violations: {
+        Row: {
+          created_at: string | null
+          event_type: string | null
+          ip_address: string | null
+          metadata: Json | null
+          severity: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type?: string | null
+          ip_address?: string | null
+          metadata?: Json | null
+          severity?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string | null
+          ip_address?: string | null
+          metadata?: Json | null
+          severity?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_priority: {
@@ -879,6 +909,17 @@ export type Database = {
           access_granted: boolean
           target_user_id: string
           viewer_user_id: string
+        }
+        Returns: undefined
+      }
+      log_security_event: {
+        Args: {
+          p_event_type: string
+          p_ip?: string
+          p_metadata?: Json
+          p_severity?: string
+          p_user_agent?: string
+          p_user_id?: string
         }
         Returns: undefined
       }

@@ -50,13 +50,14 @@ Deno.serve(async (req) => {
         if (rateLimit.count >= 5) {
           console.warn(`Rate limit exceeded for IP: ${clientIp}`)
           
-          // Log rate limit violation
-          await supabase.from('security_audit_logs').insert({
-            event_type: 'rate_limit_exceeded',
-            ip_address: clientIp,
-            user_agent: userAgent,
-            metadata: { email, attempts: rateLimit.count },
-            severity: 'warning'
+          // Log rate limit violation using secure function
+          await supabase.rpc('log_security_event', {
+            p_event_type: 'rate_limit_exceeded',
+            p_user_id: null,
+            p_ip: clientIp,
+            p_user_agent: userAgent,
+            p_metadata: { email, attempts: rateLimit.count },
+            p_severity: 'warn'
           })
           
           return new Response(
@@ -87,16 +88,17 @@ Deno.serve(async (req) => {
     if (error) {
       console.error('Login failed:', error.message)
       
-      // Log failed login attempt
-      await supabase.from('security_audit_logs').insert({
-        event_type: 'login_failed',
-        ip_address: clientIp,
-        user_agent: userAgent,
-        metadata: { 
+      // Log failed login attempt using secure function
+      await supabase.rpc('log_security_event', {
+        p_event_type: 'login_failed',
+        p_user_id: null,
+        p_ip: clientIp,
+        p_user_agent: userAgent,
+        p_metadata: { 
           email,
           error_message: error.message
         },
-        severity: 'warning'
+        p_severity: 'warn'
       })
       
       return new Response(
@@ -108,14 +110,14 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Log successful login
-    await supabase.from('security_audit_logs').insert({
-      event_type: 'login_success',
-      user_id: data.user?.id,
-      ip_address: clientIp,
-      user_agent: userAgent,
-      metadata: { email },
-      severity: 'info'
+    // Log successful login using secure function
+    await supabase.rpc('log_security_event', {
+      p_event_type: 'login_success',
+      p_user_id: data.user?.id || null,
+      p_ip: clientIp,
+      p_user_agent: userAgent,
+      p_metadata: { email },
+      p_severity: 'info'
     })
 
     // Clear rate limit on successful login
