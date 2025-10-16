@@ -168,7 +168,6 @@ export default function Inventory() {
                   <SelectValue placeholder="Todas empresas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas empresas</SelectItem>
                   {companies.map((company) => (
                     <SelectItem key={company.id} value={company.id}>
                       {company.nome_fantasia}
@@ -185,7 +184,6 @@ export default function Inventory() {
                   <SelectValue placeholder="Todos os tipos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os tipos</SelectItem>
                   <SelectItem value="desktop">Desktop</SelectItem>
                   <SelectItem value="notebook">Notebook</SelectItem>
                   <SelectItem value="impressora">Impressora</SelectItem>
@@ -203,7 +201,6 @@ export default function Inventory() {
                   <SelectValue placeholder="Todos os estados" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os estados</SelectItem>
                   <SelectItem value="em_uso">Em Uso</SelectItem>
                   <SelectItem value="estoque">Estoque</SelectItem>
                   <SelectItem value="manutencao">Manutenção</SelectItem>
