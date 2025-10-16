@@ -28,11 +28,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Download, MoreVertical, Info, Edit, Trash } from 'lucide-react';
+import { Plus, Download, MoreVertical, Info, Edit, Trash, FileText, FileSpreadsheet } from 'lucide-react';
 import { AssetDialog } from '@/components/assets/AssetDialog';
 import { AssetConfigDialog } from '@/components/assets/AssetConfigDialog';
 import { AssetStatusBadge } from '@/components/assets/AssetStatusBadge';
-import { exportInventoryToCSV } from '@/lib/exportInventory';
+import { exportInventoryToCSV, exportInventoryToPDF } from '@/lib/exportInventory';
 import { toast } from 'sonner';
 
 export default function Inventory() {
@@ -125,9 +125,14 @@ export default function Inventory() {
     setDialogOpen(true);
   };
 
-  const handleExport = () => {
+  const handleExportCSV = () => {
     exportInventoryToCSV(assets);
-    toast.success('Inventário exportado!');
+    toast.success('Inventário exportado em CSV!');
+  };
+
+  const handleExportPDF = () => {
+    exportInventoryToPDF(assets);
+    toast.success('Inventário exportado em PDF!');
   };
 
   if (loading || !profile) {
@@ -145,10 +150,24 @@ export default function Inventory() {
             <p className="text-muted-foreground">Visualização completa de todos os ativos</p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleExport} variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Exportar CSV
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportPDF}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Exportar PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCSV}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Exportar CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Ativo
