@@ -52,6 +52,16 @@ export default function NewTicket() {
   });
 
   useEffect(() => {
+    // Se veio de QR Code mas não está autenticado, redirecionar para login
+    if ((preSelectedAssetId || qrCodeToken) && !profile) {
+      const currentParams = new URLSearchParams(searchParams);
+      const returnUrl = `/tickets/new?${currentParams.toString()}`;
+      navigate(`/auth?redirect=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
+
+    if (!profile) return;
+
     loadCategories();
     
     // Validar token do QR Code se presente
@@ -71,7 +81,7 @@ export default function NewTicket() {
       setSelectedCompanyId(profile.company_id);
       setFormData(prev => ({ ...prev, company_id: profile.company_id! }));
     }
-  }, [profile]);
+  }, [profile, preSelectedAssetId, qrCodeToken, searchParams, navigate]);
 
   useEffect(() => {
     if (selectedCompanyId) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthInd
 
 export default function Auth() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectUrl = searchParams.get('redirect');
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -77,7 +79,8 @@ export default function Auth() {
       }
 
       toast.success('Login realizado com sucesso!');
-      navigate('/dashboard');
+      const targetUrl = redirectUrl || '/dashboard';
+      navigate(targetUrl);
     } catch (error: any) {
       if (error.errors) {
         toast.error(error.errors[0]?.message || 'Dados inválidos');
