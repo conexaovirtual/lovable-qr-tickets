@@ -22,7 +22,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 export default function NewTicket() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -53,13 +53,16 @@ export default function NewTicket() {
 
   useEffect(() => {
     // Se veio de QR Code mas não está autenticado, redirecionar para login
-    if ((preSelectedAssetId || qrCodeToken) && !profile) {
+    if ((preSelectedAssetId || qrCodeToken) && !profile && !authLoading) {
       const currentParams = new URLSearchParams(searchParams);
       const returnUrl = `/tickets/new?${currentParams.toString()}`;
       navigate(`/auth?redirect=${encodeURIComponent(returnUrl)}`);
       return;
     }
 
+    // Aguardar carregamento do profile
+    if (authLoading) return;
+    
     if (!profile) return;
 
     loadCategories();
@@ -81,7 +84,7 @@ export default function NewTicket() {
       setSelectedCompanyId(profile.company_id);
       setFormData(prev => ({ ...prev, company_id: profile.company_id! }));
     }
-  }, [profile, preSelectedAssetId, qrCodeToken, searchParams, navigate]);
+  }, [profile, authLoading, preSelectedAssetId, qrCodeToken, searchParams, navigate]);
 
   useEffect(() => {
     if (selectedCompanyId) {

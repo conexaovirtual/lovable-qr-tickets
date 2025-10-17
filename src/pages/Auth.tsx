@@ -74,8 +74,8 @@ export default function Auth() {
           return;
         }
         
-        // Wait for onAuthStateChange to process and load profile (prevents race condition)
-        await new Promise(resolve => setTimeout(resolve, 300));
+      // Wait for onAuthStateChange to process and load profile (prevents race condition)
+      await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       toast.success('Login realizado com sucesso!');
