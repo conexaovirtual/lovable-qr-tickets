@@ -22,11 +22,17 @@ export function AppHeader() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">TI</span>
+            <Link to="/dashboard" className="flex items-center gap-3">
+              <img 
+                src="/logo-conexaovirtual.png" 
+                alt="Conexão Virtual" 
+                className="h-10 w-auto"
+                style={{ objectFit: 'contain' }}
+              />
+              <div className="hidden md:flex flex-col">
+                <span className="font-semibold text-sm leading-tight">Conexão Virtual</span>
+                <span className="text-xs text-muted-foreground">Help Desk TI</span>
               </div>
-              <span className="font-semibold hidden sm:inline">Help Desk</span>
             </Link>
 
             <nav className="hidden md:flex items-center gap-4">

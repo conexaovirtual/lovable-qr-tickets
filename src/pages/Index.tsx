@@ -76,8 +76,17 @@ const Index = () => {
               <span className="text-sm font-medium">Sistema Profissional de Help Desk</span>
             </div>
             
+            <div className="flex justify-center mb-8 animate-fade-in">
+              <img 
+                src="/logo-conexaovirtual.png" 
+                alt="Conexão Virtual" 
+                className="h-24 md:h-32 w-auto drop-shadow-lg"
+                style={{ objectFit: 'contain' }}
+              />
+            </div>
+            
             <h1 className="text-4xl md:text-6xl font-bold mb-6 animate-fade-in">
-              Help Desk TI com{' '}
+              Sistema de Help Desk TI com{' '}
               <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
                 QR Code e Gestão de Ativos
               </span>

@@ -135,14 +135,17 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent to-background p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 bg-gradient-primary rounded-full">
-              <Ticket className="h-8 w-8 text-white" />
-            </div>
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/logo-conexaovirtual.png" 
+              alt="Conexão Virtual" 
+              className="h-20 w-auto"
+              style={{ objectFit: 'contain' }}
+            />
           </div>
-          <CardTitle className="text-2xl font-bold">Help Desk TI</CardTitle>
-          <CardDescription>
-            Sistema de gerenciamento de chamados e ativos
+          <CardTitle className="text-2xl font-bold text-center">Conexão Virtual</CardTitle>
+          <CardDescription className="text-center">
+            Sistema de gerenciamento de chamados e ativos de TI
           </CardDescription>
         </CardHeader>
         <CardContent>
