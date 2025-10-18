@@ -30,6 +30,7 @@ export default function NewTicket() {
   const [subcategories, setSubcategories] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [technicians, setTechnicians] = useState<any[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [lastSubmit, setLastSubmit] = useState<number>(0);
   const [selectedAssetInfo, setSelectedAssetInfo] = useState<any>(null);
@@ -49,6 +50,7 @@ export default function NewTicket() {
     company_id: preSelectedCompanyId || '',
     impacto: 'medio' as const,
     urgencia: 'media' as const,
+    tecnico_id: '',
   });
 
   useEffect(() => {
@@ -72,9 +74,10 @@ export default function NewTicket() {
       validateQRCodeToken();
     }
     
-    // Se for admin/técnico, carregar empresas
+    // Se for admin/técnico, carregar empresas e técnicos
     if (profile?.roles.includes('admin_provedor') || profile?.roles.includes('tecnico')) {
       loadCompanies();
+      loadTechnicians();
       // Se já veio empresa pré-selecionada
       if (preSelectedCompanyId) {
         setSelectedCompanyId(preSelectedCompanyId);
@@ -120,6 +123,22 @@ export default function NewTicket() {
       .eq('status', true)
       .order('nome_fantasia');
     if (data) setCompanies(data);
+  };
+
+  const loadTechnicians = async () => {
+    // SECURITY: Query user_roles table to prevent privilege escalation
+    const { data } = await supabase
+      .from('user_roles')
+      .select('user_id, profiles!inner(id, nome)')
+      .in('role', ['admin_provedor', 'tecnico']);
+
+    if (data) {
+      const techs = data.map(item => ({
+        id: item.user_id,
+        nome: (item.profiles as any).nome
+      }));
+      setTechnicians(techs);
+    }
   };
 
   const loadAssets = async (companyId: string) => {
@@ -209,6 +228,7 @@ export default function NewTicket() {
     const { error } = await supabase.from('tickets').insert({
       ...formData,
       asset_id: formData.asset_id === 'none' ? null : formData.asset_id || null,
+      tecnico_id: formData.tecnico_id === 'none' ? null : formData.tecnico_id || null,
       company_id: formData.company_id,
       solicitante_id: profile.id,
       canal: preSelectedAssetId ? 'qrcode' : 'web',
@@ -304,6 +324,32 @@ export default function NewTicket() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {/* Campo Técnico Responsável - Apenas para admins/técnicos */}
+          {(profile?.roles.includes('admin_provedor') || profile?.roles.includes('tecnico')) && (
+            <div className="space-y-2">
+              <Label htmlFor="tecnico">Técnico Responsável</Label>
+              <Select
+                value={formData.tecnico_id}
+                onValueChange={(value) => setFormData({ ...formData, tecnico_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um técnico (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum (atribuir depois)</SelectItem>
+                  {technicians.map((tech) => (
+                    <SelectItem key={tech.id} value={tech.id}>
+                      {tech.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Deixe vazio para atribuir o técnico posteriormente
+              </p>
             </div>
           )}
 
