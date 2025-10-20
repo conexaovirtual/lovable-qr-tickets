@@ -127,15 +127,36 @@ export default function NewTicket() {
 
   const loadTechnicians = async () => {
     // SECURITY: Query user_roles table to prevent privilege escalation
-    const { data } = await supabase
+    const { data: userRolesData, error: rolesError } = await supabase
       .from('user_roles')
-      .select('user_id, profiles!inner(id, nome)')
+      .select('user_id')
       .in('role', ['admin_provedor', 'tecnico']);
 
-    if (data) {
-      const techs = data.map(item => ({
-        id: item.user_id,
-        nome: (item.profiles as any).nome
+    if (rolesError || !userRolesData || userRolesData.length === 0) {
+      console.error('Erro ao carregar roles:', rolesError);
+      setTechnicians([]);
+      return;
+    }
+
+    // Get user IDs
+    const technicianIds = userRolesData.map(ur => ur.user_id);
+
+    // Fetch profiles for these users
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, nome')
+      .in('id', technicianIds);
+
+    if (profilesError) {
+      console.error('Erro ao carregar profiles:', profilesError);
+      setTechnicians([]);
+      return;
+    }
+
+    if (profilesData) {
+      const techs = profilesData.map(profile => ({
+        id: profile.id,
+        nome: profile.nome
       }));
       setTechnicians(techs);
     }
