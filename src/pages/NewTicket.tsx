@@ -208,6 +208,20 @@ export default function NewTicket() {
     // Validar formulário
     try {
       ticketSchema.parse(formData);
+      
+      // Validação adicional: Técnico obrigatório para admins/técnicos
+      if (profile?.roles.includes('admin_provedor') || profile?.roles.includes('tecnico')) {
+        if (!formData.tecnico_id || formData.tecnico_id === 'none') {
+          setValidationErrors({ tecnico_id: 'Selecione um técnico responsável' });
+          toast({
+            title: 'Campo obrigatório',
+            description: 'Você precisa atribuir um técnico responsável ao chamado',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+      
       setValidationErrors({});
       setLastSubmit(now);
     } catch (error: any) {
@@ -228,7 +242,7 @@ export default function NewTicket() {
     const { error } = await supabase.from('tickets').insert({
       ...formData,
       asset_id: formData.asset_id === 'none' ? null : formData.asset_id || null,
-      tecnico_id: formData.tecnico_id === 'none' ? null : formData.tecnico_id || null,
+      tecnico_id: formData.tecnico_id || null,
       company_id: formData.company_id,
       solicitante_id: profile.id,
       canal: preSelectedAssetId ? 'qrcode' : 'web',
@@ -327,19 +341,21 @@ export default function NewTicket() {
             </div>
           )}
 
-          {/* Campo Técnico Responsável - Apenas para admins/técnicos */}
+          {/* Campo Técnico Responsável - OBRIGATÓRIO para admins/técnicos */}
           {(profile?.roles.includes('admin_provedor') || profile?.roles.includes('tecnico')) && (
             <div className="space-y-2">
-              <Label htmlFor="tecnico">Técnico Responsável</Label>
+              <Label htmlFor="tecnico">
+                Técnico Responsável <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={formData.tecnico_id}
                 onValueChange={(value) => setFormData({ ...formData, tecnico_id: value })}
+                required
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um técnico (opcional)" />
+                <SelectTrigger className={validationErrors.tecnico_id ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Selecione um técnico responsável" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Nenhum (atribuir depois)</SelectItem>
                   {technicians.map((tech) => (
                     <SelectItem key={tech.id} value={tech.id}>
                       {tech.nome}
@@ -347,8 +363,11 @@ export default function NewTicket() {
                   ))}
                 </SelectContent>
               </Select>
+              {validationErrors.tecnico_id && (
+                <p className="text-sm text-destructive">{validationErrors.tecnico_id}</p>
+              )}
               <p className="text-xs text-muted-foreground">
-                Deixe vazio para atribuir o técnico posteriormente
+                Este campo é obrigatório para garantir atendimento ágil
               </p>
             </div>
           )}

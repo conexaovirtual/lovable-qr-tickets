@@ -15,6 +15,7 @@ export const ticketSchema = z.object({
   asset_id: z.string().trim().optional(),
   impacto: z.enum(['baixo', 'medio', 'alto']),
   urgencia: z.enum(['baixa', 'media', 'alta']),
+  tecnico_id: z.string().trim().optional(),
 });
 
 // Schema para configurações JSONB de ativos
