@@ -308,6 +308,117 @@ export type Database = {
         }
         Relationships: []
       }
+      service_orders: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          custo_pecas: number | null
+          custo_total: number | null
+          data_emissao: string
+          data_execucao: string | null
+          descricao_servicos: string
+          id: string
+          numero_os: number
+          observacoes: string | null
+          status: string
+          tecnico_id: string | null
+          tempo_gasto_horas: number | null
+          ticket_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          custo_pecas?: number | null
+          custo_total?: number | null
+          data_emissao?: string
+          data_execucao?: string | null
+          descricao_servicos: string
+          id?: string
+          numero_os: number
+          observacoes?: string | null
+          status?: string
+          tecnico_id?: string | null
+          tempo_gasto_horas?: number | null
+          ticket_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          custo_pecas?: number | null
+          custo_total?: number | null
+          data_emissao?: string
+          data_execucao?: string | null
+          descricao_servicos?: string
+          id?: string
+          numero_os?: number
+          observacoes?: string | null
+          status?: string
+          tecnico_id?: string | null
+          tempo_gasto_horas?: number | null
+          ticket_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "asset_inventory_by_company"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "service_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_basic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_statistics"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "service_orders_tecnico_id_fkey"
+            columns: ["tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_tecnico_id_fkey"
+            columns: ["tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subcategories: {
         Row: {
           category_id: string | null
