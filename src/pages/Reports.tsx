@@ -8,9 +8,10 @@ import { InventoryReport } from '@/components/reports/InventoryReport';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileBarChart, Building2, Package, Ticket, Printer } from 'lucide-react';
+import { FileBarChart, Building2, Package, Ticket, Printer, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ServiceOrderList } from '@/components/service-orders/ServiceOrderList';
 
 export default function Reports() {
   const { profile, loading } = useAuth();
@@ -131,6 +132,10 @@ export default function Reports() {
           <TabsList>
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="inventory">Inventário</TabsTrigger>
+            <TabsTrigger value="service-orders">
+              <FileText className="h-4 w-4 mr-2" />
+              Ordens de Serviço
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -141,6 +146,10 @@ export default function Reports() {
             {reports.map((report) => (
               <InventoryReport key={report.company_id} companyId={report.company_id} />
             ))}
+          </TabsContent>
+
+          <TabsContent value="service-orders">
+            <ServiceOrderList />
           </TabsContent>
         </Tabs>
       </main>

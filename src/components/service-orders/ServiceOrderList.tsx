@@ -1,0 +1,120 @@
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ServiceOrderCard } from './ServiceOrderCard';
+import { Search } from 'lucide-react';
+
+export function ServiceOrderList() {
+  const [serviceOrders, setServiceOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const { toast } = useToast();
+
+  const loadServiceOrders = async () => {
+    setLoading(true);
+
+    try {
+      let query = supabase
+        .from('service_orders')
+        .select(`
+          *,
+          tickets (numero, titulo),
+          companies:companies_safe (nome_fantasia, cnpj, endereco),
+          profiles:tecnico_id (nome)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (startDate) {
+        query = query.gte('data_emissao', new Date(startDate).toISOString());
+      }
+
+      if (endDate) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        query = query.lte('data_emissao', endDateTime.toISOString());
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      setServiceOrders(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar OS:', error);
+      toast({
+        title: 'Erro ao Carregar OS',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadServiceOrders();
+  }, [startDate, endDate]);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-64" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Filtros
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Data Início</label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Data Fim</label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {serviceOrders.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">
+              Nenhuma ordem de serviço encontrada no período selecionado.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {serviceOrders.map((so) => (
+            <ServiceOrderCard key={so.id} serviceOrder={so} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

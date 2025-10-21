@@ -13,6 +13,8 @@ import { TicketTimeline } from '@/components/tickets/TicketTimeline';
 import { TicketComments } from '@/components/tickets/TicketComments';
 import { TicketStatusUpdate } from '@/components/tickets/TicketStatusUpdate';
 import { TicketAssignment } from '@/components/tickets/TicketAssignment';
+import { ServiceOrderDialog } from '@/components/service-orders/ServiceOrderDialog';
+import { FileText } from 'lucide-react';
 
 export default function TicketDetail() {
   const { id } = useParams();
@@ -20,6 +22,7 @@ export default function TicketDetail() {
   const { profile } = useAuth();
   const [ticket, setTicket] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isServiceOrderDialogOpen, setIsServiceOrderDialogOpen] = useState(false);
 
   useEffect(() => {
     loadTicket();
@@ -149,6 +152,23 @@ export default function TicketDetail() {
               <>
                 <TicketStatusUpdate ticket={ticket} onUpdate={loadTicket} />
                 <TicketAssignment ticket={ticket} onUpdate={loadTicket} />
+                
+                {(ticket.status === 'resolvido' || ticket.status === 'fechado') && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Ordem de Serviço</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Button 
+                        onClick={() => setIsServiceOrderDialogOpen(true)}
+                        className="w-full"
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Gerar OS
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
               </>
             )}
 
@@ -236,6 +256,13 @@ export default function TicketDetail() {
           </div>
         </div>
       </main>
+
+      <ServiceOrderDialog
+        open={isServiceOrderDialogOpen}
+        onOpenChange={setIsServiceOrderDialogOpen}
+        ticket={ticket}
+        onSuccess={loadTicket}
+      />
     </div>
   );
 }
