@@ -308,56 +308,141 @@ export type Database = {
         }
         Relationships: []
       }
+      service_order_history: {
+        Row: {
+          campo_alterado: string
+          changed_by: string
+          created_at: string | null
+          id: string
+          observacao: string | null
+          service_order_id: string
+          valor_anterior: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          campo_alterado: string
+          changed_by: string
+          created_at?: string | null
+          id?: string
+          observacao?: string | null
+          service_order_id: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          campo_alterado?: string
+          changed_by?: string
+          created_at?: string | null
+          id?: string
+          observacao?: string | null
+          service_order_id?: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_order_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_history_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_orders: {
         Row: {
           company_id: string
+          contato_local: string | null
           created_at: string | null
           custo_pecas: number | null
           custo_total: number | null
+          data_agendada: string | null
           data_emissao: string
           data_execucao: string | null
           descricao_servicos: string
+          endereco_atendimento: string | null
+          equipamentos_necessarios: string[] | null
+          hora_agendada: string | null
           id: string
           numero_os: number
           observacoes: string | null
+          pecas_previstas: Json | null
+          prioridade: string | null
           status: string
           tecnico_id: string | null
+          telefone_contato: string | null
+          tempo_estimado_horas: number | null
           tempo_gasto_horas: number | null
-          ticket_id: string
+          ticket_id: string | null
+          tipo_servico: string | null
           updated_at: string | null
         }
         Insert: {
           company_id: string
+          contato_local?: string | null
           created_at?: string | null
           custo_pecas?: number | null
           custo_total?: number | null
+          data_agendada?: string | null
           data_emissao?: string
           data_execucao?: string | null
           descricao_servicos: string
+          endereco_atendimento?: string | null
+          equipamentos_necessarios?: string[] | null
+          hora_agendada?: string | null
           id?: string
           numero_os: number
           observacoes?: string | null
+          pecas_previstas?: Json | null
+          prioridade?: string | null
           status?: string
           tecnico_id?: string | null
+          telefone_contato?: string | null
+          tempo_estimado_horas?: number | null
           tempo_gasto_horas?: number | null
-          ticket_id: string
+          ticket_id?: string | null
+          tipo_servico?: string | null
           updated_at?: string | null
         }
         Update: {
           company_id?: string
+          contato_local?: string | null
           created_at?: string | null
           custo_pecas?: number | null
           custo_total?: number | null
+          data_agendada?: string | null
           data_emissao?: string
           data_execucao?: string | null
           descricao_servicos?: string
+          endereco_atendimento?: string | null
+          equipamentos_necessarios?: string[] | null
+          hora_agendada?: string | null
           id?: string
           numero_os?: number
           observacoes?: string | null
+          pecas_previstas?: Json | null
+          prioridade?: string | null
           status?: string
           tecnico_id?: string | null
+          telefone_contato?: string | null
+          tempo_estimado_horas?: number | null
           tempo_gasto_horas?: number | null
-          ticket_id?: string
+          ticket_id?: string | null
+          tipo_servico?: string | null
           updated_at?: string | null
         }
         Relationships: [

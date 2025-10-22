@@ -8,10 +8,11 @@ import { InventoryReport } from '@/components/reports/InventoryReport';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileBarChart, Building2, Package, Ticket, Printer, FileText } from 'lucide-react';
+import { FileBarChart, Building2, Package, Ticket, Printer, FileText, Calendar as CalendarIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ServiceOrderList } from '@/components/service-orders/ServiceOrderList';
+import { ServiceOrderCalendar } from '@/components/service-orders/ServiceOrderCalendar';
 
 export default function Reports() {
   const { profile, loading } = useAuth();
@@ -134,7 +135,11 @@ export default function Reports() {
             <TabsTrigger value="inventory">Inventário</TabsTrigger>
             <TabsTrigger value="service-orders">
               <FileText className="h-4 w-4 mr-2" />
-              Ordens de Serviço
+              Lista de OSs
+            </TabsTrigger>
+            <TabsTrigger value="calendar">
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              Calendário
             </TabsTrigger>
           </TabsList>
 
@@ -150,6 +155,10 @@ export default function Reports() {
 
           <TabsContent value="service-orders">
             <ServiceOrderList />
+          </TabsContent>
+
+          <TabsContent value="calendar">
+            <ServiceOrderCalendar />
           </TabsContent>
         </Tabs>
       </main>
