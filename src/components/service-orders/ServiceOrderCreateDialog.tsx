@@ -552,9 +552,18 @@ export function ServiceOrderCreateDialog({
                 <div className="rounded-lg bg-muted p-4 space-y-2">
                   <h4 className="font-semibold">Resumo da OS</h4>
                   <div className="text-sm space-y-1">
-                    <p><strong>Empresa:</strong> {companies.find(c => c.id === form.watch("company_id"))?.nome_fantasia}</p>
-                    <p><strong>Tipo:</strong> {form.watch("tipo_servico")}</p>
-                    <p><strong>Data:</strong> {form.watch("data_agendada") && format(form.watch("data_agendada"), "dd/MM/yyyy", { locale: ptBR })} às {form.watch("hora_agendada")}</p>
+                    <p><strong>Empresa:</strong> {companies.find(c => c.id === form.watch("company_id"))?.nome_fantasia || "Não selecionada"}</p>
+                    <p><strong>Tipo:</strong> {form.watch("tipo_servico") || "Não definido"}</p>
+                    <p>
+                      <strong>Data:</strong> {(() => {
+                        const dataAgendada = form.watch("data_agendada");
+                        const horaAgendada = form.watch("hora_agendada");
+                        if (dataAgendada && dataAgendada instanceof Date && !isNaN(dataAgendada.getTime())) {
+                          return `${format(dataAgendada, "dd/MM/yyyy", { locale: ptBR })} às ${horaAgendada || "Não definida"}`;
+                        }
+                        return "Data não definida";
+                      })()}
+                    </p>
                     <p><strong>Técnico:</strong> {technicians.find(t => t.id === form.watch("tecnico_id"))?.nome || "Não atribuído"}</p>
                   </div>
                 </div>
