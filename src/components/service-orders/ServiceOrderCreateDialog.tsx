@@ -65,6 +65,7 @@ export function ServiceOrderCreateDialog({
       tipo_servico: "corretivo",
       prioridade: "media",
       descricao_servicos: "",
+      data_agendada: new Date(),
       hora_agendada: "09:00",
       equipamentos_necessarios: [],
       observacoes: "",
@@ -211,9 +212,17 @@ export function ServiceOrderCreateDialog({
   const nextStep = async () => {
     const fields = getFieldsForStep(step);
     const isValid = await form.trigger(fields);
-    if (isValid) {
-      setStep(step + 1);
+    
+    if (!isValid) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha todos os campos obrigatórios antes de continuar.",
+        variant: "destructive",
+      });
+      return;
     }
+    
+    setStep(step + 1);
   };
 
   const getFieldsForStep = (currentStep: number): (keyof z.infer<typeof formSchema>)[] => {
@@ -221,9 +230,9 @@ export function ServiceOrderCreateDialog({
       case 1:
         return ["company_id", "tipo_servico", "prioridade", "descricao_servicos"];
       case 2:
-        return ["data_agendada", "hora_agendada", "tempo_estimado_horas", "tecnico_id"];
+        return ["data_agendada", "hora_agendada"];
       case 3:
-        return ["endereco_atendimento", "contato_local", "telefone_contato"];
+        return [];
       default:
         return [];
     }
