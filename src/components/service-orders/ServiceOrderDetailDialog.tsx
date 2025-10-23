@@ -131,6 +131,12 @@ export function ServiceOrderDetailDialog({
         <div className="space-y-4">
           {/* Informações Básicas */}
           <div className="grid grid-cols-2 gap-4">
+            {serviceOrder.tickets && (
+              <div className="col-span-2">
+                <h4 className="text-sm font-semibold text-muted-foreground">Chamado</h4>
+                <p>#{serviceOrder.tickets.numero} - {serviceOrder.tickets.titulo}</p>
+              </div>
+            )}
             <div>
               <h4 className="text-sm font-semibold text-muted-foreground">Empresa</h4>
               <p>{serviceOrder.companies?.nome_fantasia}</p>
@@ -157,11 +163,15 @@ export function ServiceOrderDetailDialog({
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                <span>{serviceOrder.data_agendada && format(new Date(serviceOrder.data_agendada), "dd/MM/yyyy", { locale: ptBR })}</span>
+                <span>
+                  {serviceOrder.data_agendada 
+                    ? format(new Date(serviceOrder.data_agendada), "dd/MM/yyyy", { locale: ptBR })
+                    : "Não agendada"}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                <span>{serviceOrder.hora_agendada?.slice(0, 5)}</span>
+                <span>{serviceOrder.hora_agendada?.slice(0, 5) || "N/A"}</span>
               </div>
               {serviceOrder.tempo_estimado_horas && (
                 <span className="text-sm text-muted-foreground">

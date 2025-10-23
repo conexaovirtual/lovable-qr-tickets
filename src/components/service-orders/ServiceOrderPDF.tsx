@@ -46,16 +46,18 @@ export const generateServiceOrderPDF = (serviceOrder: any) => {
   
   yPos += 10;
 
-  // Dados do chamado
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Chamado: #${serviceOrder.tickets?.numero}`, 20, yPos);
-  
-  yPos += 6;
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Título: ${serviceOrder.tickets?.titulo}`, 20, yPos);
-  
-  yPos += 10;
+  // Dados do chamado (se houver)
+  if (serviceOrder.tickets) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Chamado: #${serviceOrder.tickets.numero}`, 20, yPos);
+    
+    yPos += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Título: ${serviceOrder.tickets.titulo}`, 20, yPos);
+    
+    yPos += 10;
+  }
 
   // Técnico responsável
   doc.setFont('helvetica', 'bold');
@@ -63,12 +65,24 @@ export const generateServiceOrderPDF = (serviceOrder: any) => {
   
   yPos += 10;
 
-  // Datas
+  // Tipo de serviço e prioridade
   doc.setFont('helvetica', 'normal');
-  const dataEmissao = format(new Date(serviceOrder.data_emissao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+  doc.text(`Tipo de Serviço: ${serviceOrder.tipo_servico || 'N/A'}`, 20, yPos);
+  yPos += 6;
+  doc.text(`Prioridade: ${serviceOrder.prioridade || 'N/A'}`, 20, yPos);
+  yPos += 10;
+
+  // Datas
+  const dataEmissao = format(new Date(serviceOrder.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
   doc.text(`Data de Emissão: ${dataEmissao}`, 20, yPos);
   
   yPos += 6;
+  if (serviceOrder.data_agendada) {
+    const dataAgendada = format(new Date(serviceOrder.data_agendada), "dd/MM/yyyy", { locale: ptBR });
+    doc.text(`Data Agendada: ${dataAgendada} às ${serviceOrder.hora_agendada?.slice(0, 5) || 'N/A'}`, 20, yPos);
+    yPos += 6;
+  }
+
   if (serviceOrder.data_execucao) {
     const dataExecucao = format(new Date(serviceOrder.data_execucao), 'dd/MM/yyyy', { locale: ptBR });
     doc.text(`Data de Execução: ${dataExecucao}`, 20, yPos);
@@ -94,6 +108,24 @@ export const generateServiceOrderPDF = (serviceOrder: any) => {
   const splitText = doc.splitTextToSize(serviceOrder.descricao_servicos, pageWidth - 40);
   doc.text(splitText, 20, yPos);
   yPos += splitText.length * 5 + 10;
+
+  // Endereço de atendimento (se houver)
+  if (serviceOrder.endereco_atendimento) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('LOCAL DE ATENDIMENTO', 20, yPos);
+    yPos += 7;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const enderecoText = doc.splitTextToSize(serviceOrder.endereco_atendimento, pageWidth - 40);
+    doc.text(enderecoText, 20, yPos);
+    yPos += enderecoText.length * 5 + 5;
+    if (serviceOrder.contato_local) {
+      doc.text(`Contato: ${serviceOrder.contato_local} ${serviceOrder.telefone_contato ? `- ${serviceOrder.telefone_contato}` : ''}`, 20, yPos);
+      yPos += 5;
+    }
+    yPos += 5;
+  }
 
   // Linha separadora
   doc.setLineWidth(0.5);

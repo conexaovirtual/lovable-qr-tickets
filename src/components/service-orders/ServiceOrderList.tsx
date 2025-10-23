@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ServiceOrderCard } from './ServiceOrderCard';
+import { ServiceOrderDetailDialog } from './ServiceOrderDetailDialog';
 import { Search } from 'lucide-react';
 
 export function ServiceOrderList() {
@@ -12,7 +13,14 @@ export function ServiceOrderList() {
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [selectedServiceOrder, setSelectedServiceOrder] = useState<any>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const { toast } = useToast();
+
+  const handleViewDetails = (serviceOrder: any) => {
+    setSelectedServiceOrder(serviceOrder);
+    setDetailDialogOpen(true);
+  };
 
   const loadServiceOrders = async () => {
     setLoading(true);
@@ -111,10 +119,21 @@ export function ServiceOrderList() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {serviceOrders.map((so) => (
-            <ServiceOrderCard key={so.id} serviceOrder={so} />
+            <ServiceOrderCard 
+              key={so.id} 
+              serviceOrder={so}
+              onViewDetails={handleViewDetails}
+            />
           ))}
         </div>
       )}
+
+      <ServiceOrderDetailDialog
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+        serviceOrder={selectedServiceOrder}
+        onUpdate={loadServiceOrders}
+      />
     </div>
   );
 }

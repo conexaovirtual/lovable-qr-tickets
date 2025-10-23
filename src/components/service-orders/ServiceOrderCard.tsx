@@ -8,21 +8,28 @@ import { generateServiceOrderPDF } from './ServiceOrderPDF';
 
 interface ServiceOrderCardProps {
   serviceOrder: any;
+  onViewDetails?: (serviceOrder: any) => void;
 }
 
 const statusColors = {
-  emitida: 'bg-blue-500',
-  executada: 'bg-green-500',
+  agendada: 'bg-blue-500',
+  confirmada: 'bg-green-500',
+  em_execucao: 'bg-yellow-500',
+  executada: 'bg-purple-500',
+  finalizada: 'bg-gray-700',
   cancelada: 'bg-red-500',
 };
 
 const statusLabels = {
-  emitida: 'Emitida',
+  agendada: 'Agendada',
+  confirmada: 'Confirmada',
+  em_execucao: 'Em Execução',
   executada: 'Executada',
+  finalizada: 'Finalizada',
   cancelada: 'Cancelada',
 };
 
-export function ServiceOrderCard({ serviceOrder }: ServiceOrderCardProps) {
+export function ServiceOrderCard({ serviceOrder, onViewDetails }: ServiceOrderCardProps) {
   const handleDownload = () => {
     generateServiceOrderPDF(serviceOrder);
   };
@@ -63,30 +70,40 @@ export function ServiceOrderCard({ serviceOrder }: ServiceOrderCardProps) {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-sm font-medium">Data de Execução</p>
+            <p className="text-sm font-medium">Data Agendada</p>
             <p className="text-sm text-muted-foreground">
-              {serviceOrder.data_execucao 
-                ? format(new Date(serviceOrder.data_execucao), 'dd/MM/yyyy', { locale: ptBR })
+              {serviceOrder.data_agendada 
+                ? format(new Date(serviceOrder.data_agendada), 'dd/MM/yyyy', { locale: ptBR })
                 : 'N/A'}
             </p>
           </div>
 
           <div>
-            <p className="text-sm font-medium">Custo Total</p>
-            <p className="text-sm font-semibold text-primary">
-              R$ {serviceOrder.custo_total?.toFixed(2) || '0.00'}
+            <p className="text-sm font-medium">Hora</p>
+            <p className="text-sm text-muted-foreground">
+              {serviceOrder.hora_agendada?.slice(0, 5) || 'N/A'}
             </p>
           </div>
         </div>
 
-        <Button 
-          onClick={handleDownload} 
-          className="w-full mt-4"
-          variant="outline"
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Baixar PDF
-        </Button>
+        <div className="flex gap-2 mt-4">
+          <Button 
+            onClick={() => onViewDetails?.(serviceOrder)} 
+            className="flex-1"
+            variant="default"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Ver Detalhes
+          </Button>
+          <Button 
+            onClick={handleDownload} 
+            className="flex-1"
+            variant="outline"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Baixar PDF
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
