@@ -168,6 +168,7 @@ export default function Dashboard() {
   };
 
   const handleViewServiceOrder = async (osId: string) => {
+    console.log('[Dashboard] Opening service order:', osId);
     const { data, error } = await supabase
       .from("service_orders")
       .select(`
@@ -179,6 +180,8 @@ export default function Dashboard() {
       .eq("id", osId)
       .single();
 
+    console.log('[Dashboard] Service order data:', data, 'error:', error);
+    
     if (!error && data) {
       setSelectedServiceOrder(data);
       setIsDetailDialogOpen(true);
