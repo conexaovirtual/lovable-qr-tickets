@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ServiceOrderCreateDialog } from '@/components/service-orders/ServiceOrderCreateDialog';
+import { ServiceOrderDetailDialog } from '@/components/service-orders/ServiceOrderDetailDialog';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
@@ -41,6 +42,8 @@ export default function Dashboard() {
   const [recentTickets, setRecentTickets] = useState<any[]>([]);
   const [upcomingServiceOrders, setUpcomingServiceOrders] = useState<any[]>([]);
   const [isCreateOSDialogOpen, setIsCreateOSDialogOpen] = useState(false);
+  const [selectedServiceOrder, setSelectedServiceOrder] = useState<any>(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   useEffect(() => {
     if (import.meta.env.DEV) {
@@ -162,6 +165,24 @@ export default function Dashboard() {
     if (recent) setRecentTickets(recent);
 
     setLoading(false);
+  };
+
+  const handleViewServiceOrder = async (osId: string) => {
+    const { data, error } = await supabase
+      .from("service_orders")
+      .select(`
+        *,
+        tickets (numero, titulo),
+        companies:companies_safe (nome_fantasia, cnpj, endereco),
+        profiles:tecnico_id (nome)
+      `)
+      .eq("id", osId)
+      .single();
+
+    if (!error && data) {
+      setSelectedServiceOrder(data);
+      setIsDetailDialogOpen(true);
+    }
   };
 
   if (authLoading || !profile) {
@@ -325,7 +346,7 @@ export default function Dashboard() {
                         <div 
                           key={os.id} 
                           className="flex flex-col gap-1 p-3 rounded-lg border hover:bg-accent cursor-pointer transition-colors"
-                          onClick={() => navigate(`/reports`)}
+                          onClick={() => handleViewServiceOrder(os.id)}
                         >
                           <div className="flex items-center justify-between">
                             <span className="font-semibold text-sm">OS #{os.numero_os}</span>
@@ -412,6 +433,13 @@ export default function Dashboard() {
         open={isCreateOSDialogOpen}
         onOpenChange={setIsCreateOSDialogOpen}
         onSuccess={loadDashboardData}
+      />
+
+      <ServiceOrderDetailDialog
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+        serviceOrder={selectedServiceOrder}
+        onUpdate={loadDashboardData}
       />
     </div>
   );

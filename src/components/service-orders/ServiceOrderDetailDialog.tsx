@@ -7,8 +7,10 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckCircle, XCircle, PlayCircle, FileText, Clock, Calendar } from "lucide-react";
+import { CheckCircle, XCircle, PlayCircle, FileText, Clock, Calendar, Edit } from "lucide-react";
 import { generateServiceOrderPDF } from "./ServiceOrderPDF";
+import { ServiceOrderEditDialog } from "./ServiceOrderEditDialog";
+import { ServiceOrderExecutionDialog } from "./ServiceOrderExecutionDialog";
 
 interface ServiceOrderDetailDialogProps {
   open: boolean;
@@ -43,6 +45,8 @@ export function ServiceOrderDetailDialog({
 }: ServiceOrderDetailDialogProps) {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isExecutionDialogOpen, setIsExecutionDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -214,6 +218,42 @@ export function ServiceOrderDetailDialog({
             </>
           )}
 
+          {/* Dados de Execução */}
+          {(serviceOrder.status === "executada" || serviceOrder.status === "finalizada") && (
+            <>
+              <Separator />
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-2">Dados de Execução</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Data de Execução</p>
+                    <p className="text-sm font-medium">
+                      {serviceOrder.data_execucao 
+                        ? format(new Date(serviceOrder.data_execucao), "dd/MM/yyyy", { locale: ptBR })
+                        : "Não informada"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Tempo Gasto</p>
+                    <p className="text-sm font-medium">{serviceOrder.tempo_gasto_horas || 0}h</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Custo de Peças</p>
+                    <p className="text-sm font-medium">
+                      R$ {(serviceOrder.custo_pecas || 0).toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Custo Total</p>
+                    <p className="text-sm font-medium">
+                      R$ {(serviceOrder.custo_total || 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Histórico */}
           {history.length > 0 && (
             <>
@@ -241,6 +281,29 @@ export function ServiceOrderDetailDialog({
 
           {/* Ações */}
           <div className="flex flex-wrap gap-2">
+            {/* Botão Editar - disponível para agendada, confirmada, em_execucao */}
+            {["agendada", "confirmada", "em_execucao"].includes(serviceOrder.status) && (
+              <Button
+                onClick={() => setIsEditDialogOpen(true)}
+                variant="outline"
+                size="sm"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Editar OS
+              </Button>
+            )}
+
+            {/* Botão Registrar Execução - disponível apenas quando em_execucao */}
+            {serviceOrder.status === "em_execucao" && (
+              <Button
+                onClick={() => setIsExecutionDialogOpen(true)}
+                size="sm"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Registrar Execução
+              </Button>
+            )}
+
             {serviceOrder.status === "agendada" && (
               <>
                 <Button
@@ -286,6 +349,27 @@ export function ServiceOrderDetailDialog({
             )}
           </div>
         </div>
+
+        {/* Dialogs de Edição e Execução */}
+        <ServiceOrderEditDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          serviceOrder={serviceOrder}
+          onSuccess={() => {
+            onUpdate?.();
+            setIsEditDialogOpen(false);
+          }}
+        />
+
+        <ServiceOrderExecutionDialog
+          open={isExecutionDialogOpen}
+          onOpenChange={setIsExecutionDialogOpen}
+          serviceOrder={serviceOrder}
+          onSuccess={() => {
+            onUpdate?.();
+            setIsExecutionDialogOpen(false);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
