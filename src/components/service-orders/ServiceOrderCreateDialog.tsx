@@ -210,10 +210,20 @@ export function ServiceOrderCreateDialog({
   };
 
   const nextStep = async () => {
+    console.log('[ServiceOrderCreateDialog] Current step:', step);
     const fields = getFieldsForStep(step);
+    console.log('[ServiceOrderCreateDialog] Fields to validate:', fields);
+    console.log('[ServiceOrderCreateDialog] Form values:', form.getValues());
+    
     const isValid = await form.trigger(fields);
+    console.log('[ServiceOrderCreateDialog] Validation result:', isValid);
+    console.log('[ServiceOrderCreateDialog] Form errors:', form.formState.errors);
     
     if (!isValid) {
+      // Scroll to first error field
+      const firstError = Object.keys(form.formState.errors)[0];
+      console.log('[ServiceOrderCreateDialog] First error field:', firstError);
+      
       toast({
         title: "Campos obrigatórios",
         description: "Por favor, preencha todos os campos obrigatórios antes de continuar.",
@@ -222,6 +232,7 @@ export function ServiceOrderCreateDialog({
       return;
     }
     
+    console.log('[ServiceOrderCreateDialog] Advancing to step:', step + 1);
     setStep(step + 1);
   };
 
@@ -581,6 +592,22 @@ export function ServiceOrderCreateDialog({
                   )}
                 </div>
                 <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      console.log('=== DEBUG FORM STATE ===');
+                      console.log('Current step:', step);
+                      console.log('Form values:', form.getValues());
+                      console.log('Form errors:', form.formState.errors);
+                      console.log('Form valid:', form.formState.isValid);
+                      console.log('Form dirty:', form.formState.isDirty);
+                      console.log('======================');
+                    }}
+                  >
+                    Debug
+                  </Button>
                   <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                     Cancelar
                   </Button>
