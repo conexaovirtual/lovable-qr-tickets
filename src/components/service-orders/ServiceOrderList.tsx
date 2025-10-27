@@ -8,7 +8,11 @@ import { ServiceOrderCard } from './ServiceOrderCard';
 import { ServiceOrderDetailDialog } from './ServiceOrderDetailDialog';
 import { Search } from 'lucide-react';
 
-export function ServiceOrderList() {
+interface ServiceOrderListProps {
+  statusFilter?: string | null;
+}
+
+export function ServiceOrderList({ statusFilter }: ServiceOrderListProps) {
   const [serviceOrders, setServiceOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState('');
@@ -46,6 +50,11 @@ export function ServiceOrderList() {
         query = query.lte('data_emissao', endDateTime.toISOString());
       }
 
+      // Apply status filter if provided
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
+      }
+
       const { data, error } = await query;
 
       if (error) throw error;
@@ -65,7 +74,7 @@ export function ServiceOrderList() {
 
   useEffect(() => {
     loadServiceOrders();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, statusFilter]);
 
   if (loading) {
     return (

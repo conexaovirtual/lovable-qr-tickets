@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { CompanyReportList } from '@/components/reports/CompanyReportList';
 import { ReportPrintDialog } from '@/components/reports/ReportPrintDialog';
@@ -17,10 +17,15 @@ import { ServiceOrderCalendar } from '@/components/service-orders/ServiceOrderCa
 export default function Reports() {
   const { profile, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [reports, setReports] = useState<any[]>([]);
   const [stats, setStats] = useState({ companies: 0, assets: 0, tickets: 0 });
   const [loadingData, setLoadingData] = useState(true);
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+  
+  // Get tab and status from URL params
+  const defaultTab = searchParams.get('tab') || 'overview';
+  const statusFilter = searchParams.get('status');
 
   useEffect(() => {
     if (!loading && !profile) {
@@ -129,7 +134,7 @@ export default function Reports() {
           </Card>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-4">
+        <Tabs defaultValue={defaultTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="inventory">Inventário</TabsTrigger>
@@ -154,7 +159,7 @@ export default function Reports() {
           </TabsContent>
 
           <TabsContent value="service-orders">
-            <ServiceOrderList />
+            <ServiceOrderList statusFilter={statusFilter} />
           </TabsContent>
 
           <TabsContent value="calendar">

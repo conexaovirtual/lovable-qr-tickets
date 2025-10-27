@@ -215,7 +215,10 @@ export default function Dashboard() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-              <Card className="hover:shadow-lg transition-shadow">
+              <Card 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate('/tickets')}
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Total de Chamados</CardTitle>
                   <Ticket className="h-4 w-4 text-muted-foreground" />
@@ -226,7 +229,10 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-lg transition-shadow">
+              <Card 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate('/tickets')}
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Novos</CardTitle>
                   <AlertCircle className="h-4 w-4 text-info" />
@@ -237,7 +243,10 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-lg transition-shadow">
+              <Card 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate('/tickets')}
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Em Atendimento</CardTitle>
                   <Clock className="h-4 w-4 text-warning" />
@@ -248,7 +257,10 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-lg transition-shadow">
+              <Card 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate('/tickets')}
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Resolvidos</CardTitle>
                   <CheckCircle2 className="h-4 w-4 text-success" />
@@ -259,7 +271,10 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-lg transition-shadow border-destructive/50">
+              <Card 
+                className="hover:shadow-lg transition-shadow cursor-pointer border-destructive/50"
+                onClick={() => navigate('/tickets')}
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">SLA Violado</CardTitle>
                   <TrendingUp className="h-4 w-4 text-destructive" />
@@ -270,7 +285,10 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-lg transition-shadow">
+              <Card 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate('/inventory')}
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Ativos</CardTitle>
                   <Package className="h-4 w-4 text-muted-foreground" />
@@ -298,7 +316,10 @@ export default function Dashboard() {
               )}
 
               {/* Estatísticas de Ordens de Serviço */}
-              <Card className="hover:shadow-lg transition-shadow">
+              <Card 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate('/reports?tab=calendar')}
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">OS Agendadas Hoje</CardTitle>
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
@@ -309,7 +330,10 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-lg transition-shadow">
+              <Card 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate('/reports?tab=service-orders&status=agendada')}
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">OS Pendentes</CardTitle>
                   <Clock className="h-4 w-4 text-muted-foreground" />
@@ -320,7 +344,10 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-lg transition-shadow">
+              <Card 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate('/reports?tab=service-orders&status=finalizada')}
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">OS Finalizadas</CardTitle>
                   <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
