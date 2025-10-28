@@ -122,17 +122,51 @@ export function ServiceOrderEditDialog({
   };
 
   const loadTechnicians = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select(`
-        id, 
-        nome,
-        user_roles!inner(role)
-      `)
-      .eq("user_roles.role", "tecnico")
-      .order("nome");
-    console.log('[ServiceOrderEditDialog] Technicians loaded:', data);
-    setTechnicians(data || []);
+    try {
+      // Buscar IDs de técnicos
+      const { data: techRoles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "tecnico");
+      
+      if (rolesError) throw rolesError;
+      
+      const techIds = techRoles?.map(r => r.user_id) || [];
+      
+      console.log('[ServiceOrderEditDialog] Technician IDs:', techIds);
+      
+      if (techIds.length === 0) {
+        console.warn('[ServiceOrderEditDialog] Nenhum técnico encontrado');
+        setTechnicians([]);
+        toast({
+          title: "Aviso",
+          description: "Nenhum técnico cadastrado no sistema",
+          variant: "default",
+        });
+        return;
+      }
+      
+      // Buscar perfis dos técnicos
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .in("id", techIds)
+        .order("nome");
+      
+      if (profilesError) throw profilesError;
+      
+      console.log('[ServiceOrderEditDialog] Technicians loaded:', profiles);
+      setTechnicians(profiles || []);
+      
+    } catch (error: any) {
+      console.error('[ServiceOrderEditDialog] Error loading technicians:', error);
+      toast({
+        title: "Erro ao carregar técnicos",
+        description: error.message,
+        variant: "destructive",
+      });
+      setTechnicians([]);
+    }
   };
 
   const onSubmit = async (data: EditFormData) => {
@@ -173,10 +207,17 @@ export function ServiceOrderEditDialog({
 
       onSuccess?.();
     } catch (error: any) {
-      console.error("Erro ao atualizar OS:", error);
+      console.error("[ServiceOrderEditDialog] Erro ao atualizar OS:", error);
+      console.error("[ServiceOrderEditDialog] Error details:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      
       toast({
         title: "Erro ao atualizar OS",
-        description: error.message,
+        description: error.message || "Erro desconhecido",
         variant: "destructive",
       });
     } finally {
@@ -314,31 +355,39 @@ export function ServiceOrderEditDialog({
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="tecnico_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Técnico</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="">Não atribuído</SelectItem>
-                        {technicians.map((tech) => (
-                          <SelectItem key={tech.id} value={tech.id}>
-                            {tech.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="tecnico_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Técnico</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value || ""}
+                        disabled={technicians.length === 0}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={
+                              technicians.length === 0 
+                                ? "Nenhum técnico disponível" 
+                                : "Selecione"
+                            } />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">Não atribuído</SelectItem>
+                          {technicians.map((tech) => (
+                            <SelectItem key={tech.id} value={tech.id}>
+                              {tech.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
             </div>
 
             {/* Local de Atendimento */}
