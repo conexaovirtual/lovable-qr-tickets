@@ -21,8 +21,8 @@ interface ServiceOrderEditDialogProps {
 
 const editSchema = z.object({
   company_id: z.string().uuid({ message: "Empresa é obrigatória" }),
-  tipo_servico: z.enum(["preventivo", "corretivo", "instalacao", "consultoria"]),
-  prioridade: z.enum(["baixa", "media", "alta", "urgente"]),
+  tipo_servico: z.string().min(1, "Tipo de serviço é obrigatório"),
+  prioridade: z.string().min(1, "Prioridade é obrigatória"),
   descricao_servicos: z.string().min(10, "Descrição deve ter no mínimo 10 caracteres"),
   data_agendada: z.string().min(1, "Data é obrigatória"),
   hora_agendada: z.string().min(1, "Hora é obrigatória"),
@@ -65,21 +65,47 @@ export function ServiceOrderEditDialog({
 
   useEffect(() => {
     if (open) {
-      loadCompanies();
-      loadTechnicians();
-      if (serviceOrder) {
-        form.reset({
-          company_id: serviceOrder.company_id,
-          tipo_servico: serviceOrder.tipo_servico || "corretivo",
-          prioridade: serviceOrder.prioridade || "media",
-          descricao_servicos: serviceOrder.descricao_servicos,
-          data_agendada: serviceOrder.data_agendada?.split('T')[0] || "",
-          hora_agendada: serviceOrder.hora_agendada || "",
-          tecnico_id: serviceOrder.tecnico_id || null,
-          endereco_atendimento: serviceOrder.endereco_atendimento || "",
-          contato_local: serviceOrder.contato_local || "",
-          telefone_contato: serviceOrder.telefone_contato || "",
-          observacoes: serviceOrder.observacoes || "",
+      try {
+        loadCompanies();
+        loadTechnicians();
+        
+        if (serviceOrder) {
+          console.log('[ServiceOrderEditDialog] Service Order data:', serviceOrder);
+          
+          // Formatar data de forma segura
+          let dataFormatada = "";
+          if (serviceOrder.data_agendada) {
+            try {
+              const date = new Date(serviceOrder.data_agendada);
+              dataFormatada = date.toISOString().split('T')[0];
+            } catch (e) {
+              console.error('[ServiceOrderEditDialog] Erro ao formatar data:', e);
+            }
+          }
+
+          const formData = {
+            company_id: serviceOrder.company_id || "",
+            tipo_servico: serviceOrder.tipo_servico || "corretivo",
+            prioridade: serviceOrder.prioridade || "media",
+            descricao_servicos: serviceOrder.descricao_servicos || "",
+            data_agendada: dataFormatada,
+            hora_agendada: serviceOrder.hora_agendada || "",
+            tecnico_id: serviceOrder.tecnico_id || null,
+            endereco_atendimento: serviceOrder.endereco_atendimento || "",
+            contato_local: serviceOrder.contato_local || "",
+            telefone_contato: serviceOrder.telefone_contato || "",
+            observacoes: serviceOrder.observacoes || "",
+          };
+          
+          console.log('[ServiceOrderEditDialog] Resetting form with:', formData);
+          form.reset(formData);
+        }
+      } catch (error) {
+        console.error('[ServiceOrderEditDialog] Error in useEffect:', error);
+        toast({
+          title: "Erro ao carregar dados",
+          description: "Ocorreu um erro ao carregar os dados da OS",
+          variant: "destructive",
         });
       }
     }
@@ -91,18 +117,26 @@ export function ServiceOrderEditDialog({
       .select("id, nome_fantasia")
       .eq("status", true)
       .order("nome_fantasia");
+    console.log('[ServiceOrderEditDialog] Companies loaded:', data);
     setCompanies(data || []);
   };
 
   const loadTechnicians = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("id, nome")
+      .select(`
+        id, 
+        nome,
+        user_roles!inner(role)
+      `)
+      .eq("user_roles.role", "tecnico")
       .order("nome");
+    console.log('[ServiceOrderEditDialog] Technicians loaded:', data);
     setTechnicians(data || []);
   };
 
   const onSubmit = async (data: EditFormData) => {
+    console.log('[ServiceOrderEditDialog] Form data:', data);
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -113,6 +147,8 @@ export function ServiceOrderEditDialog({
         tecnico_id: data.tecnico_id || null,
         updated_at: new Date().toISOString(),
       };
+
+      console.log('[ServiceOrderEditDialog] Update data:', updateData);
 
       const { error: updateError } = await supabase
         .from("service_orders")
@@ -369,6 +405,22 @@ export function ServiceOrderEditDialog({
 
             {/* Botões */}
             <div className="flex gap-2 justify-end">
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  console.log('=== DEBUG EDIT FORM ===');
+                  console.log('Service Order:', serviceOrder);
+                  console.log('Form values:', form.getValues());
+                  console.log('Form errors:', form.formState.errors);
+                  console.log('Companies:', companies);
+                  console.log('Technicians:', technicians);
+                  console.log('======================');
+                }}
+              >
+                Debug
+              </Button>
               <Button
                 type="button"
                 variant="outline"
