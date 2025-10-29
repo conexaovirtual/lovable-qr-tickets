@@ -53,6 +53,7 @@ export function ServiceOrderCreateDialog({
 }: ServiceOrderCreateDialogProps) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [companies, setCompanies] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
@@ -84,18 +85,57 @@ export function ServiceOrderCreateDialog({
   }, [open]);
 
   const loadCompanies = async () => {
-    const { data, error } = await supabase
-      .from("companies")
-      .select("id, nome_fantasia, endereco")
-      .eq("status", true)
-      .order("nome_fantasia");
+    setLoadingCompanies(true);
+    console.log('[ServiceOrderCreateDialog] Carregando empresas...');
+    
+    try {
+      // Verificar se o usuário está autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('[ServiceOrderCreateDialog] Usuário autenticado:', user?.id);
+      
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id, nome_fantasia, endereco")
+        .eq("status", true)
+        .order("nome_fantasia");
 
-    if (error) {
-      console.error("Erro ao carregar empresas:", error);
-      return;
+      console.log('[ServiceOrderCreateDialog] Resultado da query:', { 
+        data, 
+        error, 
+        count: data?.length 
+      });
+
+      if (error) {
+        console.error('[ServiceOrderCreateDialog] Erro SQL:', error);
+        toast({
+          title: "Erro ao carregar empresas",
+          description: error.message,
+          variant: "destructive",
+        });
+        setCompanies([]);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        console.warn('[ServiceOrderCreateDialog] Nenhuma empresa ativa encontrada');
+        toast({
+          title: "Aviso",
+          description: "Nenhuma empresa ativa cadastrada no sistema",
+        });
+      }
+
+      setCompanies(data || []);
+    } catch (error: any) {
+      console.error('[ServiceOrderCreateDialog] Erro ao carregar empresas:', error);
+      toast({
+        title: "Erro ao carregar empresas",
+        description: error.message || "Erro desconhecido",
+        variant: "destructive",
+      });
+      setCompanies([]);
+    } finally {
+      setLoadingCompanies(false);
     }
-
-    setCompanies(data || []);
   };
 
   const loadTechnicians = async () => {
@@ -273,7 +313,9 @@ export function ServiceOrderCreateDialog({
                     <FormItem>
                       <FormLabel>Empresa Cliente *</FormLabel>
                       <Select 
+                        disabled={loadingCompanies || companies.length === 0}
                         onValueChange={(value) => {
+                          console.log('[ServiceOrderCreateDialog] Empresa selecionada:', value);
                           field.onChange(value);
                           loadCompanyDetails(value);
                         }} 
@@ -281,15 +323,27 @@ export function ServiceOrderCreateDialog({
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione a empresa" />
+                            <SelectValue placeholder={
+                              loadingCompanies 
+                                ? "Carregando empresas..." 
+                                : companies.length === 0
+                                  ? "Nenhuma empresa disponível"
+                                  : "Selecione a empresa"
+                            } />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
-                          {companies.map((company) => (
-                            <SelectItem key={company.id} value={company.id}>
-                              {company.nome_fantasia}
-                            </SelectItem>
-                          ))}
+                        <SelectContent className="z-[100]">
+                          {companies.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground text-center">
+                              Nenhuma empresa disponível
+                            </div>
+                          ) : (
+                            companies.map((company) => (
+                              <SelectItem key={company.id} value={company.id}>
+                                {company.nome_fantasia}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
