@@ -337,6 +337,17 @@ export function ServiceOrderDetailDialog({
               </Button>
             )}
 
+            {serviceOrder.status === "executada" && (
+              <Button
+                onClick={() => updateStatus("finalizada", "OS finalizada e aprovada")}
+                disabled={loading}
+                size="sm"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Finalizar OS
+              </Button>
+            )}
+
             {(serviceOrder.status === "executada" || serviceOrder.status === "finalizada") && (
               <Button
                 onClick={handleGeneratePDF}
