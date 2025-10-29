@@ -361,29 +361,29 @@ export function ServiceOrderEditDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Técnico</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        value={field.value || ""}
-                        disabled={technicians.length === 0}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={
-                              technicians.length === 0 
-                                ? "Nenhum técnico disponível" 
-                                : "Selecione"
-                            } />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">Não atribuído</SelectItem>
-                          {technicians.map((tech) => (
-                            <SelectItem key={tech.id} value={tech.id}>
-                              {tech.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+            <Select 
+              onValueChange={(value) => field.onChange(value === "unassigned" ? null : value)} 
+              value={field.value || "unassigned"}
+              disabled={technicians.length === 0}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder={
+                    technicians.length === 0 
+                      ? "Nenhum técnico disponível" 
+                      : "Selecione"
+                  } />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="unassigned">Não atribuído</SelectItem>
+                {technicians.map((tech) => (
+                  <SelectItem key={tech.id} value={tech.id}>
+                    {tech.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
                       <FormMessage />
                     </FormItem>
                   )}
