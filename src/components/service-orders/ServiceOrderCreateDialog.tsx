@@ -316,8 +316,12 @@ export function ServiceOrderCreateDialog({
                         disabled={loadingCompanies || companies.length === 0}
                         onValueChange={(value) => {
                           console.log('[ServiceOrderCreateDialog] Empresa selecionada:', value);
-                          field.onChange(value);
-                          loadCompanyDetails(value);
+                          
+                          // Usar setTimeout para evitar conflito de portals
+                          setTimeout(() => {
+                            field.onChange(value);
+                            loadCompanyDetails(value);
+                          }, 0);
                         }} 
                         value={field.value}
                       >
