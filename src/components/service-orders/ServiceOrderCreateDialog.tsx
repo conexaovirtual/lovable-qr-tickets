@@ -5,7 +5,7 @@ import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -250,29 +250,63 @@ export function ServiceOrderCreateDialog({
   };
 
   const nextStep = async () => {
-    console.log('[ServiceOrderCreateDialog] Current step:', step);
+    console.log('[ServiceOrderCreateDialog] Tentando avançar do step:', step);
     const fields = getFieldsForStep(step);
-    console.log('[ServiceOrderCreateDialog] Fields to validate:', fields);
-    console.log('[ServiceOrderCreateDialog] Form values:', form.getValues());
+    console.log('[ServiceOrderCreateDialog] Campos a validar:', fields);
     
     const isValid = await form.trigger(fields);
-    console.log('[ServiceOrderCreateDialog] Validation result:', isValid);
-    console.log('[ServiceOrderCreateDialog] Form errors:', form.formState.errors);
+    const errors = form.formState.errors;
+    
+    console.log('[ServiceOrderCreateDialog] Validação:', { isValid, errors });
     
     if (!isValid) {
-      // Scroll to first error field
-      const firstError = Object.keys(form.formState.errors)[0];
-      console.log('[ServiceOrderCreateDialog] First error field:', firstError);
+      // Mapear nomes dos campos para exibição
+      const fieldNames: Record<string, string> = {
+        company_id: "Empresa",
+        tipo_servico: "Tipo de Serviço",
+        prioridade: "Prioridade",
+        descricao_servicos: "Descrição do Serviço",
+        data_agendada: "Data do Agendamento",
+        hora_agendada: "Horário",
+      };
+      
+      // Listar os campos com erro
+      const errorFields = fields
+        .filter(field => errors[field])
+        .map(field => {
+          const message = errors[field]?.message;
+          return `• ${fieldNames[field]}: ${message}`;
+        });
       
       toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos obrigatórios antes de continuar.",
+        title: "Campos obrigatórios não preenchidos",
+        description: errorFields.length > 0 
+          ? errorFields.join('\n')
+          : "Preencha todos os campos obrigatórios antes de continuar.",
         variant: "destructive",
+        duration: 5000,
       });
+      
+      // Scroll para o primeiro campo com erro
+      const firstErrorField = fields.find(field => errors[field]);
+      if (firstErrorField) {
+        setTimeout(() => {
+          const element = document.querySelector(`[name="${firstErrorField}"]`);
+          element?.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+          // Focar no campo se possível
+          if (element instanceof HTMLElement) {
+            element.focus();
+          }
+        }, 100);
+      }
+      
       return;
     }
     
-    console.log('[ServiceOrderCreateDialog] Advancing to step:', step + 1);
+    console.log('[ServiceOrderCreateDialog] ✅ Avançando para step:', step + 1);
     setStep(step + 1);
   };
 
@@ -434,6 +468,9 @@ export function ServiceOrderCreateDialog({
                           {...field}
                         />
                       </FormControl>
+                      <FormDescription>
+                        Mínimo de 10 caracteres ({field.value?.length || 0}/10)
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
