@@ -37,8 +37,8 @@ const formSchema = z.object({
   descricao: z.string().min(20, "Descrição deve ter no mínimo 20 caracteres"),
   solucao: z.string().optional(),
   status: statusEnum,
-  ticket_id: z.string().optional(),
-  asset_id: z.string().optional(),
+  ticket_id: z.string().optional().transform(val => val === "none" ? undefined : val),
+  asset_id: z.string().optional().transform(val => val === "none" ? undefined : val),
   observacoes: z.string().optional(),
 }).refine(
   (data) => {
@@ -86,8 +86,8 @@ export function DailyServiceRecordDialog({
       descricao: "",
       solucao: "",
       status: "em_andamento",
-      ticket_id: "",
-      asset_id: "",
+      ticket_id: "none",
+      asset_id: "none",
       observacoes: "",
     },
   });
@@ -172,8 +172,8 @@ export function DailyServiceRecordDialog({
           descricao: data.descricao,
           solucao: data.solucao || "",
           status: data.status as "em_andamento" | "concluido" | "pendente",
-          ticket_id: data.ticket_id || "",
-          asset_id: data.asset_id || "",
+          ticket_id: data.ticket_id || "none",
+          asset_id: data.asset_id || "none",
           observacoes: data.observacoes || "",
         });
       }
@@ -198,8 +198,8 @@ export function DailyServiceRecordDialog({
         descricao: data.descricao,
         status: data.status,
         tecnico_id: profile.id,
-        ticket_id: data.ticket_id || null,
-        asset_id: data.asset_id || null,
+        ticket_id: data.ticket_id === "none" ? null : data.ticket_id,
+        asset_id: data.asset_id === "none" ? null : data.asset_id,
         hora_fim: data.hora_fim || null,
         solucao: data.solucao || null,
         observacoes: data.observacoes || null,
@@ -454,7 +454,7 @@ export function DailyServiceRecordDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Nenhum</SelectItem>
+                        <SelectItem value="none">Nenhum</SelectItem>
                         {tickets.map((ticket) => (
                           <SelectItem key={ticket.id} value={ticket.id}>
                             #{ticket.numero} - {ticket.titulo}
@@ -480,7 +480,7 @@ export function DailyServiceRecordDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Nenhum</SelectItem>
+                        <SelectItem value="none">Nenhum</SelectItem>
                         {assets.map((asset) => (
                           <SelectItem key={asset.id} value={asset.id}>
                             {asset.tag_patrimonial} - {asset.tipo}

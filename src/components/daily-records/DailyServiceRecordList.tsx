@@ -18,9 +18,9 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterCanal, setFilterCanal] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [filterCompany, setFilterCompany] = useState("");
+  const [filterCanal, setFilterCanal] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterCompany, setFilterCompany] = useState("all");
   const [companies, setCompanies] = useState<any[]>([]);
   const [editingRecord, setEditingRecord] = useState<string | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -63,15 +63,15 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
         .order("data_atendimento", { ascending: false })
         .order("hora_inicio", { ascending: false });
 
-      if (filterCanal) {
+      if (filterCanal && filterCanal !== "all") {
         query = query.eq("canal", filterCanal as "whatsapp" | "ligacao" | "visita_tecnica");
       }
 
-      if (filterStatus) {
+      if (filterStatus && filterStatus !== "all") {
         query = query.eq("status", filterStatus);
       }
 
-      if (filterCompany) {
+      if (filterCompany && filterCompany !== "all") {
         query = query.eq("company_id", filterCompany);
       }
 
@@ -108,12 +108,12 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
 
   const clearFilters = () => {
     setSearch("");
-    setFilterCanal("");
-    setFilterStatus("");
-    setFilterCompany("");
+    setFilterCanal("all");
+    setFilterStatus("all");
+    setFilterCompany("all");
   };
 
-  const hasActiveFilters = search || filterCanal || filterStatus || filterCompany;
+  const hasActiveFilters = search || (filterCanal !== "all") || (filterStatus !== "all") || (filterCompany !== "all");
 
   return (
     <div className="space-y-4">
@@ -136,7 +136,7 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
                 <SelectValue placeholder="Todos os canais" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os canais</SelectItem>
+                <SelectItem value="all">Todos os canais</SelectItem>
                 <SelectItem value="whatsapp">WhatsApp</SelectItem>
                 <SelectItem value="ligacao">Ligação</SelectItem>
                 <SelectItem value="visita_tecnica">Visita Técnica</SelectItem>
@@ -148,7 +148,7 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
                 <SelectValue placeholder="Todos os status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os status</SelectItem>
+                <SelectItem value="all">Todos os status</SelectItem>
                 <SelectItem value="em_andamento">Em Andamento</SelectItem>
                 <SelectItem value="concluido">Concluído</SelectItem>
                 <SelectItem value="pendente">Pendente</SelectItem>
@@ -160,7 +160,7 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
                 <SelectValue placeholder="Todas as empresas" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas as empresas</SelectItem>
+                <SelectItem value="all">Todas as empresas</SelectItem>
                 {companies.map((company) => (
                   <SelectItem key={company.id} value={company.id}>
                     {company.nome_fantasia}
