@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, User, LogOut, LayoutDashboard, Ticket, Package, Building2, Wrench, FileBarChart, PackageSearch } from 'lucide-react';
+import { Menu, User, LogOut, LayoutDashboard, Ticket, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList } from 'lucide-react';
 
 export function AppHeader() {
   const { profile, signOut } = useAuth();
@@ -60,6 +60,14 @@ export function AppHeader() {
                   Inventário
                 </Button>
               </Link>
+              {(profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')) && (
+                <Link to="/daily-services">
+                  <Button variant="ghost" size="sm">
+                    <ClipboardList className="h-4 w-4 mr-2" />
+                    Atendimentos Diários
+                  </Button>
+                </Link>
+              )}
               {profile.roles?.includes('admin_provedor') && (
                 <>
                   <Link to="/companies">
@@ -117,6 +125,12 @@ export function AppHeader() {
                   <PackageSearch className="h-4 w-4 mr-2" />
                   Inventário
                 </DropdownMenuItem>
+                {(profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')) && (
+                  <DropdownMenuItem onClick={() => navigate('/daily-services')}>
+                    <ClipboardList className="h-4 w-4 mr-2" />
+                    Atendimentos Diários
+                  </DropdownMenuItem>
+                )}
                 {profile.roles?.includes('admin_provedor') && (
                   <>
                     <DropdownMenuItem onClick={() => navigate('/companies')}>

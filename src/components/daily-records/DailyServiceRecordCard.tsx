@@ -1,0 +1,144 @@
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { MessageCircle, Phone, MapPin, Clock, Building2, User, Edit, Eye } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+interface DailyServiceRecordCardProps {
+  record: any;
+  onEdit?: (record: any) => void;
+  onView?: (record: any) => void;
+}
+
+export function DailyServiceRecordCard({ record, onEdit, onView }: DailyServiceRecordCardProps) {
+  const getChannelConfig = (canal: string) => {
+    switch (canal) {
+      case "whatsapp":
+        return {
+          icon: MessageCircle,
+          label: "WhatsApp",
+          className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+        };
+      case "ligacao":
+        return {
+          icon: Phone,
+          label: "Ligação",
+          className: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+        };
+      case "visita_tecnica":
+        return {
+          icon: MapPin,
+          label: "Visita Técnica",
+          className: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
+        };
+      default:
+        return {
+          icon: MessageCircle,
+          label: canal,
+          className: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+        };
+    }
+  };
+
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case "concluido":
+        return { label: "Concluído", className: "bg-green-100 text-green-800" };
+      case "em_andamento":
+        return { label: "Em Andamento", className: "bg-yellow-100 text-yellow-800" };
+      case "pendente":
+        return { label: "Pendente", className: "bg-red-100 text-red-800" };
+      default:
+        return { label: status, className: "bg-gray-100 text-gray-800" };
+    }
+  };
+
+  const channelConfig = getChannelConfig(record.canal);
+  const statusConfig = getStatusConfig(record.status);
+  const ChannelIcon = channelConfig.icon;
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 flex-1">
+            <Badge className={channelConfig.className}>
+              <ChannelIcon className="h-3 w-3 mr-1" />
+              {channelConfig.label}
+            </Badge>
+            <Badge className={statusConfig.className}>
+              {statusConfig.label}
+            </Badge>
+          </div>
+          <div className="flex gap-1">
+            {onView && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onView(record)}
+                className="h-8 w-8"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            )}
+            {onEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onEdit(record)}
+                className="h-8 w-8"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-3">
+        <div>
+          <h3 className="font-semibold text-lg mb-1">{record.titulo}</h3>
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {record.descricao}
+          </p>
+        </div>
+
+        <div className="space-y-2 text-sm">
+          {record.companies && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Building2 className="h-4 w-4" />
+              <span>{record.companies.nome_fantasia}</span>
+            </div>
+          )}
+
+          {record.profiles && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <User className="h-4 w-4" />
+              <span>{record.profiles.nome}</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            <span>
+              {format(new Date(record.data_atendimento), "dd/MM/yyyy", { locale: ptBR })}
+              {" • "}
+              {record.hora_inicio}
+              {record.hora_fim && ` - ${record.hora_fim}`}
+            </span>
+          </div>
+        </div>
+
+        {record.solucao && (
+          <div className="pt-2 border-t">
+            <p className="text-xs text-muted-foreground">
+              <strong>Solução:</strong> {record.solucao.substring(0, 100)}
+              {record.solucao.length > 100 && "..."}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

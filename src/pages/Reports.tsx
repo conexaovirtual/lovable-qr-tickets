@@ -8,11 +8,12 @@ import { InventoryReport } from '@/components/reports/InventoryReport';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileBarChart, Building2, Package, Ticket, Printer, FileText, Calendar as CalendarIcon } from 'lucide-react';
+import { FileBarChart, Building2, Package, Ticket, Printer, FileText, Calendar as CalendarIcon, ClipboardList } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ServiceOrderList } from '@/components/service-orders/ServiceOrderList';
 import { ServiceOrderCalendar } from '@/components/service-orders/ServiceOrderCalendar';
+import { DailyServicesReport } from '@/components/reports/DailyServicesReport';
 
 export default function Reports() {
   const { profile, loading } = useAuth();
@@ -135,7 +136,7 @@ export default function Reports() {
         </div>
 
         <Tabs defaultValue={defaultTab} className="space-y-4">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="inventory">Inventário</TabsTrigger>
             <TabsTrigger value="service-orders">
@@ -145,6 +146,10 @@ export default function Reports() {
             <TabsTrigger value="calendar">
               <CalendarIcon className="h-4 w-4 mr-2" />
               Calendário
+            </TabsTrigger>
+            <TabsTrigger value="daily-services">
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Atendimentos
             </TabsTrigger>
           </TabsList>
 
@@ -164,6 +169,10 @@ export default function Reports() {
 
           <TabsContent value="calendar">
             <ServiceOrderCalendar />
+          </TabsContent>
+
+          <TabsContent value="daily-services">
+            <DailyServicesReport />
           </TabsContent>
         </Tabs>
       </main>

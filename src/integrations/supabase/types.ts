@@ -182,6 +182,127 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_service_records: {
+        Row: {
+          asset_id: string | null
+          canal: Database["public"]["Enums"]["service_channel"]
+          company_id: string
+          created_at: string | null
+          data_atendimento: string
+          descricao: string
+          hora_fim: string | null
+          hora_inicio: string
+          id: string
+          observacoes: string | null
+          solucao: string | null
+          status: string
+          tecnico_id: string
+          ticket_id: string | null
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          asset_id?: string | null
+          canal: Database["public"]["Enums"]["service_channel"]
+          company_id: string
+          created_at?: string | null
+          data_atendimento?: string
+          descricao: string
+          hora_fim?: string | null
+          hora_inicio: string
+          id?: string
+          observacoes?: string | null
+          solucao?: string | null
+          status?: string
+          tecnico_id: string
+          ticket_id?: string | null
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          asset_id?: string | null
+          canal?: Database["public"]["Enums"]["service_channel"]
+          company_id?: string
+          created_at?: string | null
+          data_atendimento?: string
+          descricao?: string
+          hora_fim?: string | null
+          hora_inicio?: string
+          id?: string
+          observacoes?: string | null
+          solucao?: string | null
+          status?: string
+          tecnico_id?: string
+          ticket_id?: string | null
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_service_records_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_service_records_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "asset_inventory_by_company"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "daily_service_records_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_service_records_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_basic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_service_records_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_service_records_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_statistics"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "daily_service_records_tecnico_id_fkey"
+            columns: ["tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_service_records_tecnico_id_fkey"
+            columns: ["tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_service_records_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1065,22 +1186,13 @@ export type Database = {
         }
         Returns: Database["public"]["Enums"]["priority_level"]
       }
-      can_view_asset_details: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
-      can_view_financial_data: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      can_view_asset_details: { Args: { _user_id: string }; Returns: boolean }
+      can_view_financial_data: { Args: { _user_id: string }; Returns: boolean }
       can_view_phone: {
         Args: { target_user_id: string; viewer_user_id: string }
         Returns: boolean
       }
-      get_user_company_id: {
-        Args: { _user_id: string }
-        Returns: string
-      }
+      get_user_company_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
@@ -1096,10 +1208,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
       log_phone_access_attempt: {
         Args: {
           access_granted: boolean
@@ -1135,6 +1244,7 @@ export type Database = {
       impact_level: "alto" | "medio" | "baixo"
       phone_visibility: "everyone" | "managers_only" | "private"
       priority_level: "critica" | "alta" | "media" | "baixa"
+      service_channel: "whatsapp" | "ligacao" | "visita_tecnica"
       ticket_status:
         | "novo"
         | "triagem"
@@ -1288,6 +1398,7 @@ export const Constants = {
       impact_level: ["alto", "medio", "baixo"],
       phone_visibility: ["everyone", "managers_only", "private"],
       priority_level: ["critica", "alta", "media", "baixa"],
+      service_channel: ["whatsapp", "ligacao", "visita_tecnica"],
       ticket_status: [
         "novo",
         "triagem",
