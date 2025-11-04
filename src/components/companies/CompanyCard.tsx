@@ -1,7 +1,8 @@
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Mail, Phone, MapPin, Clock } from 'lucide-react';
+import { Edit, Mail, Phone, MapPin, Clock, Eye } from 'lucide-react';
 
 interface CompanyCardProps {
   company: any;
@@ -10,6 +11,8 @@ interface CompanyCardProps {
 }
 
 export function CompanyCard({ company, onEdit }: CompanyCardProps) {
+  const navigate = useNavigate();
+
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader className="pb-3">
@@ -62,15 +65,26 @@ export function CompanyCard({ company, onEdit }: CompanyCardProps) {
           </div>
         )}
 
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="w-full mt-2"
-          onClick={() => onEdit(company)}
-        >
-          <Edit className="h-4 w-4 mr-2" />
-          Editar
-        </Button>
+        <div className="flex gap-2 mt-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex-1"
+            onClick={() => navigate(`/companies/${company.id}`)}
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            Detalhes
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex-1"
+            onClick={() => onEdit(company)}
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Editar
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
