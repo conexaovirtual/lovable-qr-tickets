@@ -123,25 +123,47 @@ const validateBrazilianPhone = (phone: string): boolean => {
 };
 
 export const companySchema = z.object({
-  nome_fantasia: z.string().trim().min(1, 'Nome fantasia é obrigatório').max(200, 'Nome muito longo'),
-  razao_social: z.string().trim().max(200, 'Razão social muito longa').optional(),
+  nome_fantasia: z.string()
+    .trim()
+    .min(1, 'Nome fantasia é obrigatório')
+    .max(200, 'Nome muito longo'),
+  razao_social: z.string()
+    .trim()
+    .max(200, 'Razão social muito longa')
+    .optional()
+    .or(z.literal('')),
   cnpj: z.string()
     .trim()
     .optional()
     .refine((val) => !val || val.length === 0 || validateCNPJ(val), {
       message: 'CNPJ inválido. Verifique o formato 00.000.000/0000-00'
     }),
-  email: z.string().trim().email('E-mail inválido').max(255, 'E-mail muito longo').optional().or(z.literal('')),
+  email: z.string()
+    .trim()
+    .optional()
+    .refine((val) => !val || val.length === 0 || z.string().email().safeParse(val).success, {
+      message: 'E-mail inválido'
+    })
+    .transform(val => val === '' ? undefined : val),
   telefone: z.string()
     .trim()
     .optional()
     .refine((val) => !val || val.length === 0 || validateBrazilianPhone(val), {
       message: 'Telefone inválido. Use o formato (00) 00000-0000'
     }),
-  endereco: z.string().trim().max(300, 'Endereço muito longo').optional(),
-  status: z.boolean().default(true),
-  sla_primeiro_atendimento_horas: z.number().min(1, 'SLA deve ser maior que 0').default(4),
-  sla_solucao_horas: z.number().min(1, 'SLA deve ser maior que 0').default(16),
+  endereco: z.string()
+    .trim()
+    .max(300, 'Endereço muito longo')
+    .optional()
+    .or(z.literal('')),
+  status: z.boolean()
+    .default(true),
+  sla_primeiro_atendimento_horas: z.number()
+    .min(1, 'SLA deve ser maior que 0')
+    .default(4),
+  sla_solucao_horas: z.number()
+    .min(1, 'SLA deve ser maior que 0')
+    .default(16),
 });
 
 export const authSchema = z.object({

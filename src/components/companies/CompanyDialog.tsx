@@ -139,10 +139,18 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
 
   const onSubmit = async (data: CompanyFormData) => {
     try {
+      // Remover campos vazios opcionais antes de enviar
+      const cleanedData = Object.entries(data).reduce((acc, [key, value]) => {
+        if (value === '' || value === null || value === undefined) {
+          return acc;
+        }
+        return { ...acc, [key]: value };
+      }, {} as any);
+
       if (company) {
         const { error } = await supabase
           .from('companies')
-          .update(data)
+          .update(cleanedData)
           .eq('id', company.id);
 
         if (error) throw error;
@@ -187,7 +195,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
 
         const { error } = await supabase
           .from('companies')
-          .insert([data]);
+          .insert([cleanedData]);
 
         if (error) throw error;
 
