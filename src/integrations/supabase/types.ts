@@ -137,6 +137,27 @@ export type Database = {
         }
         Relationships: []
       }
+      cnpj_cache: {
+        Row: {
+          cnpj: string
+          consultado_em: string | null
+          dados: Json
+          valido_ate: string | null
+        }
+        Insert: {
+          cnpj: string
+          consultado_em?: string | null
+          dados: Json
+          valido_ate?: string | null
+        }
+        Update: {
+          cnpj?: string
+          consultado_em?: string | null
+          dados?: Json
+          valido_ate?: string | null
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           cnpj: string | null

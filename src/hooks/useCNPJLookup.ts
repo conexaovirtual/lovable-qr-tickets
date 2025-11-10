@@ -16,15 +16,18 @@ interface UseCNPJLookupReturn {
   lookupCNPJ: (cnpj: string) => Promise<CNPJData | null>;
   isLoading: boolean;
   error: string | null;
+  isRateLimitError: boolean;
 }
 
 export const useCNPJLookup = (): UseCNPJLookupReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRateLimitError, setIsRateLimitError] = useState(false);
 
   const lookupCNPJ = async (cnpj: string): Promise<CNPJData | null> => {
     setIsLoading(true);
     setError(null);
+    setIsRateLimitError(false);
 
     try {
       // Remove formatação do CNPJ
@@ -43,13 +46,18 @@ export const useCNPJLookup = (): UseCNPJLookupReturn => {
 
       if (functionError) {
         console.error('Erro ao consultar CNPJ:', functionError);
-        setError(functionError.message || 'Erro ao consultar CNPJ');
+        const errorMsg = functionError.message || 'Erro ao consultar CNPJ';
+        const isRateLimit = errorMsg.toLowerCase().includes('limite') || errorMsg.includes('429');
+        setError(errorMsg);
+        setIsRateLimitError(isRateLimit);
         setIsLoading(false);
         return null;
       }
 
       if (data?.error) {
+        const isRateLimit = data.error.toLowerCase().includes('limite') || data.error.includes('429');
         setError(data.error);
+        setIsRateLimitError(isRateLimit);
         setIsLoading(false);
         return null;
       }
@@ -58,11 +66,14 @@ export const useCNPJLookup = (): UseCNPJLookupReturn => {
       return data as CNPJData;
     } catch (err: any) {
       console.error('Erro ao consultar CNPJ:', err);
-      setError(err.message || 'Erro ao consultar CNPJ');
+      const errorMsg = err.message || 'Erro ao consultar CNPJ';
+      const isRateLimit = errorMsg.toLowerCase().includes('limite') || errorMsg.includes('429');
+      setError(errorMsg);
+      setIsRateLimitError(isRateLimit);
       setIsLoading(false);
       return null;
     }
   };
 
-  return { lookupCNPJ, isLoading, error };
+  return { lookupCNPJ, isLoading, error, isRateLimitError };
 };

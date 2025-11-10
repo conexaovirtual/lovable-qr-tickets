@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { companySchema, type CompanyFormData } from '@/lib/validations';
 import { formatCNPJ, formatPhone } from '@/lib/formatters';
 import { useCNPJLookup } from '@/hooks/useCNPJLookup';
-import { Search, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, Loader2, CheckCircle2, AlertCircle, RotateCw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface CompanyDialogProps {
   open: boolean;
@@ -34,9 +35,10 @@ interface CompanyDialogProps {
 
 export function CompanyDialog({ open, onOpenChange, company, onSuccess }: CompanyDialogProps) {
   const { toast } = useToast();
-  const { lookupCNPJ, isLoading: isLoadingCNPJ } = useCNPJLookup();
+  const { lookupCNPJ, isLoading: isLoadingCNPJ, error, isRateLimitError } = useCNPJLookup();
   const [cnpjValidated, setCnpjValidated] = useState(false);
   const [companySituation, setCompanySituation] = useState<'ativa' | 'baixada' | null>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout>();
   
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -82,6 +84,15 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       setCompanySituation(null);
     }
   }, [company, form]);
+
+  // Limpar timer ao desmontar componente
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleCNPJLookup = async () => {
     const cnpj = form.getValues('cnpj');
@@ -298,22 +309,51 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                         />
                       </FormControl>
                       {!company && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={handleCNPJLookup}
-                          disabled={isLoadingCNPJ || !field.value || field.value.replace(/[^\d]/g, '').length !== 14}
-                          title="Buscar dados da empresa"
-                        >
-                          {isLoadingCNPJ ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Search className="h-4 w-4" />
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleCNPJLookup}
+                            disabled={isLoadingCNPJ || !field.value || field.value.replace(/[^\d]/g, '').length !== 14}
+                            title="Buscar dados da empresa"
+                          >
+                            {isLoadingCNPJ ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Search className="h-4 w-4" />
+                            )}
+                          </Button>
+                          {error && isRateLimitError && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setTimeout(handleCNPJLookup, 2000);
+                              }}
+                              title="Tentar novamente"
+                            >
+                              <RotateCw className="h-4 w-4" />
+                            </Button>
                           )}
-                        </Button>
+                        </>
                       )}
                     </div>
+                    {error && (
+                      <Alert variant={isRateLimitError ? "default" : "destructive"} className="mt-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>{isRateLimitError ? 'Aguarde um momento' : 'Erro'}</AlertTitle>
+                        <AlertDescription>
+                          {error}
+                          {isRateLimitError && (
+                            <p className="mt-2 text-sm">
+                              O serviço de consulta está temporariamente indisponível. Você pode preencher os dados manualmente ou tentar novamente em alguns instantes.
+                            </p>
+                          )}
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
