@@ -151,31 +151,58 @@ export function ImageUpload({
           </Card>
         ))}
 
-        {/* Botão de adicionar */}
+        {/* Botões de adicionar - Câmera e Galeria */}
         {images.length < maxImages && (
-          <label className="cursor-pointer">
-            <Card className="h-32 flex flex-col items-center justify-center border-2 border-dashed hover:border-primary transition-colors">
-              {uploading ? (
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              ) : (
-                <>
-                  <Camera className="h-8 w-8 text-muted-foreground mb-2" />
-                  <span className="text-xs text-muted-foreground">
-                    Adicionar
-                  </span>
-                </>
-              )}
-            </Card>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              className="hidden"
-              onChange={handleFileSelect}
-              disabled={disabled || uploading}
-              capture="environment"
-            />
-          </label>
+          <>
+            {/* Botão Câmera */}
+            <label className="cursor-pointer">
+              <Card className="h-32 flex flex-col items-center justify-center border-2 border-dashed hover:border-primary transition-colors">
+                {uploading ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                ) : (
+                  <>
+                    <Camera className="h-8 w-8 text-muted-foreground mb-2" />
+                    <span className="text-xs text-muted-foreground">
+                      Câmera
+                    </span>
+                  </>
+                )}
+              </Card>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+                disabled={disabled || uploading}
+                capture="environment"
+              />
+            </label>
+
+            {/* Botão Galeria */}
+            <label className="cursor-pointer">
+              <Card className="h-32 flex flex-col items-center justify-center border-2 border-dashed hover:border-primary transition-colors">
+                {uploading ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                ) : (
+                  <>
+                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                    <span className="text-xs text-muted-foreground">
+                      Galeria
+                    </span>
+                  </>
+                )}
+              </Card>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+                disabled={disabled || uploading}
+              />
+            </label>
+          </>
         )}
       </div>
 
