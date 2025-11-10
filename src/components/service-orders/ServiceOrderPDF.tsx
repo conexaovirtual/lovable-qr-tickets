@@ -3,12 +3,42 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { imageUrlToBase64 } from '@/lib/imageUtils';
 
+// Função auxiliar para carregar logo local
+const getConexaoVirtualLogo = async (): Promise<string | null> => {
+  try {
+    const response = await fetch('/logo-conexaovirtual.png');
+    const blob = await response.blob();
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Erro ao carregar logo da Conexão Virtual:', error);
+    return null;
+  }
+};
+
 export const generateServiceOrderPDF = async (serviceOrder: any) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPos = 20;
 
-  // Adicionar logo da empresa no cabeçalho (se existir)
+  // ========== LOGO DA CONEXÃO VIRTUAL ==========
+  const conexaoLogo = await getConexaoVirtualLogo();
+  if (conexaoLogo) {
+    try {
+      // Logo no canto superior direito (50x19mm)
+      doc.addImage(conexaoLogo, 'PNG', pageWidth - 60, yPos - 5, 50, 19);
+    } catch (error) {
+      console.error('Erro ao adicionar logo da Conexão Virtual:', error);
+    }
+  }
+
+  // ========== LOGO DA EMPRESA CLIENTE ==========
+  // Adicionar logo da empresa cliente no canto esquerdo (se existir)
   if (serviceOrder.companies?.logo_url) {
     try {
       const logoBase64 = await imageUrlToBase64(serviceOrder.companies.logo_url);
@@ -19,8 +49,8 @@ export const generateServiceOrderPDF = async (serviceOrder: any) => {
     }
   }
 
-  // Cabeçalho - ajustado para direita se houver logo
-  const headerX = serviceOrder.companies?.logo_url ? pageWidth / 2 + 10 : pageWidth / 2;
+  // Cabeçalho - centralizado
+  const headerX = pageWidth / 2;
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
   doc.text('ORDEM DE SERVIÇO', headerX, yPos + 5, { align: 'center' });

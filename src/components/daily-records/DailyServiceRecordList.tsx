@@ -126,7 +126,7 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
     setDataFim("");
   };
 
-  const handleExportFiltered = () => {
+  const handleExportFiltered = async () => {
     if (records.length === 0) {
       toast.error("Nenhum atendimento para exportar");
       return;
@@ -144,7 +144,7 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
         tempo_medio: 0
       };
 
-      exportDailyServicesToPDF(records, stats, { dataInicio, dataFim });
+      await exportDailyServicesToPDF(records, stats, { dataInicio, dataFim });
       toast.success("PDF gerado com sucesso!");
     } catch (error) {
       console.error("Error exporting PDF:", error);

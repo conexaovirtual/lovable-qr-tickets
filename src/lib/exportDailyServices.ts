@@ -3,6 +3,24 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+// Função auxiliar para carregar logo local
+const getConexaoVirtualLogo = async (): Promise<string | null> => {
+  try {
+    const response = await fetch('/logo-conexaovirtual.png');
+    const blob = await response.blob();
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Erro ao carregar logo da Conexão Virtual:', error);
+    return null;
+  }
+};
+
 interface DailyServiceStats {
   total: number;
   whatsapp: number;
@@ -14,13 +32,25 @@ interface DailyServiceStats {
   tempo_medio: number;
 }
 
-export const exportDailyServicesToPDF = (
+export const exportDailyServicesToPDF = async (
   records: any[], 
   stats: DailyServiceStats,
   filters?: { dataInicio?: string; dataFim?: string }
 ) => {
   const doc = new jsPDF('landscape');
+  const pageWidth = doc.internal.pageSize.getWidth();
   let currentY = 20;
+
+  // ========== LOGO ==========
+  const logoBase64 = await getConexaoVirtualLogo();
+  if (logoBase64) {
+    try {
+      // Logo no canto superior direito (60x23mm)
+      doc.addImage(logoBase64, 'PNG', pageWidth - 70, 10, 60, 23);
+    } catch (error) {
+      console.error('Erro ao adicionar logo:', error);
+    }
+  }
 
   // ============= CABEÇALHO =============
   doc.setFontSize(20);

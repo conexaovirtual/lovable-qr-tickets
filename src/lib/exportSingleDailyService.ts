@@ -2,6 +2,25 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { imageUrlToBase64 } from '@/lib/imageUtils';
+
+// Função auxiliar para carregar logo local
+const getConexaoVirtualLogo = async (): Promise<string | null> => {
+  try {
+    const response = await fetch('/logo-conexaovirtual.png');
+    const blob = await response.blob();
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Erro ao carregar logo da Conexão Virtual:', error);
+    return null;
+  }
+};
 
 interface DailyServiceRecord {
   id: string;
@@ -23,7 +42,19 @@ interface DailyServiceRecord {
 
 export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) => {
   const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
   let currentY = 20;
+
+  // ========== LOGO ==========
+  const logoBase64 = await getConexaoVirtualLogo();
+  if (logoBase64) {
+    try {
+      // Logo no canto superior direito (50x19mm)
+      doc.addImage(logoBase64, 'PNG', pageWidth - 60, 10, 50, 19);
+    } catch (error) {
+      console.error('Erro ao adicionar logo:', error);
+    }
+  }
 
   // ========== CABEÇALHO ==========
   doc.setFontSize(18);
@@ -148,28 +179,77 @@ export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) 
 
   // ========== FOTOS ==========
   if (record.fotos && record.fotos.length > 0) {
-    if (currentY > 200) {
+    // Nova página se necessário
+    if (currentY > 180) {
       doc.addPage();
       currentY = 20;
     }
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Fotos (${record.fotos.length})`, 14, currentY);
-    currentY += 6;
+    doc.text(`Fotos do Atendimento (${record.fotos.length})`, 14, currentY);
+    currentY += 10;
 
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'italic');
-    doc.text('As fotos estão armazenadas digitalmente e podem ser acessadas pelo sistema.', 14, currentY);
-    currentY += 6;
+    // Configurações do grid 2x2
+    const photoWidth = 80;  // Largura da foto
+    const photoHeight = 60; // Altura da foto
+    const margin = 10;      // Espaçamento entre fotos
+    const startX = 20;      // Margem esquerda
+    let currentX = startX;
+    let photoY = currentY;
+    let photosInRow = 0;
 
-    // Lista de URLs das fotos
-    record.fotos.forEach((foto: any, index: number) => {
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`${index + 1}. ${foto.name || `Foto ${index + 1}`}`, 20, currentY);
-      currentY += 4;
-    });
+    // Converter e adicionar cada foto
+    for (let i = 0; i < record.fotos.length; i++) {
+      const foto = record.fotos[i];
+      
+      try {
+        // Converter URL para base64
+        const base64Image = await imageUrlToBase64(foto.url);
+        
+        // Verificar se precisa de nova linha (2 fotos por linha)
+        if (photosInRow === 2) {
+          currentX = startX;
+          photoY += photoHeight + margin + 5; // +5 para legenda
+          photosInRow = 0;
+          
+          // Verificar se precisa de nova página
+          if (photoY + photoHeight > 250) {
+            doc.addPage();
+            photoY = 20;
+          }
+        }
+        
+        // Adicionar foto no PDF
+        doc.addImage(base64Image, 'JPEG', currentX, photoY, photoWidth, photoHeight);
+        
+        // Adicionar legenda (nome do arquivo)
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        const caption = foto.name || `Foto ${i + 1}`;
+        doc.text(caption.substring(0, 30), currentX, photoY + photoHeight + 4);
+        
+        // Próxima posição
+        currentX += photoWidth + margin;
+        photosInRow++;
+        
+      } catch (error) {
+        console.error(`Erro ao adicionar foto ${i + 1}:`, error);
+        
+        // Adicionar placeholder em caso de erro
+        doc.setFillColor(240, 240, 240);
+        doc.rect(currentX, photoY, photoWidth, photoHeight, 'F');
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.text('Erro ao carregar', currentX + photoWidth/2, photoY + photoHeight/2, { align: 'center' });
+        
+        currentX += photoWidth + margin;
+        photosInRow++;
+      }
+    }
+    
+    // Atualizar currentY para após todas as fotos
+    currentY = photoY + photoHeight + 15;
   }
 
   // ========== RODAPÉ ==========

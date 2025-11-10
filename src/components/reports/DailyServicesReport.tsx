@@ -95,14 +95,14 @@ export function DailyServicesReport() {
     { name: "Pendentes", value: stats.pendentes },
   ];
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (records.length === 0) {
       toast.error("Não há atendimentos para exportar");
       return;
     }
 
     try {
-      exportDailyServicesToPDF(records, stats);
+      await exportDailyServicesToPDF(records, stats);
       toast.success("PDF gerado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
