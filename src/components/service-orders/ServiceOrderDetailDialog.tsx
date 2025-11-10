@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckCircle, XCircle, PlayCircle, FileText, Clock, Calendar, Edit } from "lucide-react";
+import { CheckCircle, XCircle, PlayCircle, FileText, Clock, Calendar, Edit, Loader2 } from "lucide-react";
 import { generateServiceOrderPDF } from "./ServiceOrderPDF";
 import { ServiceOrderEditDialog } from "./ServiceOrderEditDialog";
 import { ServiceOrderExecutionDialog } from "./ServiceOrderExecutionDialog";
@@ -44,6 +44,7 @@ export function ServiceOrderDetailDialog({
   onUpdate,
 }: ServiceOrderDetailDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isExecutionDialogOpen, setIsExecutionDialogOpen] = useState(false);
@@ -111,8 +112,24 @@ export function ServiceOrderDetailDialog({
     }
   };
 
-  const handleGeneratePDF = () => {
-    generateServiceOrderPDF(serviceOrder);
+  const handleGeneratePDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      await generateServiceOrderPDF(serviceOrder);
+      toast({
+        title: "PDF gerado com sucesso!",
+        description: `OS #${serviceOrder.numero_os} baixada.`,
+      });
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast({
+        title: "Erro ao gerar PDF",
+        description: "Não foi possível gerar o PDF. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   if (!serviceOrder) return null;
@@ -353,9 +370,19 @@ export function ServiceOrderDetailDialog({
                 onClick={handleGeneratePDF}
                 variant="outline"
                 size="sm"
+                disabled={isGeneratingPDF}
               >
-                <FileText className="h-4 w-4 mr-2" />
-                Baixar PDF
+                {isGeneratingPDF ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Gerando PDF...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Baixar PDF
+                  </>
+                )}
               </Button>
             )}
           </div>

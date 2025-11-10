@@ -98,13 +98,21 @@ export function ServiceOrderDialog({ open, onOpenChange, ticket, onSuccess }: Se
 
       if (error) throw error;
 
-      // Gerar PDF
-      generateServiceOrderPDF(serviceOrder);
-
-      toast({
-        title: 'OS Gerada com Sucesso',
-        description: `OS #${serviceOrder.numero_os} foi criada e o PDF foi baixado.`,
-      });
+      // Gerar PDF (agora assíncrono com fotos)
+      try {
+        await generateServiceOrderPDF(serviceOrder);
+        toast({
+          title: 'OS Gerada com Sucesso',
+          description: `OS #${serviceOrder.numero_os} foi criada e o PDF foi baixado.`,
+        });
+      } catch (pdfError) {
+        console.error("Erro ao gerar PDF:", pdfError);
+        toast({
+          title: 'OS criada, mas erro ao gerar PDF',
+          description: 'A ordem de serviço foi salva, mas houve um problema ao gerar o PDF.',
+          variant: 'destructive',
+        });
+      }
 
       onSuccess?.();
       onOpenChange(false);
