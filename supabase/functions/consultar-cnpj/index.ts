@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Função auxiliar para retry com exponential backoff
+// Função para tentar com retry e exponential backoff
 async function fetchComRetry(url: string, maxTentativas = 3): Promise<Response> {
   for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
     try {
@@ -17,7 +17,7 @@ async function fetchComRetry(url: string, maxTentativas = 3): Promise<Response> 
         },
       });
 
-      // Se não for 429 (rate limit), retornar imediatamente
+      // Se não for 429, retornar imediatamente
       if (response.status !== 429) {
         return response;
       }
@@ -27,14 +27,15 @@ async function fetchComRetry(url: string, maxTentativas = 3): Promise<Response> 
         const waitTime = Math.pow(2, tentativa) * 1000; // 2s, 4s, 8s
         console.log(`Rate limit atingido. Aguardando ${waitTime/1000}s antes de tentar novamente (tentativa ${tentativa}/${maxTentativas})...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
+      } else {
+        throw new Error('Limite de requisições atingido. Tente novamente em alguns minutos.');
       }
     } catch (error) {
       if (tentativa === maxTentativas) throw error;
-      console.warn(`Tentativa ${tentativa} falhou:`, error);
     }
   }
   
-  throw new Error('Limite de requisições atingido. Tente novamente em alguns minutos.');
+  throw new Error('Falha após múltiplas tentativas');
 }
 
 interface BrasilAPIResponse {
@@ -61,12 +62,6 @@ serve(async (req) => {
 
   try {
     const { cnpj } = await req.json();
-    
-    // Criar cliente Supabase com service role para acessar cache
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
     if (!cnpj) {
       return new Response(
@@ -86,25 +81,31 @@ serve(async (req) => {
       );
     }
 
+    // Criar cliente Supabase com service role para acessar cache
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     // 1. Verificar cache primeiro
-    console.log(`Verificando cache para CNPJ: ${cnpjLimpo}`);
     const { data: cached, error: cacheError } = await supabaseClient
       .from('cnpj_cache')
       .select('dados')
       .eq('cnpj', cnpjLimpo)
       .gt('valido_ate', new Date().toISOString())
-      .single();
+      .maybeSingle();
 
     if (cached && !cacheError) {
-      console.log('CNPJ encontrado no cache');
+      console.log(`✓ CNPJ ${cnpjLimpo} encontrado no cache`);
       return new Response(
         JSON.stringify(cached.dados),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 2. Se não estiver no cache, consultar BrasilAPI com retry
-    console.log(`CNPJ não encontrado no cache. Consultando BrasilAPI: ${cnpjLimpo}`);
+    console.log(`Consultando CNPJ ${cnpjLimpo} na BrasilAPI...`);
+
+    // 2. Consultar BrasilAPI com retry
     const response = await fetchComRetry(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
 
     if (!response.ok) {
@@ -153,21 +154,16 @@ serve(async (req) => {
       ativa: data.descricao_situacao_cadastral?.toUpperCase() === 'ATIVA',
     };
 
-    console.log('Consulta realizada com sucesso:', resultado.razao_social);
+    console.log('✓ Consulta realizada com sucesso:', resultado.razao_social);
 
-    // 3. Salvar no cache para futuras consultas
+    // 3. Salvar no cache (ignorar erros de cache)
     try {
       await supabaseClient
         .from('cnpj_cache')
-        .upsert({ 
-          cnpj: cnpjLimpo, 
-          dados: resultado,
-          consultado_em: new Date().toISOString(),
-          valido_ate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 dias
-        });
-      console.log('CNPJ salvo no cache com sucesso');
-    } catch (cacheErr) {
-      console.warn('Erro ao salvar no cache (não crítico):', cacheErr);
+        .upsert({ cnpj: cnpjLimpo, dados: resultado });
+      console.log('✓ Cache atualizado');
+    } catch (err: any) {
+      console.warn('⚠ Aviso: Não foi possível salvar no cache:', err.message);
     }
 
     return new Response(
@@ -175,13 +171,15 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Erro ao consultar CNPJ:', error);
+    console.error('❌ Erro ao consultar CNPJ:', error);
     
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     
     return new Response(
       JSON.stringify({ 
-        error: 'Erro ao consultar CNPJ. Serviço temporariamente indisponível.',
+        error: errorMessage.includes('limite') 
+          ? 'Limite de consultas atingido. Tente novamente em alguns minutos.' 
+          : 'Erro ao consultar CNPJ. Serviço temporariamente indisponível.',
         details: errorMessage
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
