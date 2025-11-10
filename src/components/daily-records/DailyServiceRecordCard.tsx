@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Phone, MapPin, Clock, Building2, User, Edit, Eye } from "lucide-react";
+import { PhotoGallery } from "@/components/ui/PhotoGallery";
+import { UploadedImage } from "@/lib/imageUtils";
+import { MessageCircle, Phone, MapPin, Clock, Building2, User, Edit, Eye, Camera } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -12,6 +15,8 @@ interface DailyServiceRecordCardProps {
 }
 
 export function DailyServiceRecordCard({ record, onEdit, onView }: DailyServiceRecordCardProps) {
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  
   const getChannelConfig = (canal: string) => {
     switch (canal) {
       case "whatsapp":
@@ -57,88 +62,114 @@ export function DailyServiceRecordCard({ record, onEdit, onView }: DailyServiceR
   const channelConfig = getChannelConfig(record.canal);
   const statusConfig = getStatusConfig(record.status);
   const ChannelIcon = channelConfig.icon;
+  
+  const photos = (record.fotos as unknown as UploadedImage[]) || [];
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 flex-1">
-            <Badge className={channelConfig.className}>
-              <ChannelIcon className="h-3 w-3 mr-1" />
-              {channelConfig.label}
-            </Badge>
-            <Badge className={statusConfig.className}>
-              {statusConfig.label}
-            </Badge>
-          </div>
-          <div className="flex gap-1">
-            {onView && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onView(record)}
-                className="h-8 w-8"
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-            )}
-            {onEdit && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onEdit(record)}
-                className="h-8 w-8"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="space-y-3">
-        <div>
-          <h3 className="font-semibold text-lg mb-1">{record.titulo}</h3>
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {record.descricao}
-          </p>
-        </div>
-
-        <div className="space-y-2 text-sm">
-          {record.companies && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Building2 className="h-4 w-4" />
-              <span>{record.companies.nome_fantasia}</span>
+    <>
+      <Card className="hover:shadow-md transition-shadow">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 flex-1">
+              <Badge className={channelConfig.className}>
+                <ChannelIcon className="h-3 w-3 mr-1" />
+                {channelConfig.label}
+              </Badge>
+              <Badge className={statusConfig.className}>
+                {statusConfig.label}
+              </Badge>
             </div>
-          )}
-
-          {record.profiles && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <User className="h-4 w-4" />
-              <span>{record.profiles.nome}</span>
+            <div className="flex gap-1">
+              {onView && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onView(record)}
+                  className="h-8 w-8"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              )}
+              {onEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onEdit(record)}
+                  className="h-8 w-8"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-          )}
-
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            <span>
-              {format(new Date(record.data_atendimento), "dd/MM/yyyy", { locale: ptBR })}
-              {" • "}
-              {record.hora_inicio}
-              {record.hora_fim && ` - ${record.hora_fim}`}
-            </span>
           </div>
-        </div>
-
-        {record.solucao && (
-          <div className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground">
-              <strong>Solução:</strong> {record.solucao.substring(0, 100)}
-              {record.solucao.length > 100 && "..."}
+        </CardHeader>
+        
+        <CardContent className="space-y-3">
+          <div>
+            <h3 className="font-semibold text-lg mb-1">{record.titulo}</h3>
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {record.descricao}
             </p>
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          <div className="space-y-2 text-sm">
+            {record.companies && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Building2 className="h-4 w-4" />
+                <span>{record.companies.nome_fantasia}</span>
+              </div>
+            )}
+
+            {record.profiles && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span>{record.profiles.nome}</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              <span>
+                {format(new Date(record.data_atendimento), "dd/MM/yyyy", { locale: ptBR })}
+                {" • "}
+                {record.hora_inicio}
+                {record.hora_fim && ` - ${record.hora_fim}`}
+              </span>
+            </div>
+          </div>
+
+          {photos.length > 0 && (
+            <div className="pt-2 border-t">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setGalleryOpen(true)}
+                className="w-full justify-start gap-2 h-auto py-2"
+              >
+                <Camera className="h-4 w-4" />
+                <span className="text-sm">
+                  {photos.length} {photos.length === 1 ? 'foto' : 'fotos'}
+                </span>
+              </Button>
+            </div>
+          )}
+
+          {record.solucao && (
+            <div className="pt-2 border-t">
+              <p className="text-xs text-muted-foreground">
+                <strong>Solução:</strong> {record.solucao.substring(0, 100)}
+                {record.solucao.length > 100 && "..."}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      <PhotoGallery
+        images={photos}
+        open={galleryOpen}
+        onOpenChange={setGalleryOpen}
+      />
+    </>
   );
 }

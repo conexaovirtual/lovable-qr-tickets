@@ -24,6 +24,8 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { ImageUpload } from '@/components/ui/ImageUpload';
+import { UploadedImage } from '@/lib/imageUtils';
 import { generateServiceOrderPDF } from './ServiceOrderPDF';
 import { Loader2 } from 'lucide-react';
 
@@ -44,6 +46,7 @@ interface ServiceOrderDialogProps {
 
 export function ServiceOrderDialog({ open, onOpenChange, ticket, onSuccess }: ServiceOrderDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -83,6 +86,7 @@ export function ServiceOrderDialog({ open, onOpenChange, ticket, onSuccess }: Se
           observacoes: values.observacoes || null,
           status: 'executada',
           numero_os: 0, // Will be overridden by trigger
+          fotos: uploadedImages,
         } as any])
         .select(`
           *,
@@ -105,6 +109,7 @@ export function ServiceOrderDialog({ open, onOpenChange, ticket, onSuccess }: Se
       onSuccess?.();
       onOpenChange(false);
       form.reset();
+      setUploadedImages([]);
     } catch (error: any) {
       console.error('Erro ao gerar OS:', error);
       toast({
@@ -193,6 +198,14 @@ export function ServiceOrderDialog({ open, onOpenChange, ticket, onSuccess }: Se
                 )}
               />
             </div>
+
+            <ImageUpload
+              bucketName="service-order-photos"
+              maxImages={5}
+              onImagesChange={setUploadedImages}
+              existingImages={uploadedImages}
+              disabled={loading}
+            />
 
             <FormField
               control={form.control}

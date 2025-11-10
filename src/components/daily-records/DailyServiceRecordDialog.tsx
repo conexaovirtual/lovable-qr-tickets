@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ImageUpload } from "@/components/ui/ImageUpload";
+import { UploadedImage } from "@/lib/imageUtils";
 import { toast } from "sonner";
 import { Loader2, MessageCircle, Phone, MapPin } from "lucide-react";
 import { format } from "date-fns";
@@ -73,6 +75,7 @@ export function DailyServiceRecordDialog({
   const [companies, setCompanies] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -176,6 +179,11 @@ export function DailyServiceRecordDialog({
           asset_id: data.asset_id || "none",
           observacoes: data.observacoes || "",
         });
+        
+        // Carregar fotos existentes
+        if (data.fotos && Array.isArray(data.fotos)) {
+          setUploadedImages(data.fotos as unknown as UploadedImage[]);
+        }
       }
     } catch (error) {
       console.error("Error loading record:", error);
@@ -203,6 +211,7 @@ export function DailyServiceRecordDialog({
         hora_fim: data.hora_fim || null,
         solucao: data.solucao || null,
         observacoes: data.observacoes || null,
+        fotos: uploadedImages,
       };
 
       if (recordId) {
@@ -224,6 +233,7 @@ export function DailyServiceRecordDialog({
 
       onOpenChange(false);
       form.reset();
+      setUploadedImages([]);
       onSuccess?.();
     } catch (error: any) {
       console.error("Error saving record:", error);
@@ -493,6 +503,14 @@ export function DailyServiceRecordDialog({
                 )}
               />
             </div>
+
+            <ImageUpload
+              bucketName="daily-service-photos"
+              maxImages={5}
+              onImagesChange={setUploadedImages}
+              existingImages={uploadedImages}
+              disabled={loading}
+            />
 
             <FormField
               control={form.control}

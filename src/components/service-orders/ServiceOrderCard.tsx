@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, Download } from 'lucide-react';
+import { PhotoGallery } from '@/components/ui/PhotoGallery';
+import { UploadedImage } from '@/lib/imageUtils';
+import { FileText, Download, Camera } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { generateServiceOrderPDF } from './ServiceOrderPDF';
@@ -30,12 +33,17 @@ const statusLabels = {
 };
 
 export function ServiceOrderCard({ serviceOrder, onViewDetails }: ServiceOrderCardProps) {
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  
   const handleDownload = () => {
     generateServiceOrderPDF(serviceOrder);
   };
+  
+  const photos = (serviceOrder.fotos as unknown as UploadedImage[]) || [];
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <>
+      <Card className="hover:shadow-lg transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
@@ -86,6 +94,22 @@ export function ServiceOrderCard({ serviceOrder, onViewDetails }: ServiceOrderCa
           </div>
         </div>
 
+        {photos.length > 0 && (
+          <div className="pt-2 border-t">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setGalleryOpen(true)}
+              className="w-full justify-start gap-2 h-auto py-2"
+            >
+              <Camera className="h-4 w-4" />
+              <span className="text-sm">
+                {photos.length} {photos.length === 1 ? 'foto' : 'fotos'}
+              </span>
+            </Button>
+          </div>
+        )}
+
         <div className="flex gap-2 mt-4">
           <Button 
             onClick={() => onViewDetails?.(serviceOrder)} 
@@ -106,5 +130,12 @@ export function ServiceOrderCard({ serviceOrder, onViewDetails }: ServiceOrderCa
         </div>
       </CardContent>
     </Card>
+    
+    <PhotoGallery
+      images={photos}
+      open={galleryOpen}
+      onOpenChange={setGalleryOpen}
+    />
+  </>
   );
 }

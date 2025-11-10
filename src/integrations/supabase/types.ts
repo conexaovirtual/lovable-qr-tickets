@@ -190,6 +190,7 @@ export type Database = {
           created_at: string | null
           data_atendimento: string
           descricao: string
+          fotos: Json | null
           hora_fim: string | null
           hora_inicio: string
           id: string
@@ -208,6 +209,7 @@ export type Database = {
           created_at?: string | null
           data_atendimento?: string
           descricao: string
+          fotos?: Json | null
           hora_fim?: string | null
           hora_inicio: string
           id?: string
@@ -226,6 +228,7 @@ export type Database = {
           created_at?: string | null
           data_atendimento?: string
           descricao?: string
+          fotos?: Json | null
           hora_fim?: string | null
           hora_inicio?: string
           id?: string
@@ -497,6 +500,7 @@ export type Database = {
           descricao_servicos: string
           endereco_atendimento: string | null
           equipamentos_necessarios: string[] | null
+          fotos: Json | null
           hora_agendada: string | null
           id: string
           numero_os: number
@@ -524,6 +528,7 @@ export type Database = {
           descricao_servicos: string
           endereco_atendimento?: string | null
           equipamentos_necessarios?: string[] | null
+          fotos?: Json | null
           hora_agendada?: string | null
           id?: string
           numero_os: number
@@ -551,6 +556,7 @@ export type Database = {
           descricao_servicos?: string
           endereco_atendimento?: string | null
           equipamentos_necessarios?: string[] | null
+          fotos?: Json | null
           hora_agendada?: string | null
           id?: string
           numero_os?: number
