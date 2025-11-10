@@ -16,7 +16,8 @@ interface DailyServiceStats {
 
 export const exportDailyServicesToPDF = (
   records: any[], 
-  stats: DailyServiceStats
+  stats: DailyServiceStats,
+  filters?: { dataInicio?: string; dataFim?: string }
 ) => {
   const doc = new jsPDF('landscape');
   let currentY = 20;
@@ -35,6 +36,18 @@ export const exportDailyServicesToPDF = (
     currentY
   );
   currentY += 6;
+
+  // Adicionar informações sobre o período filtrado
+  if (filters?.dataInicio || filters?.dataFim) {
+    const periodoText = filters.dataInicio && filters.dataFim
+      ? `Período: ${format(new Date(filters.dataInicio), 'dd/MM/yyyy', { locale: ptBR })} a ${format(new Date(filters.dataFim), 'dd/MM/yyyy', { locale: ptBR })}`
+      : filters.dataInicio
+      ? `A partir de: ${format(new Date(filters.dataInicio), 'dd/MM/yyyy', { locale: ptBR })}`
+      : `Até: ${format(new Date(filters.dataFim), 'dd/MM/yyyy', { locale: ptBR })}`;
+    
+    doc.text(periodoText, 14, currentY);
+    currentY += 6;
+  }
 
   // ============= ESTATÍSTICAS RESUMIDAS =============
   doc.setFontSize(12);

@@ -4,9 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PhotoGallery } from "@/components/ui/PhotoGallery";
 import { UploadedImage } from "@/lib/imageUtils";
-import { MessageCircle, Phone, MapPin, Clock, Building2, User, Edit, Eye, Camera } from "lucide-react";
+import { MessageCircle, Phone, MapPin, Clock, Building2, User, Edit, Eye, Camera, FileDown } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { exportSingleDailyServiceToPDF } from "@/lib/exportSingleDailyService";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface DailyServiceRecordCardProps {
   record: any;
@@ -16,6 +19,31 @@ interface DailyServiceRecordCardProps {
 
 export function DailyServiceRecordCard({ record, onEdit, onView }: DailyServiceRecordCardProps) {
   const [galleryOpen, setGalleryOpen] = useState(false);
+  
+  const handleExportPDF = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('daily_service_records')
+        .select(`
+          *,
+          companies (nome_fantasia),
+          profiles (nome),
+          tickets (numero, titulo),
+          assets (tag_patrimonial, tipo)
+        `)
+        .eq('id', record.id)
+        .single();
+      
+      if (error) throw error;
+      if (data) {
+        await exportSingleDailyServiceToPDF(data as any);
+        toast.success("PDF gerado com sucesso!");
+      }
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Erro ao gerar PDF");
+    }
+  };
   
   const getChannelConfig = (canal: string) => {
     switch (canal) {
@@ -80,6 +108,15 @@ export function DailyServiceRecordCard({ record, onEdit, onView }: DailyServiceR
               </Badge>
             </div>
             <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleExportPDF}
+                className="h-8 w-8"
+                title="Exportar PDF"
+              >
+                <FileDown className="h-4 w-4" />
+              </Button>
               {onView && (
                 <Button
                   variant="ghost"

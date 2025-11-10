@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Filter, X } from "lucide-react";
+import { Search, Filter, X, FileDown } from "lucide-react";
 import { toast } from "sonner";
+import { exportDailyServicesToPDF } from "@/lib/exportDailyServices";
 
 interface DailyServiceRecordListProps {
   onUpdate?: () => void;
@@ -21,6 +22,8 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
   const [filterCanal, setFilterCanal] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterCompany, setFilterCompany] = useState("all");
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
   const [companies, setCompanies] = useState<any[]>([]);
   const [editingRecord, setEditingRecord] = useState<string | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -32,7 +35,7 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
 
   useEffect(() => {
     loadRecords();
-  }, [filterCanal, filterStatus, filterCompany, search]);
+  }, [filterCanal, filterStatus, filterCompany, search, dataInicio, dataFim]);
 
   const loadCompanies = async () => {
     try {
@@ -75,6 +78,14 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
         query = query.eq("company_id", filterCompany);
       }
 
+      if (dataInicio) {
+        query = query.gte("data_atendimento", dataInicio);
+      }
+
+      if (dataFim) {
+        query = query.lte("data_atendimento", dataFim);
+      }
+
       if (search) {
         query = query.or(`titulo.ilike.%${search}%,descricao.ilike.%${search}%`);
       }
@@ -111,16 +122,44 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
     setFilterCanal("all");
     setFilterStatus("all");
     setFilterCompany("all");
+    setDataInicio("");
+    setDataFim("");
   };
 
-  const hasActiveFilters = search || (filterCanal !== "all") || (filterStatus !== "all") || (filterCompany !== "all");
+  const handleExportFiltered = () => {
+    if (records.length === 0) {
+      toast.error("Nenhum atendimento para exportar");
+      return;
+    }
+
+    try {
+      const stats = {
+        total: records.length,
+        whatsapp: records.filter(r => r.canal === 'whatsapp').length,
+        ligacao: records.filter(r => r.canal === 'ligacao').length,
+        visita_tecnica: records.filter(r => r.canal === 'visita_tecnica').length,
+        concluidos: records.filter(r => r.status === 'concluido').length,
+        em_andamento: records.filter(r => r.status === 'em_andamento').length,
+        pendentes: records.filter(r => r.status === 'pendente').length,
+        tempo_medio: 0
+      };
+
+      exportDailyServicesToPDF(records, stats, { dataInicio, dataFim });
+      toast.success("PDF gerado com sucesso!");
+    } catch (error) {
+      console.error("Error exporting PDF:", error);
+      toast.error("Erro ao gerar PDF");
+    }
+  };
+
+  const hasActiveFilters = search || (filterCanal !== "all") || (filterStatus !== "all") || (filterCompany !== "all") || dataInicio || dataFim;
 
   return (
     <div className="space-y-4">
       {/* Filtros */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
             <div className="relative lg:col-span-2">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -168,6 +207,24 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
                 ))}
               </SelectContent>
             </Select>
+
+            <div>
+              <Input
+                type="date"
+                placeholder="Data início"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Input
+                type="date"
+                placeholder="Data fim"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+              />
+            </div>
           </div>
 
           {hasActiveFilters && (
@@ -175,14 +232,26 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
               <p className="text-sm text-muted-foreground">
                 {records.length} atendimento(s) encontrado(s)
               </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-              >
-                <X className="h-4 w-4 mr-2" />
-                Limpar filtros
-              </Button>
+              <div className="flex gap-2">
+                {records.length > 0 && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleExportFiltered}
+                  >
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Exportar Período (PDF)
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Limpar filtros
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

@@ -14,8 +14,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { UploadedImage } from "@/lib/imageUtils";
 import { toast } from "sonner";
-import { Loader2, MessageCircle, Phone, MapPin } from "lucide-react";
+import { Loader2, MessageCircle, Phone, MapPin, FileDown } from "lucide-react";
 import { format } from "date-fns";
+import { exportSingleDailyServiceToPDF } from "@/lib/exportSingleDailyService";
 
 const canalEnum = z.union([
   z.literal("whatsapp"),
@@ -531,6 +532,40 @@ export function DailyServiceRecordDialog({
             />
 
             <DialogFooter>
+              {recordId && form.watch('status') === 'concluido' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const { data, error } = await supabase
+                        .from('daily_service_records')
+                        .select(`
+                          *,
+                          companies (nome_fantasia),
+                          profiles (nome),
+                          tickets (numero, titulo),
+                          assets (tag_patrimonial, tipo)
+                        `)
+                        .eq('id', recordId)
+                        .single();
+                      
+                      if (error) throw error;
+                      if (data) {
+                        await exportSingleDailyServiceToPDF(data as any);
+                        toast.success("PDF gerado com sucesso!");
+                      }
+                    } catch (error) {
+                      console.error("Error generating PDF:", error);
+                      toast.error("Erro ao gerar PDF");
+                    }
+                  }}
+                  disabled={loading}
+                >
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Exportar PDF
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
