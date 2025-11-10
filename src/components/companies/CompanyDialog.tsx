@@ -6,7 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 import { companySchema, type CompanyFormData } from '@/lib/validations';
 import { formatCNPJ, formatPhone } from '@/lib/formatters';
 import { useCNPJLookup } from '@/hooks/useCNPJLookup';
-import { Search, Loader2, CheckCircle2, AlertCircle, RotateCw } from 'lucide-react';
+import { Search, Loader2, CheckCircle2, AlertCircle, RotateCw, Upload, X } from 'lucide-react';
+import { ImageUpload } from '@/components/ui/ImageUpload';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,8 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
   const { lookupCNPJ, isLoading: isLoadingCNPJ, error, isRateLimitError } = useCNPJLookup();
   const [cnpjValidated, setCnpjValidated] = useState(false);
   const [companySituation, setCompanySituation] = useState<'ativa' | 'baixada' | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout>();
   
   const form = useForm<CompanyFormData>({
@@ -68,6 +71,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         sla_primeiro_atendimento_horas: company.sla_primeiro_atendimento_horas || 4,
         sla_solucao_horas: company.sla_solucao_horas || 16,
       });
+      setLogoUrl(company.logo_url || null);
     } else {
       form.reset({
         nome_fantasia: '',
@@ -82,6 +86,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       });
       setCnpjValidated(false);
       setCompanySituation(null);
+      setLogoUrl(null);
     }
   }, [company, form]);
 
@@ -148,6 +153,58 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
     }
   };
 
+  const handleLogoUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Formato inválido',
+        description: 'Por favor, selecione uma imagem.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `company-logos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('service-order-photos')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('service-order-photos')
+        .getPublicUrl(filePath);
+
+      setLogoUrl(publicUrl);
+      
+      toast({
+        title: 'Logo enviado',
+        description: 'O logo foi carregado com sucesso.',
+      });
+    } catch (error: any) {
+      console.error('Erro ao fazer upload do logo:', error);
+      toast({
+        title: 'Erro ao enviar logo',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoUrl(null);
+    toast({
+      title: 'Logo removido',
+      description: 'O logo foi removido. Salve para confirmar.',
+    });
+  };
+
   const onSubmit = async (data: CompanyFormData) => {
     try {
       // Remover campos vazios opcionais antes de enviar
@@ -157,6 +214,13 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         }
         return { ...acc, [key]: value };
       }, {} as any);
+
+      // Adicionar logo_url ao payload
+      if (logoUrl) {
+        cleanedData.logo_url = logoUrl;
+      } else {
+        cleanedData.logo_url = null;
+      }
 
       if (company) {
         const { error } = await supabase
@@ -393,6 +457,60 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                   </FormItem>
                 )}
               />
+
+              <div className="md:col-span-2">
+                <FormLabel>Logo da Empresa</FormLabel>
+                <div className="mt-2">
+                  {logoUrl ? (
+                    <div className="relative inline-block">
+                      <img 
+                        src={logoUrl} 
+                        alt="Logo da empresa" 
+                        className="h-24 w-auto border rounded-lg"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                        onClick={handleRemoveLogo}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleLogoUpload(file);
+                        }}
+                        className="hidden"
+                        id="logo-upload"
+                        disabled={uploadingLogo}
+                      />
+                      <label 
+                        htmlFor="logo-upload"
+                        className="cursor-pointer flex flex-col items-center gap-2"
+                      >
+                        {uploadingLogo ? (
+                          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        ) : (
+                          <Upload className="h-8 w-8 text-muted-foreground" />
+                        )}
+                        <span className="text-sm text-muted-foreground">
+                          {uploadingLogo ? 'Enviando...' : 'Clique para enviar o logo'}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          PNG, JPG ou WEBP (recomendado: fundo transparente)
+                        </span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
 
               <FormField
                 control={form.control}

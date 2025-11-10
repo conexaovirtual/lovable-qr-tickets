@@ -8,14 +8,26 @@ export const generateServiceOrderPDF = async (serviceOrder: any) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPos = 20;
 
-  // Cabeçalho
+  // Adicionar logo da empresa no cabeçalho (se existir)
+  if (serviceOrder.companies?.logo_url) {
+    try {
+      const logoBase64 = await imageUrlToBase64(serviceOrder.companies.logo_url);
+      // Logo no canto superior esquerdo (30x30mm)
+      doc.addImage(logoBase64, 'PNG', 20, yPos - 5, 30, 30);
+    } catch (error) {
+      console.error('Erro ao carregar logo da empresa:', error);
+    }
+  }
+
+  // Cabeçalho - ajustado para direita se houver logo
+  const headerX = serviceOrder.companies?.logo_url ? pageWidth / 2 + 10 : pageWidth / 2;
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('ORDEM DE SERVIÇO', pageWidth / 2, yPos, { align: 'center' });
+  doc.text('ORDEM DE SERVIÇO', headerX, yPos + 5, { align: 'center' });
   
-  yPos += 10;
+  yPos += 15;
   doc.setFontSize(14);
-  doc.text(`OS Nº ${serviceOrder.numero_os}`, pageWidth / 2, yPos, { align: 'center' });
+  doc.text(`OS Nº ${serviceOrder.numero_os}`, headerX, yPos, { align: 'center' });
   
   yPos += 15;
   
