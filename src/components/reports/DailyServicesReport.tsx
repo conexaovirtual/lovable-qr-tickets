@@ -10,6 +10,7 @@ import { FileDown, MessageCircle, Phone, MapPin, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { exportDailyServicesToPDF } from "@/lib/exportDailyServices";
 
 export function DailyServicesReport() {
   const [records, setRecords] = useState<any[]>([]);
@@ -95,7 +96,18 @@ export function DailyServicesReport() {
   ];
 
   const handleExport = () => {
-    toast.info("Exportação em desenvolvimento");
+    if (records.length === 0) {
+      toast.error("Não há atendimentos para exportar");
+      return;
+    }
+
+    try {
+      exportDailyServicesToPDF(records, stats);
+      toast.success("PDF gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast.error("Erro ao gerar PDF. Tente novamente.");
+    }
   };
 
   const getChannelBadge = (canal: string) => {
