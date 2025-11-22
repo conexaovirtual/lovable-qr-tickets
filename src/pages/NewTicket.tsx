@@ -1,23 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { AppHeader } from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { AppHeader } from '@/components/layout/AppHeader';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, AlertCircle, QrCode } from 'lucide-react';
-import { ticketSchema, type TicketFormData } from '@/lib/validations';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowLeft, AlertCircle, Plus, QrCode } from 'lucide-react';
+import { ticketSchema, type TicketFormData } from '@/lib/validations';
+import { AssetDialog } from '@/components/assets/AssetDialog';
+import { TicketNextStepsDialog } from '@/components/tickets/TicketNextStepsDialog';
 
 export default function NewTicket() {
   const navigate = useNavigate();
@@ -26,6 +22,9 @@ export default function NewTicket() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [showAssetDialog, setShowAssetDialog] = useState(false);
+  const [showNextStepsDialog, setShowNextStepsDialog] = useState(false);
+  const [createdTicket, setCreatedTicket] = useState<any>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [subcategories, setSubcategories] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
@@ -262,7 +261,7 @@ export default function NewTicket() {
     }
 
     setLoading(true);
-    const { error } = await supabase.from('tickets').insert({
+    const { data, error } = await supabase.from('tickets').insert({
       titulo: formData.titulo,
       descricao: formData.descricao,
       category_id: formData.category_id || null,
@@ -274,7 +273,7 @@ export default function NewTicket() {
       canal: formData.canal,
       impacto: formData.impacto,
       urgencia: formData.urgencia,
-    });
+    }).select().single();
 
     if (error) {
       toast({
@@ -283,10 +282,13 @@ export default function NewTicket() {
         variant: 'destructive',
       });
     } else {
+      setCreatedTicket(data);
+      setShowNextStepsDialog(true);
+      
       toast({
         title: 'Chamado criado com sucesso',
+        description: `Chamado #${data.numero} foi registrado`,
       });
-      navigate('/tickets');
     }
     setLoading(false);
   };
@@ -568,6 +570,41 @@ export default function NewTicket() {
           </div>
         </form>
       </main>
+
+      {/* Dialog de Próximos Passos */}
+      {createdTicket && (
+        <TicketNextStepsDialog
+          open={showNextStepsDialog}
+          onOpenChange={(open) => {
+            setShowNextStepsDialog(open);
+            if (!open) {
+              navigate('/tickets');
+            }
+          }}
+          ticketId={createdTicket.id}
+          ticketNumber={createdTicket.numero}
+          companyId={createdTicket.company_id}
+          assetId={createdTicket.asset_id}
+        />
+      )}
+
+      {/* Dialog de Criação de Ativo */}
+      <AssetDialog
+        open={showAssetDialog}
+        onOpenChange={setShowAssetDialog}
+        preSelectedCompanyId={selectedCompanyId}
+        onSuccess={(newAssetId) => {
+          if (newAssetId) {
+            loadAssets(selectedCompanyId);
+            setFormData({ ...formData, asset_id: newAssetId });
+            toast({
+              title: 'Ativo cadastrado!',
+              description: 'O ativo foi selecionado automaticamente no chamado',
+            });
+          }
+          setShowAssetDialog(false);
+        }}
+      />
     </div>
   );
 }

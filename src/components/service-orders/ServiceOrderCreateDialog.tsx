@@ -42,6 +42,8 @@ interface ServiceOrderCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   preSelectedCompanyId?: string;
+  preSelectedTicketId?: string;
+  preSelectedAssetId?: string;
   onSuccess?: () => void;
 }
 
@@ -49,6 +51,8 @@ export function ServiceOrderCreateDialog({
   open,
   onOpenChange,
   preSelectedCompanyId,
+  preSelectedTicketId,
+  preSelectedAssetId,
   onSuccess,
 }: ServiceOrderCreateDialogProps) {
   const [step, setStep] = useState(1);
@@ -189,6 +193,8 @@ export function ServiceOrderCreateDialog({
       dataAgendada.setHours(parseInt(horas), parseInt(minutos), 0, 0);
 
       const insertData: any = {
+        company_id: values.company_id,
+        ticket_id: preSelectedTicketId || null,
         tipo_servico: values.tipo_servico,
         prioridade: values.prioridade,
         descricao_servicos: values.descricao_servicos,
@@ -198,9 +204,6 @@ export function ServiceOrderCreateDialog({
         status: "agendada",
         data_emissao: new Date().toISOString(),
       };
-
-      // Add company_id
-      insertData.company_id = values.company_id;
 
       // Add optional fields
       if (values.tecnico_id) insertData.tecnico_id = values.tecnico_id;
@@ -217,6 +220,14 @@ export function ServiceOrderCreateDialog({
         .single();
 
       if (osError) throw osError;
+
+      // Se veio de um ticket, atualizar status do ticket
+      if (preSelectedTicketId) {
+        await supabase
+          .from('tickets')
+          .update({ status: 'em_atendimento' })
+          .eq('id', preSelectedTicketId);
+      }
 
       // Registrar no histórico
       await supabase.from("service_order_history").insert({
