@@ -29,10 +29,11 @@ interface AssetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   asset?: any;
-  onSuccess?: () => void;
+  preSelectedCompanyId?: string;
+  onSuccess?: (assetId?: string) => void;
 }
 
-export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialogProps) {
+export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, onSuccess }: AssetDialogProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -110,7 +111,7 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
       setConfigs(asset.configuracoes || {});
     } else {
       setFormData({
-        company_id: profile?.company_id || '',
+        company_id: preSelectedCompanyId || profile?.company_id || '',
         nome: '',
         tipo: '',
         fabricante: '',
@@ -127,7 +128,7 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
       });
       setConfigs({});
     }
-  }, [asset, open, profile]);
+  }, [asset, open, profile, preSelectedCompanyId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,23 +157,47 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
       configuracoes: configs,
     };
 
-    const { error } = asset
-      ? await supabase.from('assets').update(payload).eq('id', asset.id)
-      : await supabase.from('assets').insert(payload);
+    let newAssetId: string | undefined;
 
-    if (error) {
-      toast({
-        title: 'Erro ao salvar ativo',
-        description: error.message,
-        variant: 'destructive',
-      });
+    if (asset) {
+      const { error } = await supabase.from('assets').update(payload).eq('id', asset.id);
+      
+      if (error) {
+        toast({
+          title: 'Erro ao atualizar ativo',
+          description: error.message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Ativo atualizado',
+        });
+        onOpenChange(false);
+        onSuccess?.();
+      }
     } else {
-      toast({
-        title: asset ? 'Ativo atualizado' : 'Ativo cadastrado',
-      });
-      onOpenChange(false);
-      onSuccess?.();
+      const { data, error } = await supabase
+        .from('assets')
+        .insert(payload)
+        .select()
+        .single();
+
+      if (error) {
+        toast({
+          title: 'Erro ao cadastrar ativo',
+          description: error.message,
+          variant: 'destructive',
+        });
+      } else {
+        newAssetId = data.id;
+        toast({
+          title: 'Ativo cadastrado',
+        });
+        onOpenChange(false);
+        onSuccess?.(newAssetId);
+      }
     }
+    
     setLoading(false);
   };
 

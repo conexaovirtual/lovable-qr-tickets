@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, Plus } from 'lucide-react';
+import { AssetDialog } from '@/components/assets/AssetDialog';
 
 interface QuickTicketDialogProps {
   open: boolean;
@@ -23,6 +26,7 @@ export function QuickTicketDialog({ open, onOpenChange, onSuccess }: QuickTicket
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
+  const [showAssetDialog, setShowAssetDialog] = useState(false);
   const [formData, setFormData] = useState({
     company_id: '',
     asset_id: '',
@@ -164,7 +168,22 @@ export function QuickTicketDialog({ open, onOpenChange, onSuccess }: QuickTicket
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="asset">Ativo/Equipamento *</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="asset">Ativo/Equipamento *</Label>
+              {formData.company_id && (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  onClick={() => setShowAssetDialog(true)}
+                  className="h-auto p-0 text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Cadastrar Novo
+                </Button>
+              )}
+            </div>
+            
             <Select
               required
               value={formData.asset_id}
@@ -175,7 +194,9 @@ export function QuickTicketDialog({ open, onOpenChange, onSuccess }: QuickTicket
                 <SelectValue placeholder={
                   !formData.company_id 
                     ? "Selecione uma empresa primeiro" 
-                    : "Selecione o equipamento"
+                    : assets.length === 0
+                      ? "Nenhum ativo disponível"
+                      : "Selecione o equipamento"
                 } />
               </SelectTrigger>
               <SelectContent>
@@ -186,6 +207,24 @@ export function QuickTicketDialog({ open, onOpenChange, onSuccess }: QuickTicket
                 ))}
               </SelectContent>
             </Select>
+
+            {assets.length === 0 && formData.company_id && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Nenhum ativo cadastrado. 
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={() => setShowAssetDialog(true)}
+                    className="h-auto p-0 ml-1"
+                  >
+                    Cadastrar agora
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -215,10 +254,28 @@ export function QuickTicketDialog({ open, onOpenChange, onSuccess }: QuickTicket
             </Button>
             <Button type="submit" disabled={loading}>
               {loading ? 'Criando...' : 'Criar Registro'}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </Button>
+        </div>
+      </form>
+
+      {/* Dialog de Criação de Ativo */}
+      <AssetDialog
+        open={showAssetDialog}
+        onOpenChange={setShowAssetDialog}
+        preSelectedCompanyId={formData.company_id}
+        onSuccess={(newAssetId) => {
+          if (newAssetId && formData.company_id) {
+            loadAssets(formData.company_id);
+            setFormData({ ...formData, asset_id: newAssetId });
+            toast({
+              title: 'Ativo cadastrado!',
+              description: 'O ativo foi selecionado automaticamente',
+            });
+          }
+          setShowAssetDialog(false);
+        }}
+      />
+    </DialogContent>
+  </Dialog>
   );
 }
