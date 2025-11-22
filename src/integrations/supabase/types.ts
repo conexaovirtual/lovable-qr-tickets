@@ -14,8 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      asset_categories: {
+        Row: {
+          cor: string | null
+          created_at: string | null
+          descricao: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          cor?: string | null
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          cor?: string | null
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      asset_subcategories: {
+        Row: {
+          category_id: string
+          created_at: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string | null
+          id?: string
+          nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_subcategories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "asset_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assets: {
         Row: {
+          categoria_id: string | null
           company_id: string
           configuracoes: Json | null
           created_at: string | null
@@ -32,11 +86,13 @@ export type Database = {
           qrcode_token: string | null
           setor: string | null
           sistema_operacional: string | null
+          subcategoria_id: string | null
           tag_patrimonial: string | null
           tipo: Database["public"]["Enums"]["asset_type"]
           updated_at: string | null
         }
         Insert: {
+          categoria_id?: string | null
           company_id: string
           configuracoes?: Json | null
           created_at?: string | null
@@ -53,11 +109,13 @@ export type Database = {
           qrcode_token?: string | null
           setor?: string | null
           sistema_operacional?: string | null
+          subcategoria_id?: string | null
           tag_patrimonial?: string | null
           tipo: Database["public"]["Enums"]["asset_type"]
           updated_at?: string | null
         }
         Update: {
+          categoria_id?: string | null
           company_id?: string
           configuracoes?: Json | null
           created_at?: string | null
@@ -74,11 +132,19 @@ export type Database = {
           qrcode_token?: string | null
           setor?: string | null
           sistema_operacional?: string | null
+          subcategoria_id?: string | null
           tag_patrimonial?: string | null
           tipo?: Database["public"]["Enums"]["asset_type"]
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "assets_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "asset_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "assets_company_id_fkey"
             columns: ["company_id"]
@@ -113,6 +179,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_statistics"
             referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "assets_subcategoria_id_fkey"
+            columns: ["subcategoria_id"]
+            isOneToOne: false
+            referencedRelation: "asset_subcategories"
+            referencedColumns: ["id"]
           },
         ]
       }
