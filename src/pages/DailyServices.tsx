@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuickTicketDialog } from "@/components/tickets/QuickTicketDialog";
 import { DailyServicesReport } from "@/components/reports/DailyServicesReport";
+import { DailyServiceRecordDialog } from "@/components/daily-records/DailyServiceRecordDialog";
 import { Plus, BarChart3 } from "lucide-react";
 
 export default function DailyServices() {
   const { profile, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Verificar se há um recordId na URL para abrir o dialog automaticamente
+  useEffect(() => {
+    const recordId = searchParams.get('recordId');
+    if (recordId) {
+      setEditingRecordId(recordId);
+      // Limpar o parâmetro da URL
+      window.history.replaceState({}, '', '/daily-services');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!loading && !profile) {
@@ -58,6 +72,16 @@ export default function DailyServices() {
         <QuickTicketDialog
           open={isDialogOpen}
           onOpenChange={setIsDialogOpen}
+        />
+
+        <DailyServiceRecordDialog
+          open={!!editingRecordId}
+          onOpenChange={(open) => !open && setEditingRecordId(null)}
+          recordId={editingRecordId || undefined}
+          onSuccess={() => {
+            setRefreshTrigger(prev => prev + 1);
+            setEditingRecordId(null);
+          }}
         />
       </main>
     </div>
