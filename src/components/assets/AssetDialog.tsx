@@ -23,7 +23,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Cpu, MemoryStick, HardDrive, Monitor } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
+// Tipos de ativos que requerem configurações de hardware
+const TIPOS_COM_HARDWARE = ['desktop', 'notebook', 'servidor'];
 
 interface AssetDialogProps {
   open: boolean;
@@ -79,6 +82,9 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
     rede_wifi: false,
     rede_wifi_standard: '',
   });
+
+  // Verifica se o tipo de ativo selecionado requer configurações de hardware
+  const requiredHardwareTab = TIPOS_COM_HARDWARE.includes(formData.tipo);
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -191,7 +197,8 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
     setLoading(true);
     const payload: any = {
       ...formData,
-      configuracoes: configs,
+      // Só salvar configurações se o tipo requer hardware
+      configuracoes: TIPOS_COM_HARDWARE.includes(formData.tipo) ? configs : null,
     };
 
     let newAssetId: string | undefined;
@@ -249,9 +256,12 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className={cn(
+              "grid w-full",
+              requiredHardwareTab ? "grid-cols-3" : "grid-cols-2"
+            )}>
               <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
-              <TabsTrigger value="hardware">Hardware</TabsTrigger>
+              {requiredHardwareTab && <TabsTrigger value="hardware">Hardware</TabsTrigger>}
               <TabsTrigger value="additional">Adicionais</TabsTrigger>
             </TabsList>
 
@@ -301,16 +311,23 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="desktop">Desktop</SelectItem>
-                      <SelectItem value="notebook">Notebook</SelectItem>
-                      <SelectItem value="impressora">Impressora</SelectItem>
-                      <SelectItem value="monitor">Monitor</SelectItem>
-                      <SelectItem value="roteador">Roteador</SelectItem>
-                      <SelectItem value="switch">Switch</SelectItem>
-                      <SelectItem value="servidor">Servidor</SelectItem>
-                      <SelectItem value="periferico">Periférico</SelectItem>
+                      <SelectItem value="desktop">Desktop 💻</SelectItem>
+                      <SelectItem value="notebook">Notebook 💼</SelectItem>
+                      <SelectItem value="impressora">Impressora 🖨️</SelectItem>
+                      <SelectItem value="monitor">Monitor 🖥️</SelectItem>
+                      <SelectItem value="roteador">Roteador 📡</SelectItem>
+                      <SelectItem value="switch">Switch 🔌</SelectItem>
+                      <SelectItem value="servidor">Servidor 🗄️</SelectItem>
+                      <SelectItem value="periferico">Periférico 🎥</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {TIPOS_COM_HARDWARE.includes(formData.tipo) 
+                      ? '⚙️ Este tipo requer configurações de hardware'
+                      : formData.tipo 
+                      ? '✓ Este tipo não requer configurações de hardware' 
+                      : 'Selecione o tipo de equipamento'}
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -424,143 +441,145 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
               </div>
             </TabsContent>
 
-            <TabsContent value="hardware" className="space-y-4">
-              {/* Processador */}
-              <div className="p-4 border rounded-lg space-y-3">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Cpu className="h-4 w-4" />
-                  Processador
-                </h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
-                    <Label>Modelo</Label>
-                    <Input
-                      value={configs.processador}
-                      onChange={(e) => setConfigs({...configs, processador: e.target.value})}
-                      placeholder="Ex: Intel Core i7-12700K"
-                    />
-                  </div>
-                  <div>
-                    <Label>Cores</Label>
-                    <Input
-                      type="number"
-                      value={configs.processador_cores || ''}
-                      onChange={(e) => setConfigs({...configs, processador_cores: e.target.value ? parseInt(e.target.value) : undefined})}
-                    />
+            {requiredHardwareTab && (
+              <TabsContent value="hardware" className="space-y-4">
+                {/* Processador */}
+                <div className="p-4 border rounded-lg space-y-3">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Cpu className="h-4 w-4" />
+                    Processador
+                  </h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <Label>Modelo</Label>
+                      <Input
+                        value={configs.processador}
+                        onChange={(e) => setConfigs({...configs, processador: e.target.value})}
+                        placeholder="Ex: Intel Core i7-12700K"
+                      />
+                    </div>
+                    <div>
+                      <Label>Cores</Label>
+                      <Input
+                        type="number"
+                        value={configs.processador_cores || ''}
+                        onChange={(e) => setConfigs({...configs, processador_cores: e.target.value ? parseInt(e.target.value) : undefined})}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Memória RAM */}
-              <div className="p-4 border rounded-lg space-y-3">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <MemoryStick className="h-4 w-4" />
-                  Memória RAM
-                </h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label>Capacidade (GB)</Label>
-                    <Input
-                      type="number"
-                      value={configs.memoria_ram_gb || ''}
-                      onChange={(e) => setConfigs({...configs, memoria_ram_gb: e.target.value ? parseInt(e.target.value) : undefined})}
-                    />
-                  </div>
-                  <div>
-                    <Label>Tipo</Label>
-                    <Select
-                      value={configs.memoria_ram_tipo}
-                      onValueChange={(value) => setConfigs({...configs, memoria_ram_tipo: value})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="DDR3">DDR3</SelectItem>
-                        <SelectItem value="DDR4">DDR4</SelectItem>
-                        <SelectItem value="DDR5">DDR5</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Slots</Label>
-                    <Input
-                      type="number"
-                      value={configs.memoria_ram_slots || ''}
-                      onChange={(e) => setConfigs({...configs, memoria_ram_slots: e.target.value ? parseInt(e.target.value) : undefined})}
-                    />
+                {/* Memória RAM */}
+                <div className="p-4 border rounded-lg space-y-3">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <MemoryStick className="h-4 w-4" />
+                    Memória RAM
+                  </h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label>Capacidade (GB)</Label>
+                      <Input
+                        type="number"
+                        value={configs.memoria_ram_gb || ''}
+                        onChange={(e) => setConfigs({...configs, memoria_ram_gb: e.target.value ? parseInt(e.target.value) : undefined})}
+                      />
+                    </div>
+                    <div>
+                      <Label>Tipo</Label>
+                      <Select
+                        value={configs.memoria_ram_tipo}
+                        onValueChange={(value) => setConfigs({...configs, memoria_ram_tipo: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="DDR3">DDR3</SelectItem>
+                          <SelectItem value="DDR4">DDR4</SelectItem>
+                          <SelectItem value="DDR5">DDR5</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Slots</Label>
+                      <Input
+                        type="number"
+                        value={configs.memoria_ram_slots || ''}
+                        onChange={(e) => setConfigs({...configs, memoria_ram_slots: e.target.value ? parseInt(e.target.value) : undefined})}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Armazenamento */}
-              <div className="p-4 border rounded-lg space-y-3">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <HardDrive className="h-4 w-4" />
-                  Armazenamento
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Capacidade (GB)</Label>
-                    <Input
-                      type="number"
-                      value={configs.armazenamento_principal_gb || ''}
-                      onChange={(e) => setConfigs({...configs, armazenamento_principal_gb: e.target.value ? parseInt(e.target.value) : undefined})}
-                    />
-                  </div>
-                  <div>
-                    <Label>Tipo</Label>
-                    <Select
-                      value={configs.armazenamento_principal_tipo}
-                      onValueChange={(value) => setConfigs({...configs, armazenamento_principal_tipo: value})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="HDD">HDD</SelectItem>
-                        <SelectItem value="SSD">SSD</SelectItem>
-                        <SelectItem value="NVMe">NVMe</SelectItem>
-                        <SelectItem value="M.2">M.2</SelectItem>
-                      </SelectContent>
-                    </Select>
+                {/* Armazenamento */}
+                <div className="p-4 border rounded-lg space-y-3">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <HardDrive className="h-4 w-4" />
+                    Armazenamento
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Capacidade (GB)</Label>
+                      <Input
+                        type="number"
+                        value={configs.armazenamento_principal_gb || ''}
+                        onChange={(e) => setConfigs({...configs, armazenamento_principal_gb: e.target.value ? parseInt(e.target.value) : undefined})}
+                      />
+                    </div>
+                    <div>
+                      <Label>Tipo</Label>
+                      <Select
+                        value={configs.armazenamento_principal_tipo}
+                        onValueChange={(value) => setConfigs({...configs, armazenamento_principal_tipo: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="HDD">HDD</SelectItem>
+                          <SelectItem value="SSD">SSD</SelectItem>
+                          <SelectItem value="NVMe">NVMe</SelectItem>
+                          <SelectItem value="M.2">M.2</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Placa de Vídeo */}
-              <div className="p-4 border rounded-lg space-y-3">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Monitor className="h-4 w-4" />
-                  Placa de Vídeo
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Modelo</Label>
-                    <Input
-                      value={configs.placa_video}
-                      onChange={(e) => setConfigs({...configs, placa_video: e.target.value})}
-                      placeholder="Ex: NVIDIA RTX 4070"
-                    />
+                {/* Placa de Vídeo */}
+                <div className="p-4 border rounded-lg space-y-3">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Monitor className="h-4 w-4" />
+                    Placa de Vídeo
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Modelo</Label>
+                      <Input
+                        value={configs.placa_video}
+                        onChange={(e) => setConfigs({...configs, placa_video: e.target.value})}
+                        placeholder="Ex: NVIDIA RTX 4070"
+                      />
+                    </div>
+                    <div>
+                      <Label>VRAM (GB)</Label>
+                      <Input
+                        type="number"
+                        value={configs.placa_video_memoria_gb || ''}
+                        onChange={(e) => setConfigs({...configs, placa_video_memoria_gb: e.target.value ? parseInt(e.target.value) : undefined})}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label>VRAM (GB)</Label>
-                    <Input
-                      type="number"
-                      value={configs.placa_video_memoria_gb || ''}
-                      onChange={(e) => setConfigs({...configs, placa_video_memoria_gb: e.target.value ? parseInt(e.target.value) : undefined})}
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={configs.placa_video_integrada}
+                      onCheckedChange={(checked) => setConfigs({...configs, placa_video_integrada: checked as boolean})}
                     />
+                    <Label>Placa integrada</Label>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={configs.placa_video_integrada}
-                    onCheckedChange={(checked) => setConfigs({...configs, placa_video_integrada: checked as boolean})}
-                  />
-                  <Label>Placa integrada</Label>
-                </div>
-              </div>
-            </TabsContent>
+              </TabsContent>
+            )}
 
             <TabsContent value="additional" className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
