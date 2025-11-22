@@ -476,7 +476,22 @@ export default function NewTicket() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="asset">Ativo/Equipamento *</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="asset">Ativo/Equipamento *</Label>
+              {selectedCompanyId && (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  onClick={() => setShowAssetDialog(true)}
+                  className="h-auto p-0 text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Cadastrar Novo Ativo
+                </Button>
+              )}
+            </div>
+            
             <Select
               required
               value={formData.asset_id}
@@ -488,7 +503,7 @@ export default function NewTicket() {
                   !selectedCompanyId
                     ? "Selecione uma empresa primeiro"
                     : assets.length === 0 
-                      ? "Nenhum ativo disponível" 
+                      ? "Nenhum ativo disponível - Clique em 'Cadastrar Novo Ativo'"
                       : "Selecione o equipamento"
                 } />
               </SelectTrigger>
@@ -500,6 +515,24 @@ export default function NewTicket() {
                 ))}
               </SelectContent>
             </Select>
+            
+            {assets.length === 0 && selectedCompanyId && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Esta empresa não possui ativos cadastrados.{' '}
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={() => setShowAssetDialog(true)}
+                    className="h-auto p-0 underline"
+                  >
+                    Clique aqui para cadastrar o primeiro ativo
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
           <div className="space-y-2">

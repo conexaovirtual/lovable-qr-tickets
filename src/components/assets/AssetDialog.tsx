@@ -38,10 +38,14 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [subcategories, setSubcategories] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     company_id: '',
     nome: '',
     tipo: '',
+    categoria_id: '',
+    subcategoria_id: '',
     fabricante: '',
     modelo: '',
     numero_serie: '',
@@ -87,8 +91,18 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
       if (data) setCompanies(data);
     };
 
+    const fetchCategories = async () => {
+      const { data } = await supabase
+        .from('asset_categories')
+        .select('id, nome, descricao, cor')
+        .order('nome');
+      
+      if (data) setCategories(data);
+    };
+
     if (open) {
       fetchCompanies();
+      fetchCategories();
     }
 
     if (asset) {
@@ -96,6 +110,8 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
         company_id: asset.company_id || '',
         nome: asset.nome || '',
         tipo: asset.tipo || '',
+        categoria_id: asset.categoria_id || '',
+        subcategoria_id: asset.subcategoria_id || '',
         fabricante: asset.fabricante || '',
         modelo: asset.modelo || '',
         numero_serie: asset.numero_serie || '',
@@ -114,6 +130,8 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
         company_id: preSelectedCompanyId || profile?.company_id || '',
         nome: '',
         tipo: '',
+        categoria_id: '',
+        subcategoria_id: '',
         fabricante: '',
         modelo: '',
         numero_serie: '',
@@ -129,6 +147,25 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
       setConfigs({});
     }
   }, [asset, open, profile, preSelectedCompanyId]);
+
+  useEffect(() => {
+    const fetchSubcategories = async () => {
+      if (!formData.categoria_id) {
+        setSubcategories([]);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('asset_subcategories')
+        .select('id, nome')
+        .eq('category_id', formData.categoria_id)
+        .order('nome');
+      
+      if (data) setSubcategories(data);
+    };
+
+    fetchSubcategories();
+  }, [formData.categoria_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -272,6 +309,45 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                       <SelectItem value="switch">Switch</SelectItem>
                       <SelectItem value="servidor">Servidor</SelectItem>
                       <SelectItem value="periferico">Periférico</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="categoria">Categoria</Label>
+                  <Select
+                    value={formData.categoria_id}
+                    onValueChange={(value) => setFormData({ ...formData, categoria_id: value, subcategoria_id: '' })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subcategoria">Subcategoria</Label>
+                  <Select
+                    value={formData.subcategoria_id}
+                    onValueChange={(value) => setFormData({ ...formData, subcategoria_id: value })}
+                    disabled={!formData.categoria_id}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={formData.categoria_id ? "Selecione uma subcategoria" : "Selecione uma categoria primeiro"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subcategories.map((sub) => (
+                        <SelectItem key={sub.id} value={sub.id}>
+                          {sub.nome}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

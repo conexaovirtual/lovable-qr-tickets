@@ -185,7 +185,6 @@ export function QuickTicketDialog({ open, onOpenChange, onSuccess }: QuickTicket
             </div>
             
             <Select
-              required
               value={formData.asset_id}
               onValueChange={(value) => setFormData({ ...formData, asset_id: value })}
               disabled={!formData.company_id}
@@ -195,14 +194,14 @@ export function QuickTicketDialog({ open, onOpenChange, onSuccess }: QuickTicket
                   !formData.company_id 
                     ? "Selecione uma empresa primeiro" 
                     : assets.length === 0
-                      ? "Nenhum ativo disponível"
-                      : "Selecione o equipamento"
+                      ? "Nenhum ativo disponível - Clique em 'Cadastrar Novo'"
+                      : "Selecione o ativo"
                 } />
               </SelectTrigger>
               <SelectContent>
                 {assets.map((asset) => (
                   <SelectItem key={asset.id} value={asset.id}>
-                    {asset.nome} - {asset.tipo} {asset.tag_patrimonial && `(${asset.tag_patrimonial})`}
+                    {asset.nome} - {asset.tipo}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -212,15 +211,15 @@ export function QuickTicketDialog({ open, onOpenChange, onSuccess }: QuickTicket
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Nenhum ativo cadastrado. 
+                  Esta empresa não possui ativos cadastrados.{' '}
                   <Button
                     type="button"
                     variant="link"
                     size="sm"
                     onClick={() => setShowAssetDialog(true)}
-                    className="h-auto p-0 ml-1"
+                    className="h-auto p-0 underline"
                   >
-                    Cadastrar agora
+                    Clique aqui para cadastrar
                   </Button>
                 </AlertDescription>
               </Alert>
