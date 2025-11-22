@@ -15,6 +15,7 @@ interface TicketFiltersProps {
     status: string;
     prioridade: string;
     categoria: string;
+    canal: string;
   };
   setFilters: (filters: any) => void;
 }
@@ -32,7 +33,7 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
   };
 
   const clearFilters = () => {
-    setFilters({ status: '', prioridade: '', categoria: '' });
+    setFilters({ status: '', prioridade: '', categoria: '', canal: '' });
   };
 
   return (
@@ -86,6 +87,23 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
                 {cat.nome}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Canal</Label>
+        <Select value={filters.canal} onValueChange={(value) => setFilters({ ...filters, canal: value })}>
+          <SelectTrigger>
+            <SelectValue placeholder="Todos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos</SelectItem>
+            <SelectItem value="web">Portal Web</SelectItem>
+            <SelectItem value="whatsapp">WhatsApp</SelectItem>
+            <SelectItem value="ligacao">Telefone</SelectItem>
+            <SelectItem value="email">E-mail</SelectItem>
+            <SelectItem value="visita_tecnica">Visita Técnica</SelectItem>
           </SelectContent>
         </Select>
       </div>

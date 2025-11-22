@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, User, AlertCircle } from 'lucide-react';
+import { Clock, User, AlertCircle, Phone, MessageSquare, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -27,6 +27,36 @@ export function TicketCard({ ticket }: TicketCardProps) {
 
   const slaStatus = getSLAStatus();
 
+  const getCanalIcon = () => {
+    switch (ticket.canal) {
+      case 'whatsapp':
+        return <MessageSquare className="h-3 w-3" />;
+      case 'ligacao':
+        return <Phone className="h-3 w-3" />;
+      case 'visita_tecnica':
+        return <MapPin className="h-3 w-3" />;
+      default:
+        return null;
+    }
+  };
+
+  const getCanalLabel = () => {
+    switch (ticket.canal) {
+      case 'whatsapp':
+        return 'WhatsApp';
+      case 'ligacao':
+        return 'Telefone';
+      case 'visita_tecnica':
+        return 'Visita';
+      case 'email':
+        return 'E-mail';
+      case 'web':
+        return 'Web';
+      default:
+        return ticket.canal;
+    }
+  };
+
   return (
     <Card
       className="cursor-pointer hover:shadow-md transition-shadow"
@@ -35,10 +65,16 @@ export function TicketCard({ ticket }: TicketCardProps) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-sm font-mono text-muted-foreground">#{ticket.numero}</span>
               <Badge variant={ticket.status as any}>{ticket.status.replace(/_/g, ' ')}</Badge>
               <Badge variant={ticket.prioridade as any}>{ticket.prioridade}</Badge>
+              {ticket.canal && (
+                <Badge variant="outline" className="gap-1">
+                  {getCanalIcon()}
+                  {getCanalLabel()}
+                </Badge>
+              )}
             </div>
             <h3 className="font-semibold truncate">{ticket.titulo}</h3>
           </div>

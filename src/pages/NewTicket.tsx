@@ -48,6 +48,7 @@ export default function NewTicket() {
     subcategory_id: '',
     asset_id: preSelectedAssetId || '',
     company_id: preSelectedCompanyId || '',
+    canal: 'web' as 'whatsapp' | 'ligacao' | 'visita_tecnica' | 'email' | 'web',
     impacto: 'medio' as const,
     urgencia: 'media' as const,
     tecnico_id: '',
@@ -170,6 +171,7 @@ export default function NewTicket() {
         company:companies(nome_fantasia)
       `)
       .eq('company_id', companyId)
+      .order('nome')
       .neq('estado', 'baixado');
     if (data) setAssets(data);
   };
@@ -261,12 +263,17 @@ export default function NewTicket() {
 
     setLoading(true);
     const { error } = await supabase.from('tickets').insert({
-      ...formData,
-      asset_id: formData.asset_id === 'none' ? null : formData.asset_id || null,
-      tecnico_id: formData.tecnico_id || null,
+      titulo: formData.titulo,
+      descricao: formData.descricao,
+      category_id: formData.category_id || null,
+      subcategory_id: formData.subcategory_id || null,
+      asset_id: formData.asset_id,
       company_id: formData.company_id,
       solicitante_id: profile.id,
-      canal: preSelectedAssetId ? 'qrcode' : 'web',
+      tecnico_id: formData.tecnico_id || null,
+      canal: formData.canal,
+      impacto: formData.impacto,
+      urgencia: formData.urgencia,
     });
 
     if (error) {
@@ -467,8 +474,9 @@ export default function NewTicket() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="asset">Ativo</Label>
+            <Label htmlFor="asset">Ativo/Equipamento *</Label>
             <Select
+              required
               value={formData.asset_id}
               onValueChange={(value) => setFormData({ ...formData, asset_id: value })}
               disabled={!!preSelectedAssetId || !selectedCompanyId}
@@ -479,16 +487,35 @@ export default function NewTicket() {
                     ? "Selecione uma empresa primeiro"
                     : assets.length === 0 
                       ? "Nenhum ativo disponível" 
-                      : "Selecione o equipamento (opcional)"
+                      : "Selecione o equipamento"
                 } />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Nenhum</SelectItem>
                 {assets.map((asset) => (
                   <SelectItem key={asset.id} value={asset.id}>
-                    {asset.tipo} - {asset.tag_patrimonial || asset.numero_serie}
+                    {asset.nome} - {asset.tipo} {asset.tag_patrimonial && `(${asset.tag_patrimonial})`}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="canal">Canal de Atendimento *</Label>
+            <Select
+              required
+              value={formData.canal}
+              onValueChange={(value: any) => setFormData({ ...formData, canal: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Como foi aberto?" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="web">Portal Web</SelectItem>
+                <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                <SelectItem value="ligacao">Ligação Telefônica</SelectItem>
+                <SelectItem value="email">E-mail</SelectItem>
+                <SelectItem value="visita_tecnica">Visita Técnica</SelectItem>
               </SelectContent>
             </Select>
           </div>

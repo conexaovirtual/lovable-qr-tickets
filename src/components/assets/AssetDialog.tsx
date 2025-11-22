@@ -38,6 +38,8 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<any[]>([]);
   const [formData, setFormData] = useState({
+    company_id: '',
+    nome: '',
     tipo: '',
     fabricante: '',
     modelo: '',
@@ -50,7 +52,6 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
     data_compra: '',
     garantia_fim: '',
     observacoes: '',
-    company_id: '',
   });
 
   const [configs, setConfigs] = useState<any>({
@@ -91,6 +92,8 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
 
     if (asset) {
       setFormData({
+        company_id: asset.company_id || '',
+        nome: asset.nome || '',
         tipo: asset.tipo || '',
         fabricante: asset.fabricante || '',
         modelo: asset.modelo || '',
@@ -103,11 +106,12 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
         data_compra: asset.data_compra || '',
         garantia_fim: asset.garantia_fim || '',
         observacoes: asset.observacoes || '',
-        company_id: asset.company_id || '',
       });
       setConfigs(asset.configuracoes || {});
     } else {
       setFormData({
+        company_id: profile?.company_id || '',
+        nome: '',
         tipo: '',
         fabricante: '',
         modelo: '',
@@ -120,7 +124,6 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
         data_compra: '',
         garantia_fim: '',
         observacoes: '',
-        company_id: profile?.company_id || '',
       });
       setConfigs({});
     }
@@ -133,6 +136,15 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
       toast({
         title: 'Erro',
         description: 'Selecione uma empresa',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.nome || formData.nome.trim() === '') {
+      toast({
+        title: 'Erro',
+        description: 'O nome do ativo é obrigatório',
         variant: 'destructive',
       });
       return;
@@ -203,6 +215,19 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
                   </Select>
                 </div>
 
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="nome">Nome do Ativo *</Label>
+                  <Input
+                    required
+                    value={formData.nome}
+                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    placeholder="Ex: Notebook João - TI, Desktop Recepção, Impressora 2º Andar"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Identificação única e descritiva do ativo (será exibida ao selecionar o ativo)
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="tipo">Tipo *</Label>
                   <Select
@@ -245,11 +270,12 @@ export function AssetDialog({ open, onOpenChange, asset, onSuccess }: AssetDialo
                   </Select>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-2">
                   <Label>Fabricante</Label>
                   <Input
                     value={formData.fabricante}
                     onChange={(e) => setFormData({ ...formData, fabricante: e.target.value })}
+                    placeholder="Ex: Dell, HP, Lenovo"
                   />
                 </div>
 
