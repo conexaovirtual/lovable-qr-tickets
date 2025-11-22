@@ -22,6 +22,7 @@ export default function Tickets() {
     status: '',
     prioridade: '',
     categoria: '',
+    canal: '',
   });
 
   useEffect(() => {

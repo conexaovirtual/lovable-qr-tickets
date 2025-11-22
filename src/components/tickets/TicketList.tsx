@@ -10,6 +10,7 @@ interface TicketListProps {
     status: string;
     prioridade: string;
     categoria: string;
+    canal: string;
   };
 }
 

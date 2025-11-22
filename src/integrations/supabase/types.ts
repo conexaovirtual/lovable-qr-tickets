@@ -26,6 +26,7 @@ export type Database = {
           id: string
           local: string | null
           modelo: string | null
+          nome: string
           numero_serie: string | null
           observacoes: string | null
           qrcode_token: string | null
@@ -46,6 +47,7 @@ export type Database = {
           id?: string
           local?: string | null
           modelo?: string | null
+          nome: string
           numero_serie?: string | null
           observacoes?: string | null
           qrcode_token?: string | null
@@ -66,6 +68,7 @@ export type Database = {
           id?: string
           local?: string | null
           modelo?: string | null
+          nome?: string
           numero_serie?: string | null
           observacoes?: string | null
           qrcode_token?: string | null
@@ -1258,6 +1261,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      migrate_daily_records_to_tickets: {
+        Args: never
+        Returns: {
+          error_count: number
+          migrated_count: number
+        }[]
+      }
     }
     Enums: {
       asset_status: "em_uso" | "estoque" | "manutencao" | "baixado"
@@ -1271,6 +1281,12 @@ export type Database = {
         | "servidor"
         | "periferico"
         | "outro"
+      canal_atendimento:
+        | "whatsapp"
+        | "ligacao"
+        | "visita_tecnica"
+        | "email"
+        | "web"
       impact_level: "alto" | "medio" | "baixo"
       phone_visibility: "everyone" | "managers_only" | "private"
       priority_level: "critica" | "alta" | "media" | "baixa"
@@ -1424,6 +1440,13 @@ export const Constants = {
         "servidor",
         "periferico",
         "outro",
+      ],
+      canal_atendimento: [
+        "whatsapp",
+        "ligacao",
+        "visita_tecnica",
+        "email",
+        "web",
       ],
       impact_level: ["alto", "medio", "baixo"],
       phone_visibility: ["everyone", "managers_only", "private"],
