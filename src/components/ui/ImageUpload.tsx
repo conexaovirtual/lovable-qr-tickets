@@ -5,6 +5,7 @@ import { Card } from "./card";
 import { toast } from "@/hooks/use-toast";
 import { uploadImageToStorage, deleteImageFromStorage, UploadedImage } from "@/lib/imageUtils";
 import { supabase } from "@/integrations/supabase/client";
+import imageCompression from 'browser-image-compression';
 
 interface ImageUploadProps {
   bucketName: 'daily-service-photos' | 'service-order-photos';
@@ -23,6 +24,21 @@ export function ImageUpload({
 }: ImageUploadProps) {
   const [images, setImages] = useState<UploadedImage[]>(existingImages);
   const [uploading, setUploading] = useState(false);
+
+  const compressImage = async (file: File): Promise<File> => {
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+    };
+    
+    try {
+      return await imageCompression(file, options);
+    } catch (error) {
+      console.error('Erro ao comprimir imagem:', error);
+      return file; // Retorna original se houver erro
+    }
+  };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -46,7 +62,9 @@ export function ImageUpload({
       if (!user) throw new Error('Usuário não autenticado');
 
       const uploadPromises = filesToUpload.map(async (file) => {
-        const result = await uploadImageToStorage(file, bucketName, user.id);
+        // Comprimir imagem antes do upload
+        const compressedFile = await compressImage(file);
+        const result = await uploadImageToStorage(compressedFile, bucketName, user.id);
         
         if (result.error) {
           toast({
