@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, User, LogOut, LayoutDashboard, Ticket, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList } from 'lucide-react';
+import { Menu, User, LogOut, LayoutDashboard, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList, FileText } from 'lucide-react';
 
 export function AppHeader() {
   const { profile, signOut } = useAuth();
@@ -42,10 +42,18 @@ export function AppHeader() {
                   Dashboard
                 </Button>
               </Link>
-              <Link to="/tickets">
+              {(profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')) && (
+                <Link to="/daily-services">
+                  <Button variant="ghost" size="sm">
+                    <ClipboardList className="h-4 w-4 mr-2" />
+                    Atendimentos
+                  </Button>
+                </Link>
+              )}
+              <Link to="/reports?tab=service-orders">
                 <Button variant="ghost" size="sm">
-                  <Ticket className="h-4 w-4 mr-2" />
-                  Chamados
+                  <FileText className="h-4 w-4 mr-2" />
+                  Ordens de Serviço
                 </Button>
               </Link>
               <Link to="/assets">
@@ -60,14 +68,6 @@ export function AppHeader() {
                   Inventário
                 </Button>
               </Link>
-              {(profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')) && (
-                <Link to="/daily-services">
-                  <Button variant="ghost" size="sm">
-                    <ClipboardList className="h-4 w-4 mr-2" />
-                    Atendimentos Diários
-                  </Button>
-                </Link>
-              )}
               {profile.roles?.includes('admin_provedor') && (
                 <>
                   <Link to="/companies">
@@ -113,9 +113,15 @@ export function AppHeader() {
                   <LayoutDashboard className="h-4 w-4 mr-2" />
                   Dashboard
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/tickets')}>
-                  <Ticket className="h-4 w-4 mr-2" />
-                  Chamados
+                {(profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')) && (
+                  <DropdownMenuItem onClick={() => navigate('/daily-services')}>
+                    <ClipboardList className="h-4 w-4 mr-2" />
+                    Atendimentos
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => navigate('/reports?tab=service-orders')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Ordens de Serviço
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/assets')}>
                   <Package className="h-4 w-4 mr-2" />
@@ -125,12 +131,6 @@ export function AppHeader() {
                   <PackageSearch className="h-4 w-4 mr-2" />
                   Inventário
                 </DropdownMenuItem>
-                {(profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')) && (
-                  <DropdownMenuItem onClick={() => navigate('/daily-services')}>
-                    <ClipboardList className="h-4 w-4 mr-2" />
-                    Atendimentos Diários
-                  </DropdownMenuItem>
-                )}
                 {profile.roles?.includes('admin_provedor') && (
                   <>
                     <DropdownMenuItem onClick={() => navigate('/companies')}>
