@@ -176,6 +176,11 @@ export async function deleteImageFromStorage(
 }
 
 /**
+ * Cache de imagens em base64 para evitar downloads repetidos
+ */
+const imageCache = new Map<string, string>();
+
+/**
  * Converte URL de imagem para base64 (para uso no PDF)
  */
 export async function imageUrlToBase64(url: string): Promise<string> {
@@ -197,3 +202,72 @@ export async function imageUrlToBase64(url: string): Promise<string> {
     throw error;
   }
 }
+
+/**
+ * Converte URL de imagem para base64 com cache e redimensionamento
+ */
+export async function imageUrlToBase64Cached(url: string): Promise<string> {
+  // Verificar cache
+  if (imageCache.has(url)) {
+    return imageCache.get(url)!;
+  }
+
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    
+    // Criar imagem para redimensionar
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(blob);
+    
+    return new Promise((resolve, reject) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Redimensionar mantendo aspect ratio (máximo 800px de largura)
+        const maxWidth = 800;
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Converter para base64
+        const base64 = canvas.toDataURL('image/jpeg', 0.85);
+        
+        // Armazenar em cache
+        imageCache.set(url, base64);
+        
+        // Limpar objeto URL
+        URL.revokeObjectURL(objectUrl);
+        
+        resolve(base64);
+      };
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Erro ao carregar imagem'));
+      };
+      
+      img.src = objectUrl;
+    });
+  } catch (error) {
+    console.error('Erro ao converter imagem para base64:', error);
+    throw error;
+  }
+}
+
+/**
+ * Limpa o cache de imagens
+ */
+export function clearImageCache() {
+  imageCache.clear();
+}
+
