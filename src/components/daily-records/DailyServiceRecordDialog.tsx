@@ -40,7 +40,6 @@ const formSchema = z.object({
   descricao: z.string().min(20, "Descrição deve ter no mínimo 20 caracteres"),
   solucao: z.string().optional(),
   status: statusEnum,
-  ticket_id: z.string().optional().transform(val => val === "none" ? undefined : val),
   asset_id: z.string().optional().transform(val => val === "none" ? undefined : val),
   observacoes: z.string().optional(),
 }).refine(
@@ -74,7 +73,6 @@ export function DailyServiceRecordDialog({
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<any[]>([]);
-  const [tickets, setTickets] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
 
@@ -90,7 +88,6 @@ export function DailyServiceRecordDialog({
       descricao: "",
       solucao: "",
       status: "em_andamento",
-      ticket_id: "none",
       asset_id: "none",
       observacoes: "",
     },
@@ -99,7 +96,6 @@ export function DailyServiceRecordDialog({
   useEffect(() => {
     if (open) {
       loadCompanies();
-      loadTickets();
       loadAssets();
       if (recordId) {
         loadRecord();
@@ -119,22 +115,6 @@ export function DailyServiceRecordDialog({
       setCompanies(data || []);
     } catch (error) {
       console.error("Error loading companies:", error);
-    }
-  };
-
-  const loadTickets = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("tickets")
-        .select("id, numero, titulo")
-        .in("status", ["novo", "em_atendimento"])
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      setTickets(data || []);
-    } catch (error) {
-      console.error("Error loading tickets:", error);
     }
   };
 
@@ -176,7 +156,6 @@ export function DailyServiceRecordDialog({
           descricao: data.descricao,
           solucao: data.solucao || "",
           status: data.status as "em_andamento" | "concluido" | "pendente",
-          ticket_id: data.ticket_id || "none",
           asset_id: data.asset_id || "none",
           observacoes: data.observacoes || "",
         });
@@ -207,7 +186,6 @@ export function DailyServiceRecordDialog({
         descricao: data.descricao,
         status: data.status,
         tecnico_id: profile.id,
-        ticket_id: data.ticket_id === "none" ? null : data.ticket_id,
         asset_id: data.asset_id === "none" ? null : data.asset_id,
         hora_fim: data.hora_fim || null,
         solucao: data.solucao || null,
@@ -451,59 +429,31 @@ export function DailyServiceRecordDialog({
               )}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="ticket_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Vincular a Chamado (Opcional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um chamado" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum</SelectItem>
-                        {tickets.map((ticket) => (
-                          <SelectItem key={ticket.id} value={ticket.id}>
-                            #{ticket.numero} - {ticket.titulo}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="asset_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Vincular a Ativo (Opcional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um ativo" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum</SelectItem>
-                        {assets.map((asset) => (
-                          <SelectItem key={asset.id} value={asset.id}>
-                            {asset.tag_patrimonial} - {asset.tipo}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="asset_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Vincular a Ativo (Opcional)</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um ativo" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {assets.map((asset) => (
+                        <SelectItem key={asset.id} value={asset.id}>
+                          {asset.tag_patrimonial} - {asset.tipo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <ImageUpload
               bucketName="daily-service-photos"
@@ -544,7 +494,6 @@ export function DailyServiceRecordDialog({
                           *,
                           companies (nome_fantasia),
                           profiles (nome),
-                          tickets (numero, titulo),
                           assets (tag_patrimonial, tipo)
                         `)
                         .eq('id', recordId)
