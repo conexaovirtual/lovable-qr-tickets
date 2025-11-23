@@ -5,15 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { FileDown, MessageCircle, Phone, MapPin, Clock } from "lucide-react";
+import { FileDown, MessageCircle, Phone, MapPin, Clock, FileImage, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
-import { exportDailyServicesToPDF } from "@/lib/exportDailyServices";
+import { exportDailyServicesToPDF, exportDailyServicesWithPhotosToPDF } from "@/lib/exportDailyServices";
+import { exportDailyServicesByCompanyToPDF } from "@/lib/exportDailyServicesByCompany";
 
 export function DailyServicesReport() {
   const [records, setRecords] = useState<any[]>([]);
+  const [allRecords, setAllRecords] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [technicians, setTechnicians] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     total: 0,
@@ -26,9 +33,25 @@ export function DailyServicesReport() {
     tempo_medio: 0,
   });
 
+  // Filtros
+  const [filters, setFilters] = useState({
+    dataInicio: '',
+    dataFim: '',
+    companyId: '',
+    tecnicoId: '',
+    status: '',
+    canal: '',
+  });
+
   useEffect(() => {
     loadRecords();
+    loadCompanies();
+    loadTechnicians();
   }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [filters, allRecords]);
 
   const loadRecords = async () => {
     try {
@@ -38,14 +61,15 @@ export function DailyServicesReport() {
         .from("daily_service_records")
         .select(`
           *,
-          companies (nome_fantasia),
-          profiles (nome)
+          companies (id, nome_fantasia),
+          profiles (id, nome)
         `)
         .order("data_atendimento", { ascending: false })
         .order("hora_inicio", { ascending: false });
 
       if (error) throw error;
 
+      setAllRecords(data || []);
       setRecords(data || []);
       calculateStats(data || []);
     } catch (error: any) {
@@ -54,6 +78,66 @@ export function DailyServicesReport() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadCompanies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id, nome_fantasia")
+        .eq("status", true)
+        .order("nome_fantasia");
+
+      if (error) throw error;
+      setCompanies(data || []);
+    } catch (error) {
+      console.error("Error loading companies:", error);
+    }
+  };
+
+  const loadTechnicians = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .order("nome");
+
+      if (error) throw error;
+      setTechnicians(data || []);
+    } catch (error) {
+      console.error("Error loading technicians:", error);
+    }
+  };
+
+  const applyFilters = () => {
+    let filtered = [...allRecords];
+
+    if (filters.dataInicio) {
+      filtered = filtered.filter(r => r.data_atendimento >= filters.dataInicio);
+    }
+
+    if (filters.dataFim) {
+      filtered = filtered.filter(r => r.data_atendimento <= filters.dataFim);
+    }
+
+    if (filters.companyId) {
+      filtered = filtered.filter(r => r.company_id === filters.companyId);
+    }
+
+    if (filters.tecnicoId) {
+      filtered = filtered.filter(r => r.tecnico_id === filters.tecnicoId);
+    }
+
+    if (filters.status) {
+      filtered = filtered.filter(r => r.status === filters.status);
+    }
+
+    if (filters.canal) {
+      filtered = filtered.filter(r => r.canal === filters.canal);
+    }
+
+    setRecords(filtered);
+    calculateStats(filtered);
   };
 
   const calculateStats = (data: any[]) => {
@@ -95,15 +179,69 @@ export function DailyServicesReport() {
     { name: "Pendentes", value: stats.pendentes },
   ];
 
-  const handleExport = async () => {
+  const handleExportSummary = async () => {
     if (records.length === 0) {
       toast.error("Não há atendimentos para exportar");
       return;
     }
 
     try {
-      await exportDailyServicesToPDF(records, stats);
-      toast.success("PDF gerado com sucesso!");
+      await exportDailyServicesToPDF(records, stats, {
+        dataInicio: filters.dataInicio,
+        dataFim: filters.dataFim,
+      });
+      toast.success("PDF resumido gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast.error("Erro ao gerar PDF. Tente novamente.");
+    }
+  };
+
+  const handleExportWithPhotos = async () => {
+    if (records.length === 0) {
+      toast.error("Não há atendimentos para exportar");
+      return;
+    }
+
+    try {
+      toast.info("Gerando PDF com fotos... Isso pode levar alguns instantes.");
+      await exportDailyServicesWithPhotosToPDF(records, stats, {
+        dataInicio: filters.dataInicio,
+        dataFim: filters.dataFim,
+      });
+      toast.success("PDF com fotos gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast.error("Erro ao gerar PDF. Tente novamente.");
+    }
+  };
+
+  const handleExportByCompany = async () => {
+    if (!filters.companyId) {
+      toast.error("Selecione uma empresa para exportar");
+      return;
+    }
+
+    if (records.length === 0) {
+      toast.error("Não há atendimentos para esta empresa");
+      return;
+    }
+
+    try {
+      const companyName = companies.find(c => c.id === filters.companyId)?.nome_fantasia || "Empresa";
+      toast.info("Gerando PDF por empresa... Isso pode levar alguns instantes.");
+      
+      await exportDailyServicesByCompanyToPDF(
+        companyName,
+        records,
+        stats,
+        {
+          dataInicio: filters.dataInicio,
+          dataFim: filters.dataFim,
+        }
+      );
+      
+      toast.success("PDF por empresa gerado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       toast.error("Erro ao gerar PDF. Tente novamente.");
@@ -144,13 +282,119 @@ export function DailyServicesReport() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold">Relatório de Atendimentos</h2>
-        <Button onClick={handleExport}>
-          <FileDown className="h-4 w-4 mr-2" />
-          Exportar PDF
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button onClick={handleExportSummary} variant="outline">
+            <FileDown className="h-4 w-4 mr-2" />
+            Resumo
+          </Button>
+          <Button onClick={handleExportWithPhotos} variant="secondary">
+            <FileImage className="h-4 w-4 mr-2" />
+            Com Fotos
+          </Button>
+          {filters.companyId && (
+            <Button onClick={handleExportByCompany}>
+              <Building2 className="h-4 w-4 mr-2" />
+              Por Empresa
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Filtros */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filtros</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="dataInicio">Data Início</Label>
+              <Input
+                id="dataInicio"
+                type="date"
+                value={filters.dataInicio}
+                onChange={(e) => setFilters({ ...filters, dataInicio: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dataFim">Data Fim</Label>
+              <Input
+                id="dataFim"
+                type="date"
+                value={filters.dataFim}
+                onChange={(e) => setFilters({ ...filters, dataFim: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="company">Empresa</Label>
+              <Select value={filters.companyId} onValueChange={(value) => setFilters({ ...filters, companyId: value })}>
+                <SelectTrigger id="company">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas</SelectItem>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.nome_fantasia}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="technician">Técnico</Label>
+              <Select value={filters.tecnicoId} onValueChange={(value) => setFilters({ ...filters, tecnicoId: value })}>
+                <SelectTrigger id="technician">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  {technicians.map((tech) => (
+                    <SelectItem key={tech.id} value={tech.id}>
+                      {tech.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value })}>
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="concluido">Concluído</SelectItem>
+                  <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="canal">Canal</Label>
+              <Select value={filters.canal} onValueChange={(value) => setFilters({ ...filters, canal: value })}>
+                <SelectTrigger id="canal">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="ligacao">Ligação</SelectItem>
+                  <SelectItem value="visita_tecnica">Visita Técnica</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Cards de Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
