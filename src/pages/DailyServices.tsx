@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuickTicketDialog } from "@/components/tickets/QuickTicketDialog";
 import { DailyServicesReport } from "@/components/reports/DailyServicesReport";
 import { DailyServiceRecordDialog } from "@/components/daily-records/DailyServiceRecordDialog";
-import { Plus, BarChart3 } from "lucide-react";
+import { DailyServiceRecordList } from "@/components/daily-records/DailyServiceRecordList";
+import { Plus, BarChart3, List } from "lucide-react";
 
 export default function DailyServices() {
   const { profile, loading } = useAuth();
@@ -56,13 +57,23 @@ export default function DailyServices() {
           </Button>
         </div>
 
-        <Tabs defaultValue="relatorios" className="w-full">
+        <Tabs defaultValue="atendimentos" className="w-full">
           <TabsList>
+            <TabsTrigger value="atendimentos">
+              <List className="h-4 w-4 mr-2" />
+              Atendimentos
+            </TabsTrigger>
             <TabsTrigger value="relatorios">
               <BarChart3 className="h-4 w-4 mr-2" />
               Relatórios
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="atendimentos" className="mt-6">
+            <DailyServiceRecordList 
+              onUpdate={() => setRefreshTrigger(prev => prev + 1)} 
+            />
+          </TabsContent>
 
           <TabsContent value="relatorios" className="mt-6">
             <DailyServicesReport />
