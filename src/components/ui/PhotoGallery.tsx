@@ -88,6 +88,8 @@ export function PhotoGallery({
           <img
             src={currentImage.url}
             alt={currentImage.name}
+            loading="lazy"
+            decoding="async"
             className="max-w-full max-h-[calc(90vh-200px)] object-contain rounded-lg"
           />
 
@@ -139,6 +141,8 @@ export function PhotoGallery({
                   <img
                     src={image.url}
                     alt={image.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                 </button>

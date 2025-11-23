@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +10,7 @@ interface TicketCardProps {
   ticket: any;
 }
 
-export function TicketCard({ ticket }: TicketCardProps) {
+export const TicketCard = memo(({ ticket }: TicketCardProps) => {
   const navigate = useNavigate();
 
   const getSLAStatus = () => {
@@ -109,4 +110,4 @@ export function TicketCard({ ticket }: TicketCardProps) {
       </CardContent>
     </Card>
   );
-}
+});

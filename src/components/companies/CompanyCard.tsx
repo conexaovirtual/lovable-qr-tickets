@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,7 @@ interface CompanyCardProps {
   onUpdate: () => void;
 }
 
-export function CompanyCard({ company, onEdit }: CompanyCardProps) {
+export const CompanyCard = memo(({ company, onEdit }: CompanyCardProps) => {
   const navigate = useNavigate();
 
   return (
@@ -88,4 +89,4 @@ export function CompanyCard({ company, onEdit }: CompanyCardProps) {
       </CardContent>
     </Card>
   );
-}
+});

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
 import { supabase } from '@/integrations/supabase/client';
 import { Label } from '@/components/ui/label';
 import {
@@ -32,6 +33,10 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
     if (data) setCategories(data);
   };
 
+  const handleFilterChange = useDebouncedCallback((field: string, value: string) => {
+    setFilters({ ...filters, [field]: value });
+  }, 300);
+
   const clearFilters = () => {
     setFilters({ status: '', prioridade: '', categoria: '', canal: '' });
   };
@@ -40,7 +45,7 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
     <div className="space-y-4 pt-4">
       <div className="space-y-2">
         <Label>Status</Label>
-        <Select value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value })}>
+        <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
           <SelectTrigger>
             <SelectValue placeholder="Todos" />
           </SelectTrigger>
@@ -60,7 +65,7 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
 
       <div className="space-y-2">
         <Label>Prioridade</Label>
-        <Select value={filters.prioridade} onValueChange={(value) => setFilters({ ...filters, prioridade: value })}>
+        <Select value={filters.prioridade} onValueChange={(value) => handleFilterChange('prioridade', value)}>
           <SelectTrigger>
             <SelectValue placeholder="Todas" />
           </SelectTrigger>
@@ -76,7 +81,7 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
 
       <div className="space-y-2">
         <Label>Categoria</Label>
-        <Select value={filters.categoria} onValueChange={(value) => setFilters({ ...filters, categoria: value })}>
+        <Select value={filters.categoria} onValueChange={(value) => handleFilterChange('categoria', value)}>
           <SelectTrigger>
             <SelectValue placeholder="Todas" />
           </SelectTrigger>
@@ -93,7 +98,7 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
 
       <div className="space-y-2">
         <Label>Canal</Label>
-        <Select value={filters.canal} onValueChange={(value) => setFilters({ ...filters, canal: value })}>
+        <Select value={filters.canal} onValueChange={(value) => handleFilterChange('canal', value)}>
           <SelectTrigger>
             <SelectValue placeholder="Todos" />
           </SelectTrigger>

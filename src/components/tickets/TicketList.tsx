@@ -3,7 +3,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { TicketCard } from './TicketCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TicketListProps {
   filters: {
@@ -14,15 +16,23 @@ interface TicketListProps {
   };
 }
 
+const ITEMS_PER_PAGE = 20;
+
 export function TicketList({ filters }: TicketListProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  useEffect(() => {
+    setPage(1); // Reset para página 1 ao mudar filtros
+  }, [filters]);
 
   useEffect(() => {
     loadTickets();
-  }, [profile, filters]);
+  }, [profile, filters, page]);
 
   const loadTickets = async () => {
     if (!profile) {
@@ -31,15 +41,19 @@ export function TicketList({ filters }: TicketListProps) {
     }
 
     setLoading(true);
+    const from = (page - 1) * ITEMS_PER_PAGE;
+    const to = from + ITEMS_PER_PAGE - 1;
+
     let query = supabase
       .from('tickets')
       .select(`
-        *,
+        id, numero, titulo, status, prioridade, created_at, canal, descricao,
+        sla_atendimento_limite, sla_solucao_limite,
         categories(nome),
-        subcategories(nome),
         assets(tipo, tag_patrimonial, numero_serie),
         profiles!tickets_solicitante_id_fkey(nome)
-      `)
+      `, { count: 'exact' })
+      .range(from, to)
       .order('created_at', { ascending: false });
 
     if (filters.status) {
@@ -52,13 +66,14 @@ export function TicketList({ filters }: TicketListProps) {
       query = query.eq('category_id', filters.categoria);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     
     if (error) {
       console.error('Error loading tickets:', error);
     }
     
     if (data) setTickets(data);
+    if (count !== null) setTotalCount(count);
     setLoading(false);
   };
 
@@ -80,11 +95,43 @@ export function TicketList({ filters }: TicketListProps) {
     );
   }
 
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+  const hasNextPage = page < totalPages;
+  const hasPrevPage = page > 1;
+
   return (
     <div className="space-y-4">
       {tickets.map((ticket) => (
         <TicketCard key={ticket.id} ticket={ticket} />
       ))}
+      
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4">
+          <p className="text-sm text-muted-foreground">
+            Página {page} de {totalPages} ({totalCount} tickets)
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => p - 1)}
+              disabled={!hasPrevPage}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => p + 1)}
+              disabled={!hasNextPage}
+            >
+              Próxima
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

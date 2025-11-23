@@ -66,13 +66,40 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
 
-    // Carregar estatísticas de chamados
-    const { data: tickets } = await supabase
-      .from('tickets')
-      .select('status, sla_solucao_limite');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
 
-    if (tickets) {
+    // Executar TODAS as queries em paralelo
+    const [
+      ticketsResult,
+      assetsResult,
+      companiesResult,
+      osHojeResult,
+      osPendentesResult,
+      osFinalizadasResult,
+      recentResult,
+      upcomingResult
+    ] = await Promise.all([
+      supabase.from('tickets').select('status, sla_solucao_limite'),
+      supabase.from('assets').select('id', { count: 'exact', head: true }),
+      profile?.roles?.includes('admin_provedor') 
+        ? supabase.from('companies').select('id', { count: 'exact', head: true })
+        : Promise.resolve({ count: 0 }),
+      supabase.from('service_orders').select('id').gte('data_agendada', today.toISOString()).lt('data_agendada', tomorrow.toISOString()).in('status', ['agendada', 'confirmada', 'em_execucao']),
+      supabase.from('service_orders').select('id').in('status', ['agendada', 'confirmada']),
+      supabase.from('service_orders').select('id').eq('status', 'finalizada'),
+      supabase.from('tickets').select('id, numero, titulo, status, prioridade, created_at').order('created_at', { ascending: false }).limit(5),
+      supabase.from('service_orders').select('*, companies(nome_fantasia), profiles!service_orders_tecnico_id_fkey(nome)').gte('data_agendada', today.toISOString()).lte('data_agendada', nextWeek.toISOString()).in('status', ['agendada', 'confirmada']).order('data_agendada', { ascending: true }).limit(5)
+    ]);
+
+    // Processar estatísticas de tickets
+    if (ticketsResult.data) {
       const now = new Date();
+      const tickets = ticketsResult.data;
       setStats(prev => ({
         ...prev,
         total: tickets.length,
@@ -83,86 +110,16 @@ export default function Dashboard() {
           if (!t.sla_solucao_limite) return false;
           return new Date(t.sla_solucao_limite) < now && !['resolvido', 'fechado'].includes(t.status);
         }).length,
+        ativos: assetsResult.count || 0,
+        empresas: companiesResult.count || 0,
+        os_agendadas_hoje: osHojeResult.data?.length || 0,
+        os_pendentes: osPendentesResult.data?.length || 0,
+        os_finalizadas: osFinalizadasResult.data?.length || 0
       }));
     }
 
-    // Carregar ativos
-    const { data: assets } = await supabase
-      .from('assets')
-      .select('id');
-    
-    if (assets) {
-      setStats(prev => ({ ...prev, ativos: assets.length }));
-    }
-
-    // Carregar empresas (apenas para admins)
-    if (profile?.roles?.includes('admin_provedor')) {
-      const { count } = await supabase
-        .from('companies')
-        .select('id', { count: 'exact', head: true });
-      
-      if (count !== null) {
-        setStats(prev => ({ ...prev, empresas: count }));
-      }
-    }
-
-    // Buscar estatísticas de OSs
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const { data: osHojeData } = await supabase
-      .from("service_orders")
-      .select("id")
-      .gte("data_agendada", today.toISOString())
-      .lt("data_agendada", tomorrow.toISOString())
-      .in("status", ["agendada", "confirmada", "em_execucao"]);
-
-    const { data: osPendentesData } = await supabase
-      .from("service_orders")
-      .select("id")
-      .in("status", ["agendada", "confirmada"]);
-
-    const { data: osFinalizadasData } = await supabase
-      .from("service_orders")
-      .select("id")
-      .eq("status", "finalizada");
-
-    // Buscar próximas OSs agendadas (próximos 7 dias)
-    const nextWeek = new Date(today);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-
-    const { data: upcomingOS } = await supabase
-      .from("service_orders")
-      .select(`
-        *,
-        companies (nome_fantasia),
-        profiles!service_orders_tecnico_id_fkey (nome)
-      `)
-      .gte("data_agendada", today.toISOString())
-      .lte("data_agendada", nextWeek.toISOString())
-      .in("status", ["agendada", "confirmada"])
-      .order("data_agendada", { ascending: true })
-      .limit(5);
-
-    setUpcomingServiceOrders(upcomingOS || []);
-
-    setStats(prev => ({
-      ...prev,
-      os_agendadas_hoje: osHojeData?.length || 0,
-      os_pendentes: osPendentesData?.length || 0,
-      os_finalizadas: osFinalizadasData?.length || 0
-    }));
-
-    // Carregar chamados recentes
-    const { data: recent } = await supabase
-      .from('tickets')
-      .select('id, numero, titulo, status, prioridade, created_at')
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    if (recent) setRecentTickets(recent);
+    if (recentResult.data) setRecentTickets(recentResult.data);
+    if (upcomingResult.data) setUpcomingServiceOrders(upcomingResult.data);
 
     setLoading(false);
   };
