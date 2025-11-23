@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { ImageUpload } from "@/components/ui/ImageUpload";
+import { UploadedImage } from "@/lib/imageUtils";
 
 interface ServiceOrderExecutionDialogProps {
   open: boolean;
@@ -20,6 +22,7 @@ interface ServiceOrderExecutionDialogProps {
 
 const executionSchema = z.object({
   data_execucao: z.string().min(1, "Data é obrigatória"),
+  descricao_servicos: z.string().min(20, "Descrição deve ter no mínimo 20 caracteres"),
   tempo_gasto_horas: z.number().min(0.25, "Tempo mínimo é 0.25h (15 min)").max(24, "Tempo máximo é 24h"),
   custo_pecas: z.number().min(0, "Custo não pode ser negativo").optional(),
   observacoes_execucao: z.string().optional(),
@@ -35,18 +38,27 @@ export function ServiceOrderExecutionDialog({
   onSuccess,
 }: ServiceOrderExecutionDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const { toast } = useToast();
 
   const form = useForm<ExecutionFormData>({
     resolver: zodResolver(executionSchema),
     defaultValues: {
       data_execucao: new Date().toISOString().split('T')[0],
+      descricao_servicos: serviceOrder?.descricao_servicos || "",
       tempo_gasto_horas: 1,
       custo_pecas: 0,
       observacoes_execucao: "",
       finalizar: false,
     },
   });
+
+  // Carregar fotos existentes se houver
+  useEffect(() => {
+    if (serviceOrder?.fotos && Array.isArray(serviceOrder.fotos)) {
+      setUploadedImages(serviceOrder.fotos as UploadedImage[]);
+    }
+  }, [serviceOrder]);
 
   const onSubmit = async (data: ExecutionFormData) => {
     setLoading(true);
@@ -61,10 +73,12 @@ export function ServiceOrderExecutionDialog({
 
       const updateData: any = {
         data_execucao: data.data_execucao,
+        descricao_servicos: data.descricao_servicos,
         tempo_gasto_horas: data.tempo_gasto_horas,
         custo_pecas: data.custo_pecas || 0,
         custo_total: custoTotal,
         status: novoStatus,
+        fotos: uploadedImages,
         updated_at: new Date().toISOString(),
       };
 
@@ -89,7 +103,7 @@ export function ServiceOrderExecutionDialog({
         changed_by: user.id,
         campo_alterado: "execucao",
         valor_anterior: "-",
-        valor_novo: `Tempo: ${data.tempo_gasto_horas}h | Peças: R$ ${(data.custo_pecas || 0).toFixed(2)} | Total: R$ ${custoTotal.toFixed(2)}`,
+        valor_novo: `Tempo: ${data.tempo_gasto_horas}h | Peças: R$ ${(data.custo_pecas || 0).toFixed(2)} | Total: R$ ${custoTotal.toFixed(2)} | Fotos: ${uploadedImages.length}`,
         observacao: data.observacoes_execucao,
       });
 
@@ -139,6 +153,27 @@ export function ServiceOrderExecutionDialog({
 
             <FormField
               control={form.control}
+              name="descricao_servicos"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Serviço Realizado *</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      {...field} 
+                      rows={5}
+                      placeholder="Descreva detalhadamente o serviço realizado..." 
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Mínimo de 20 caracteres ({field.value?.length || 0}/20)
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="tempo_gasto_horas"
               render={({ field }) => (
                 <FormItem>
@@ -180,6 +215,17 @@ export function ServiceOrderExecutionDialog({
                 </FormItem>
               )}
             />
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fotos do Atendimento</label>
+              <ImageUpload
+                bucketName="service-order-photos"
+                maxImages={5}
+                onImagesChange={setUploadedImages}
+                existingImages={uploadedImages}
+                disabled={loading}
+              />
+            </div>
 
             <FormField
               control={form.control}
