@@ -37,10 +37,10 @@ export function DailyServicesReport() {
   const [filters, setFilters] = useState({
     dataInicio: '',
     dataFim: '',
-    companyId: '',
-    tecnicoId: '',
-    status: '',
-    canal: '',
+    companyId: 'all',
+    tecnicoId: 'all',
+    status: 'all',
+    canal: 'all',
   });
 
   useEffect(() => {
@@ -120,19 +120,19 @@ export function DailyServicesReport() {
       filtered = filtered.filter(r => r.data_atendimento <= filters.dataFim);
     }
 
-    if (filters.companyId) {
+    if (filters.companyId && filters.companyId !== 'all') {
       filtered = filtered.filter(r => r.company_id === filters.companyId);
     }
 
-    if (filters.tecnicoId) {
+    if (filters.tecnicoId && filters.tecnicoId !== 'all') {
       filtered = filtered.filter(r => r.tecnico_id === filters.tecnicoId);
     }
 
-    if (filters.status) {
+    if (filters.status && filters.status !== 'all') {
       filtered = filtered.filter(r => r.status === filters.status);
     }
 
-    if (filters.canal) {
+    if (filters.canal && filters.canal !== 'all') {
       filtered = filtered.filter(r => r.canal === filters.canal);
     }
 
@@ -217,7 +217,7 @@ export function DailyServicesReport() {
   };
 
   const handleExportByCompany = async () => {
-    if (!filters.companyId) {
+    if (!filters.companyId || filters.companyId === 'all') {
       toast.error("Selecione uma empresa para exportar");
       return;
     }
@@ -293,7 +293,7 @@ export function DailyServicesReport() {
             <FileImage className="h-4 w-4 mr-2" />
             Com Fotos
           </Button>
-          {filters.companyId && (
+          {filters.companyId && filters.companyId !== 'all' && (
             <Button onClick={handleExportByCompany}>
               <Building2 className="h-4 w-4 mr-2" />
               Por Empresa
@@ -336,7 +336,7 @@ export function DailyServicesReport() {
                   <SelectValue placeholder="Todas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas</SelectItem>
+                  <SelectItem value="all">Todas</SelectItem>
                   {companies.map((company) => (
                     <SelectItem key={company.id} value={company.id}>
                       {company.nome_fantasia}
@@ -353,7 +353,7 @@ export function DailyServicesReport() {
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {technicians.map((tech) => (
                     <SelectItem key={tech.id} value={tech.id}>
                       {tech.nome}
@@ -370,7 +370,7 @@ export function DailyServicesReport() {
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="concluido">Concluído</SelectItem>
                   <SelectItem value="em_andamento">Em Andamento</SelectItem>
                   <SelectItem value="pendente">Pendente</SelectItem>
@@ -385,7 +385,7 @@ export function DailyServicesReport() {
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="whatsapp">WhatsApp</SelectItem>
                   <SelectItem value="ligacao">Ligação</SelectItem>
                   <SelectItem value="visita_tecnica">Visita Técnica</SelectItem>
