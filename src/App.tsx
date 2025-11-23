@@ -10,14 +10,11 @@ import Auth from "./pages/Auth";
 
 // Lazy load páginas pesadas
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Tickets = lazy(() => import("./pages/Tickets"));
 const Companies = lazy(() => import("./pages/Companies"));
 const CompanyDetail = lazy(() => import("./pages/CompanyDetail"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Inventory = lazy(() => import("./pages/Inventory"));
 const Assets = lazy(() => import("./pages/Assets"));
-const NewTicket = lazy(() => import("./pages/NewTicket"));
-const TicketDetail = lazy(() => import("./pages/TicketDetail"));
 const Technicians = lazy(() => import("./pages/Technicians"));
 const DailyServices = lazy(() => import("./pages/DailyServices"));
 const ProfileSettings = lazy(() => import("./pages/ProfileSettings"));
@@ -52,9 +49,6 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/tickets" element={<Tickets />} />
-            <Route path="/tickets/new" element={<NewTicket />} />
-            <Route path="/tickets/:id" element={<TicketDetail />} />
             <Route path="/assets" element={<Assets />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/companies" element={<Companies />} />

@@ -11,36 +11,29 @@ import { ServiceOrderDetailDialog } from '@/components/service-orders/ServiceOrd
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
-  Ticket, 
   Clock, 
   CheckCircle2, 
-  AlertCircle,
-  TrendingUp,
   Package,
-  Plus,
   Building2,
   FileText,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  ClipboardList
 } from 'lucide-react';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { profile, loading: authLoading } = useAuth();
   const [stats, setStats] = useState({
-    total: 0,
-    novos: 0,
-    em_atendimento: 0,
-    resolvidos: 0,
-    violados: 0,
     ativos: 0,
     empresas: 0,
     os_agendadas_hoje: 0,
     os_pendentes: 0,
-    os_finalizadas: 0
+    os_finalizadas: 0,
+    atendimentos_mes: 0
   });
   const [loading, setLoading] = useState(true);
-  const [recentTickets, setRecentTickets] = useState<any[]>([]);
   const [upcomingServiceOrders, setUpcomingServiceOrders] = useState<any[]>([]);
+  const [recentServices, setRecentServices] = useState<any[]>([]);
   const [isCreateOSDialogOpen, setIsCreateOSDialogOpen] = useState(false);
   const [selectedServiceOrder, setSelectedServiceOrder] = useState<any>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -72,19 +65,18 @@ export default function Dashboard() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const nextWeek = new Date(today);
     nextWeek.setDate(nextWeek.getDate() + 7);
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    // Executar TODAS as queries em paralelo
+    // Executar queries em paralelo
     const [
-      ticketsResult,
       assetsResult,
       companiesResult,
       osHojeResult,
       osPendentesResult,
       osFinalizadasResult,
-      recentResult,
-      upcomingResult
+      upcomingResult,
+      atendimentosMesResult
     ] = await Promise.all([
-      supabase.from('tickets').select('status, sla_solucao_limite'),
       supabase.from('assets').select('id', { count: 'exact', head: true }),
       profile?.roles?.includes('admin_provedor') 
         ? supabase.from('companies').select('id', { count: 'exact', head: true })
@@ -92,34 +84,21 @@ export default function Dashboard() {
       supabase.from('service_orders').select('id').gte('data_agendada', today.toISOString()).lt('data_agendada', tomorrow.toISOString()).in('status', ['agendada', 'confirmada', 'em_execucao']),
       supabase.from('service_orders').select('id').in('status', ['agendada', 'confirmada']),
       supabase.from('service_orders').select('id').eq('status', 'finalizada'),
-      supabase.from('tickets').select('id, numero, titulo, status, prioridade, created_at').order('created_at', { ascending: false }).limit(5),
-      supabase.from('service_orders').select('*, companies(nome_fantasia), profiles!service_orders_tecnico_id_fkey(nome)').gte('data_agendada', today.toISOString()).lte('data_agendada', nextWeek.toISOString()).in('status', ['agendada', 'confirmada']).order('data_agendada', { ascending: true }).limit(5)
+      supabase.from('service_orders').select('*, companies(nome_fantasia), profiles!service_orders_tecnico_id_fkey(nome)').gte('data_agendada', today.toISOString()).lte('data_agendada', nextWeek.toISOString()).in('status', ['agendada', 'confirmada']).order('data_agendada', { ascending: true }).limit(5),
+      supabase.from('daily_service_records').select('id, titulo, data_atendimento, status, companies(nome_fantasia)').gte('data_atendimento', firstDayOfMonth.toISOString().split('T')[0]).order('data_atendimento', { ascending: false }).limit(5)
     ]);
 
-    // Processar estatísticas de tickets
-    if (ticketsResult.data) {
-      const now = new Date();
-      const tickets = ticketsResult.data;
-      setStats(prev => ({
-        ...prev,
-        total: tickets.length,
-        novos: tickets.filter(t => t.status === 'novo').length,
-        em_atendimento: tickets.filter(t => t.status === 'em_atendimento').length,
-        resolvidos: tickets.filter(t => t.status === 'resolvido' || t.status === 'fechado').length,
-        violados: tickets.filter(t => {
-          if (!t.sla_solucao_limite) return false;
-          return new Date(t.sla_solucao_limite) < now && !['resolvido', 'fechado'].includes(t.status);
-        }).length,
-        ativos: assetsResult.count || 0,
-        empresas: companiesResult.count || 0,
-        os_agendadas_hoje: osHojeResult.data?.length || 0,
-        os_pendentes: osPendentesResult.data?.length || 0,
-        os_finalizadas: osFinalizadasResult.data?.length || 0
-      }));
-    }
+    setStats({
+      ativos: assetsResult.count || 0,
+      empresas: companiesResult.count || 0,
+      os_agendadas_hoje: osHojeResult.data?.length || 0,
+      os_pendentes: osPendentesResult.data?.length || 0,
+      os_finalizadas: osFinalizadasResult.data?.length || 0,
+      atendimentos_mes: atendimentosMesResult.data?.length || 0
+    });
 
-    if (recentResult.data) setRecentTickets(recentResult.data);
     if (upcomingResult.data) setUpcomingServiceOrders(upcomingResult.data);
+    if (atendimentosMesResult.data) setRecentServices(atendimentosMesResult.data);
 
     setLoading(false);
   };
@@ -165,83 +144,13 @@ export default function Dashboard() {
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton key={i} className="h-32" />
             ))}
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-              <Card 
-                className="hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => navigate('/tickets')}
-              >
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Chamados</CardTitle>
-                  <Ticket className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.total}</div>
-                  <p className="text-xs text-muted-foreground">Todos os chamados</p>
-                </CardContent>
-              </Card>
-
-              <Card 
-                className="hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => navigate('/tickets')}
-              >
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Novos</CardTitle>
-                  <AlertCircle className="h-4 w-4 text-info" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.novos}</div>
-                  <p className="text-xs text-muted-foreground">Aguardando triagem</p>
-                </CardContent>
-              </Card>
-
-              <Card 
-                className="hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => navigate('/tickets')}
-              >
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Em Atendimento</CardTitle>
-                  <Clock className="h-4 w-4 text-warning" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.em_atendimento}</div>
-                  <p className="text-xs text-muted-foreground">Sendo atendidos</p>
-                </CardContent>
-              </Card>
-
-              <Card 
-                className="hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => navigate('/tickets')}
-              >
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Resolvidos</CardTitle>
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.resolvidos}</div>
-                  <p className="text-xs text-muted-foreground">Concluídos</p>
-                </CardContent>
-              </Card>
-
-              <Card 
-                className="hover:shadow-lg transition-shadow cursor-pointer border-destructive/50"
-                onClick={() => navigate('/tickets')}
-              >
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">SLA Violado</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-destructive" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-destructive">{stats.violados}</div>
-                  <p className="text-xs text-muted-foreground">Fora do prazo</p>
-                </CardContent>
-              </Card>
-
               <Card 
                 className="hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => navigate('/inventory')}
@@ -272,7 +181,20 @@ export default function Dashboard() {
                 </Card>
               )}
 
-              {/* Estatísticas de Ordens de Serviço */}
+              <Card 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate('/daily-services')}
+              >
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Atendimentos no Mês</CardTitle>
+                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.atendimentos_mes}</div>
+                  <p className="text-xs text-muted-foreground">Registros do mês atual</p>
+                </CardContent>
+              </Card>
+
               <Card 
                 className="hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => navigate('/reports?tab=calendar')}
@@ -317,7 +239,6 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Próximos Agendamentos */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Próximos Agendamentos</CardTitle>
@@ -355,31 +276,32 @@ export default function Dashboard() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Chamados Recentes</CardTitle>
+                  <CardTitle className="text-base">Atendimentos Recentes</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {recentTickets.length === 0 ? (
+                  {recentServices.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      Nenhum chamado recente
+                      Nenhum atendimento recente
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      {recentTickets.map((ticket) => (
+                      {recentServices.map((service) => (
                         <div
-                          key={ticket.id}
+                          key={service.id}
                           className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent cursor-pointer transition-colors"
-                          onClick={() => navigate(`/tickets/${ticket.id}`)}
+                          onClick={() => navigate('/daily-services')}
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-mono text-muted-foreground">
-                                #{ticket.numero}
+                              <span className="text-xs text-muted-foreground">
+                                {service.data_atendimento && format(new Date(service.data_atendimento), "dd/MM/yyyy", { locale: ptBR })}
                               </span>
                               <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary capitalize">
-                                {ticket.status.replace(/_/g, ' ')}
+                                {service.status.replace(/_/g, ' ')}
                               </span>
                             </div>
-                            <p className="text-sm font-medium truncate">{ticket.titulo}</p>
+                            <p className="text-sm font-medium truncate">{service.titulo}</p>
+                            <p className="text-xs text-muted-foreground">{service.companies?.nome_fantasia}</p>
                           </div>
                         </div>
                       ))}
@@ -393,18 +315,14 @@ export default function Dashboard() {
               <CardHeader>
                 <CardTitle className="text-base">Ações Rápidas</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <Button onClick={() => setIsCreateOSDialogOpen(true)} className="w-full justify-start">
                   <FileText className="h-4 w-4 mr-2" />
                   Nova Ordem de Serviço
                 </Button>
-                <Button onClick={() => navigate('/tickets/new')} variant="outline" className="w-full justify-start">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Chamado
-                </Button>
-                <Button onClick={() => navigate('/tickets')} variant="outline" className="w-full justify-start">
-                  <Ticket className="h-4 w-4 mr-2" />
-                  Ver Todos os Chamados
+                <Button onClick={() => navigate('/daily-services')} variant="outline" className="w-full justify-start">
+                  <ClipboardList className="h-4 w-4 mr-2" />
+                  Ver Atendimentos
                 </Button>
                 <Button onClick={() => navigate('/assets')} variant="outline" className="w-full justify-start">
                   <Package className="h-4 w-4 mr-2" />
