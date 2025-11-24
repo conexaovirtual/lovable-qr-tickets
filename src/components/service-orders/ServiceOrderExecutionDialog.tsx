@@ -124,6 +124,8 @@ export function ServiceOrderExecutionDialog({
         description: `OS #${serviceOrder.numero_os} ${data.finalizar ? "finalizada" : "marcada como executada"}.`,
       });
 
+      form.reset();
+      onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
       console.error("Erro ao registrar execução:", error);
