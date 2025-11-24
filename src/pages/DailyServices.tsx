@@ -5,17 +5,17 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { QuickTicketDialog } from "@/components/tickets/QuickTicketDialog";
 import { DailyServicesReport } from "@/components/reports/DailyServicesReport";
 import { DailyServiceRecordDialog } from "@/components/daily-records/DailyServiceRecordDialog";
 import { DailyServiceRecordList } from "@/components/daily-records/DailyServiceRecordList";
-import { Plus, BarChart3, List } from "lucide-react";
+import { DailyServiceCalendar } from "@/components/daily-records/DailyServiceCalendar";
+import { Plus, BarChart3, List, Calendar } from "lucide-react";
 
 export default function DailyServices() {
   const { profile, loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -51,9 +51,9 @@ export default function DailyServices() {
               Visualize métricas e estatísticas dos atendimentos realizados
             </p>
           </div>
-          <Button onClick={() => setIsDialogOpen(true)}>
+          <Button onClick={() => setRecordDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Registro Rápido
+            Novo Atendimento
           </Button>
         </div>
 
@@ -62,6 +62,10 @@ export default function DailyServices() {
             <TabsTrigger value="atendimentos">
               <List className="h-4 w-4 mr-2" />
               Atendimentos
+            </TabsTrigger>
+            <TabsTrigger value="agenda">
+              <Calendar className="h-4 w-4 mr-2" />
+              Agenda
             </TabsTrigger>
             <TabsTrigger value="relatorios">
               <BarChart3 className="h-4 w-4 mr-2" />
@@ -75,22 +79,25 @@ export default function DailyServices() {
             />
           </TabsContent>
 
+          <TabsContent value="agenda" className="mt-6">
+            <DailyServiceCalendar refreshTrigger={refreshTrigger} />
+          </TabsContent>
+
           <TabsContent value="relatorios" className="mt-6">
             <DailyServicesReport />
           </TabsContent>
         </Tabs>
 
-        <QuickTicketDialog
-          open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-        />
-
         <DailyServiceRecordDialog
-          open={!!editingRecordId}
-          onOpenChange={(open) => !open && setEditingRecordId(null)}
+          open={recordDialogOpen || !!editingRecordId}
+          onOpenChange={(open) => {
+            setRecordDialogOpen(open);
+            if (!open) setEditingRecordId(null);
+          }}
           recordId={editingRecordId || undefined}
           onSuccess={() => {
             setRefreshTrigger(prev => prev + 1);
+            setRecordDialogOpen(false);
             setEditingRecordId(null);
           }}
         />
