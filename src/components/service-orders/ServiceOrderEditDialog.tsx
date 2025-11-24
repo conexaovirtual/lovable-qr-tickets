@@ -11,6 +11,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface ServiceOrderEditDialogProps {
   open: boolean;
@@ -191,29 +193,133 @@ export function ServiceOrderEditDialog({
 
       if (updateError) throw updateError;
 
-      await supabase.from("service_order_history").insert({
-        service_order_id: serviceOrder.id,
-        changed_by: user.id,
-        campo_alterado: "edicao",
-        valor_anterior: "Dados anteriores",
-        valor_novo: "Dados atualizados",
-        observacao: "OS editada",
-      });
+      // Comparar campo por campo e registrar mudanças
+      const changes: { campo: string; antes: string; depois: string }[] = [];
+      
+      // Empresa
+      if (data.company_id !== serviceOrder.company_id) {
+        const oldCompany = companies.find(c => c.id === serviceOrder.company_id);
+        const newCompany = companies.find(c => c.id === data.company_id);
+        changes.push({
+          campo: "Empresa",
+          antes: oldCompany?.nome_fantasia || "N/A",
+          depois: newCompany?.nome_fantasia || "N/A"
+        });
+      }
+
+      // Tipo de serviço
+      if (data.tipo_servico !== serviceOrder.tipo_servico) {
+        changes.push({
+          campo: "Tipo de Serviço",
+          antes: serviceOrder.tipo_servico || "N/A",
+          depois: data.tipo_servico
+        });
+      }
+
+      // Prioridade
+      if (data.prioridade !== serviceOrder.prioridade) {
+        changes.push({
+          campo: "Prioridade",
+          antes: serviceOrder.prioridade || "N/A",
+          depois: data.prioridade
+        });
+      }
+
+      // Descrição
+      if (data.descricao_servicos !== serviceOrder.descricao_servicos) {
+        changes.push({
+          campo: "Descrição",
+          antes: serviceOrder.descricao_servicos?.substring(0, 50) + "..." || "N/A",
+          depois: data.descricao_servicos.substring(0, 50) + "..."
+        });
+      }
+
+      // Data agendada
+      const oldDate = serviceOrder.data_agendada ? new Date(serviceOrder.data_agendada).toISOString().split('T')[0] : null;
+      if (data.data_agendada !== oldDate) {
+        changes.push({
+          campo: "Data Agendada",
+          antes: oldDate ? format(new Date(oldDate), "dd/MM/yyyy", { locale: ptBR }) : "N/A",
+          depois: format(new Date(data.data_agendada), "dd/MM/yyyy", { locale: ptBR })
+        });
+      }
+
+      // Hora agendada
+      if (data.hora_agendada !== serviceOrder.hora_agendada) {
+        changes.push({
+          campo: "Hora Agendada",
+          antes: serviceOrder.hora_agendada?.slice(0, 5) || "N/A",
+          depois: data.hora_agendada.slice(0, 5)
+        });
+      }
+
+      // Técnico
+      if (data.tecnico_id !== serviceOrder.tecnico_id) {
+        const oldTech = technicians.find(t => t.id === serviceOrder.tecnico_id);
+        const newTech = technicians.find(t => t.id === data.tecnico_id);
+        changes.push({
+          campo: "Técnico",
+          antes: oldTech?.nome || "Não atribuído",
+          depois: newTech?.nome || "Não atribuído"
+        });
+      }
+
+      // Endereço
+      if (data.endereco_atendimento !== serviceOrder.endereco_atendimento) {
+        changes.push({
+          campo: "Endereço",
+          antes: serviceOrder.endereco_atendimento || "N/A",
+          depois: data.endereco_atendimento || "N/A"
+        });
+      }
+
+      // Contato
+      if (data.contato_local !== serviceOrder.contato_local) {
+        changes.push({
+          campo: "Contato Local",
+          antes: serviceOrder.contato_local || "N/A",
+          depois: data.contato_local || "N/A"
+        });
+      }
+
+      // Telefone
+      if (data.telefone_contato !== serviceOrder.telefone_contato) {
+        changes.push({
+          campo: "Telefone",
+          antes: serviceOrder.telefone_contato || "N/A",
+          depois: data.telefone_contato || "N/A"
+        });
+      }
+
+      // Observações
+      if (data.observacoes !== serviceOrder.observacoes) {
+        changes.push({
+          campo: "Observações",
+          antes: serviceOrder.observacoes?.substring(0, 50) + "..." || "N/A",
+          depois: (data.observacoes || "").substring(0, 50) + "..."
+        });
+      }
+
+      // Registrar cada mudança no histórico
+      for (const change of changes) {
+        await supabase.from("service_order_history").insert({
+          service_order_id: serviceOrder.id,
+          changed_by: user.id,
+          campo_alterado: change.campo,
+          valor_anterior: change.antes,
+          valor_novo: change.depois,
+          observacao: "Edição de OS",
+        });
+      }
 
       toast({
         title: "OS atualizada!",
-        description: `OS #${serviceOrder.numero_os} foi atualizada com sucesso.`,
+        description: `${changes.length} campo(s) alterado(s) em OS #${serviceOrder.numero_os}.`,
       });
 
       onSuccess?.();
     } catch (error: any) {
       console.error("[ServiceOrderEditDialog] Erro ao atualizar OS:", error);
-      console.error("[ServiceOrderEditDialog] Error details:", {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
       
       toast({
         title: "Erro ao atualizar OS",

@@ -67,8 +67,8 @@ export function ServiceOrderExecutionDialog({
       if (!user) throw new Error("Usuário não autenticado");
 
       // Valor padrão da hora do técnico (pode ser configurável futuramente)
-      const valorHoraTecnico = 80;
-      const custoTotal = (data.tempo_gasto_horas * valorHoraTecnico) + (data.custo_pecas || 0);
+      const hourlyRate = 80;
+      const custoTotal = (data.tempo_gasto_horas * hourlyRate) + (data.custo_pecas || 0);
       const novoStatus = data.finalizar ? "finalizada" : "executada";
 
       const updateData: any = {
@@ -97,14 +97,26 @@ export function ServiceOrderExecutionDialog({
 
       if (updateError) throw updateError;
 
-      // Registrar no histórico
+      // Registrar no histórico com detalhes completos
+      const custoMaoObra = data.tempo_gasto_horas * hourlyRate;
+      
+      const execucaoDetalhada = [
+        `📝 Serviços: ${data.descricao_servicos.substring(0, 100)}${data.descricao_servicos.length > 100 ? '...' : ''}`,
+        `⏱️ Tempo: ${data.tempo_gasto_horas}h`,
+        `💼 Mão de obra: R$ ${custoMaoObra.toFixed(2)} (R$ ${hourlyRate}/h)`,
+        `🔧 Peças: R$ ${(data.custo_pecas || 0).toFixed(2)}`,
+        `💰 Total: R$ ${custoTotal.toFixed(2)}`,
+        `📸 Fotos: ${uploadedImages.length}`,
+        `✅ Status: ${data.finalizar ? "Finalizada" : "Executada"}`
+      ].join(" | ");
+
       await supabase.from("service_order_history").insert({
         service_order_id: serviceOrder.id,
         changed_by: user.id,
-        campo_alterado: "execucao",
+        campo_alterado: "Execução",
         valor_anterior: "-",
-        valor_novo: `Tempo: ${data.tempo_gasto_horas}h | Peças: R$ ${(data.custo_pecas || 0).toFixed(2)} | Total: R$ ${custoTotal.toFixed(2)} | Fotos: ${uploadedImages.length}`,
-        observacao: data.observacoes_execucao,
+        valor_novo: execucaoDetalhada,
+        observacao: data.observacoes_execucao || "Execução registrada",
       });
 
       toast({
