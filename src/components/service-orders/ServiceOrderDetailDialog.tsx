@@ -271,24 +271,76 @@ export function ServiceOrderDetailDialog({
             </>
           )}
 
-          {/* Histórico */}
+          {/* Histórico Melhorado */}
           {history.length > 0 && (
             <>
               <Separator />
               <div>
-                <h4 className="text-sm font-semibold text-muted-foreground mb-2">Histórico de Alterações</h4>
-                <div className="space-y-2">
-                  {history.map(item => (
-                    <div key={item.id} className="text-sm border-l-2 border-primary pl-3 py-1">
-                      <p className="font-medium">
-                        {item.campo_alterado}: {item.valor_anterior || "—"} → {item.valor_novo}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {item.profiles?.nome} • {format(new Date(item.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                      </p>
-                      {item.observacao && <p className="text-xs mt-1">{item.observacao}</p>}
-                    </div>
-                  ))}
+                <h4 className="text-sm font-semibold text-muted-foreground mb-3">📋 Histórico de Alterações</h4>
+                <div className="space-y-3">
+                  {history.map(item => {
+                    const isExecution = item.campo_alterado === "Execução";
+                    const isStatus = item.campo_alterado === "status";
+                    const isEdit = !isExecution && !isStatus;
+                    
+                    return (
+                      <div 
+                        key={item.id} 
+                        className={`rounded-lg border p-3 ${
+                          isExecution ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800" : 
+                          isStatus ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800" : 
+                          "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800"
+                        }`}
+                      >
+                        {/* Cabeçalho */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            {isExecution && <span className="text-lg">✅</span>}
+                            {isStatus && <span className="text-lg">🔄</span>}
+                            {isEdit && <span className="text-lg">📝</span>}
+                            <span className="font-semibold text-sm">
+                              {isExecution ? "Execução Registrada" : 
+                               isStatus ? "Mudança de Status" : 
+                               `${item.campo_alterado} Alterado(a)`}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Conteúdo */}
+                        {isExecution ? (
+                          <div className="space-y-1 text-xs">
+                            {item.valor_novo.split(" | ").map((info: string, idx: number) => (
+                              <p key={idx} className="text-foreground/80">{info}</p>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="px-2 py-1 rounded bg-background/50 text-muted-foreground line-through">
+                              {item.valor_anterior || "—"}
+                            </span>
+                            <span className="text-muted-foreground">→</span>
+                            <span className="px-2 py-1 rounded bg-primary/10 font-medium">
+                              {item.valor_novo}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Observação */}
+                        {item.observacao && (
+                          <p className="text-xs text-muted-foreground mt-2 italic">
+                            💬 {item.observacao}
+                          </p>
+                        )}
+
+                        {/* Rodapé */}
+                        <div className="flex items-center gap-2 mt-2 pt-2 border-t text-xs text-muted-foreground">
+                          <span>👤 {item.profiles?.nome}</span>
+                          <span>•</span>
+                          <span>📅 {format(new Date(item.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </>
