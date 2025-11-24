@@ -110,7 +110,7 @@ export function ServiceOrderExecutionDialog({
         `✅ Status: ${data.finalizar ? "Finalizada" : "Executada"}`
       ].join(" | ");
 
-      await supabase.from("service_order_history").insert({
+      const { error: historyError } = await supabase.from("service_order_history").insert({
         service_order_id: serviceOrder.id,
         changed_by: user.id,
         campo_alterado: "Execução",
@@ -118,6 +118,10 @@ export function ServiceOrderExecutionDialog({
         valor_novo: execucaoDetalhada,
         observacao: data.observacoes_execucao || "Execução registrada",
       });
+
+      if (historyError) {
+        console.error("Erro ao registrar histórico:", historyError);
+      }
 
       toast({
         title: "Execução registrada!",
