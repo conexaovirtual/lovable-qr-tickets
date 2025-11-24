@@ -4,9 +4,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { ServiceOrderCard } from './ServiceOrderCard';
 import { ServiceOrderDetailDialog } from './ServiceOrderDetailDialog';
-import { Search } from 'lucide-react';
+import { ServiceOrderCreateDialog } from './ServiceOrderCreateDialog';
+import { Search, Plus } from 'lucide-react';
 
 interface ServiceOrderListProps {
   statusFilter?: string | null;
@@ -19,6 +21,7 @@ export function ServiceOrderList({ statusFilter }: ServiceOrderListProps) {
   const [endDate, setEndDate] = useState('');
   const [selectedServiceOrder, setSelectedServiceOrder] = useState<any>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const handleViewDetails = (serviceOrder: any) => {
@@ -90,9 +93,15 @@ export function ServiceOrderList({ statusFilter }: ServiceOrderListProps) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Filtros
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Filtros
+            </div>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova OS
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -142,6 +151,12 @@ export function ServiceOrderList({ statusFilter }: ServiceOrderListProps) {
         onOpenChange={setDetailDialogOpen}
         serviceOrder={selectedServiceOrder}
         onUpdate={loadServiceOrders}
+      />
+
+      <ServiceOrderCreateDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSuccess={loadServiceOrders}
       />
     </div>
   );
