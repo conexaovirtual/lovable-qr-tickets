@@ -879,9 +879,12 @@ export type Database = {
           impacto: Database["public"]["Enums"]["impact_level"] | null
           numero: number
           prioridade: Database["public"]["Enums"]["priority_level"] | null
+          public_request: boolean | null
           sla_atendimento_limite: string | null
           sla_solucao_limite: string | null
-          solicitante_id: string
+          solicitante_contato: string | null
+          solicitante_id: string | null
+          solicitante_nome: string | null
           solucao: string | null
           status: Database["public"]["Enums"]["ticket_status"] | null
           subcategory_id: string | null
@@ -908,9 +911,12 @@ export type Database = {
           impacto?: Database["public"]["Enums"]["impact_level"] | null
           numero?: number
           prioridade?: Database["public"]["Enums"]["priority_level"] | null
+          public_request?: boolean | null
           sla_atendimento_limite?: string | null
           sla_solucao_limite?: string | null
-          solicitante_id: string
+          solicitante_contato?: string | null
+          solicitante_id?: string | null
+          solicitante_nome?: string | null
           solucao?: string | null
           status?: Database["public"]["Enums"]["ticket_status"] | null
           subcategory_id?: string | null
@@ -937,9 +943,12 @@ export type Database = {
           impacto?: Database["public"]["Enums"]["impact_level"] | null
           numero?: number
           prioridade?: Database["public"]["Enums"]["priority_level"] | null
+          public_request?: boolean | null
           sla_atendimento_limite?: string | null
           sla_solucao_limite?: string | null
-          solicitante_id?: string
+          solicitante_contato?: string | null
+          solicitante_id?: string | null
+          solicitante_nome?: string | null
           solucao?: string | null
           status?: Database["public"]["Enums"]["ticket_status"] | null
           subcategory_id?: string | null

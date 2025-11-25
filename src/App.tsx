@@ -20,6 +20,7 @@ const DailyServices = lazy(() => import("./pages/DailyServices"));
 const ProfileSettings = lazy(() => import("./pages/ProfileSettings"));
 const ServiceOrderPage = lazy(() => import("./pages/ServiceOrderPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const PublicTicket = lazy(() => import("./pages/PublicTicket"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +49,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/public/ticket" element={<PublicTicket />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/assets" element={<Assets />} />
             <Route path="/inventory" element={<Inventory />} />

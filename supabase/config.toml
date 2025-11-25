@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.consultar-cnpj]
 verify_jwt = false
+
+[functions.notify-ticket-created]
+verify_jwt = false
