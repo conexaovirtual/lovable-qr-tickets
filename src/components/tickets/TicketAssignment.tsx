@@ -29,7 +29,7 @@ export function TicketAssignment({ ticket, onUpdate }: TicketAssignmentProps) {
   const [partsCost, setPartsCost] = useState(ticket.custo_pecas || '0');
   const [loading, setLoading] = useState(false);
 
-  const canManage = profile?.roles?.some(r => ['admin_provedor', 'tecnico'].includes(r)) || false;
+  const canManage = profile?.roles?.some(r => ['admin_provedor', 'tecnico', 'gestor_cliente'].includes(r)) || false;
   const canEditFinancials = profile?.roles?.some(r => ['admin_provedor', 'gestor_cliente'].includes(r)) || false;
 
   useEffect(() => {
@@ -37,6 +37,17 @@ export function TicketAssignment({ ticket, onUpdate }: TicketAssignmentProps) {
       loadTechnicians();
     }
   }, [canManage]);
+
+  // Pre-select Jose Pereira when technicians are loaded and no technician is assigned
+  useEffect(() => {
+    if (technicians.length > 0 && !ticket.tecnico_id) {
+      const josePereira = technicians.find(t => t.nome === 'Jose Pereira');
+      const defaultTech = josePereira || technicians[0];
+      if (defaultTech) {
+        setSelectedTech(defaultTech.id);
+      }
+    }
+  }, [technicians, ticket.tecnico_id]);
 
   const loadTechnicians = async () => {
     // SECURITY: Query user_roles table instead of profiles.role to prevent privilege escalation
