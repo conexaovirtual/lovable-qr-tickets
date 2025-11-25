@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Plus, Filter } from 'lucide-react';
@@ -18,12 +18,22 @@ import {
 export default function Tickets() {
   const navigate = useNavigate();
   const { profile, loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState({
     status: '',
     prioridade: '',
     categoria: '',
     canal: '',
+    viaQRCode: '',
   });
+
+  useEffect(() => {
+    // Check if there's a filter parameter in the URL
+    const filterParam = searchParams.get('filter');
+    if (filterParam === 'qrcode') {
+      setFilters(prev => ({ ...prev, viaQRCode: 'true', status: 'novo' }));
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!authLoading && !profile) {

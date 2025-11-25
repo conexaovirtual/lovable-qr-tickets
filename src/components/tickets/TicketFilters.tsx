@@ -17,6 +17,7 @@ interface TicketFiltersProps {
     prioridade: string;
     categoria: string;
     canal: string;
+    viaQRCode: string;
   };
   setFilters: (filters: any) => void;
 }
@@ -38,7 +39,7 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
   }, 300);
 
   const clearFilters = () => {
-    setFilters({ status: '', prioridade: '', categoria: '', canal: '' });
+    setFilters({ status: '', prioridade: '', categoria: '', canal: '', viaQRCode: '' });
   };
 
   return (
@@ -109,6 +110,20 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
             <SelectItem value="ligacao">Telefone</SelectItem>
             <SelectItem value="email">E-mail</SelectItem>
             <SelectItem value="visita_tecnica">Visita Técnica</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Origem</Label>
+        <Select value={filters.viaQRCode} onValueChange={(value) => handleFilterChange('viaQRCode', value)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Todas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todas</SelectItem>
+            <SelectItem value="true">Via QR Code</SelectItem>
+            <SelectItem value="false">Via Sistema</SelectItem>
           </SelectContent>
         </Select>
       </div>
