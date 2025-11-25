@@ -29,14 +29,21 @@ export function AssetCard({ asset, onEdit }: AssetCardProps) {
 
   const handleViewQR = async () => {
     try {
-      const url = `${window.location.origin}/tickets/new?empresa=${asset.company_id}&ativo=${asset.id}&token=${asset.qrcode_token}`;
-      const qrDataUrl = await QRCode.toDataURL(url, { width: 512 });
-      setQrCodeUrl(qrDataUrl);
+      // Generate QR code URL para abertura de chamado público
+      const qrData = `${window.location.origin}/public/ticket?asset=${asset.id}&token=${asset.qrcode_token}`;
+      const qrCodeUrl = await QRCode.toDataURL(qrData, {
+        width: 300,
+        margin: 2,
+      });
+      
+      setQrCodeUrl(qrCodeUrl);
       setShowQRModal(true);
     } catch (error) {
+      console.error("Error generating QR code:", error);
       toast({
-        title: 'Erro ao gerar QR Code',
-        variant: 'destructive',
+        title: "Erro",
+        description: "Não foi possível gerar o QR code",
+        variant: "destructive",
       });
     }
   };
@@ -68,14 +75,16 @@ export function AssetCard({ asset, onEdit }: AssetCardProps) {
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <Package className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold truncate">{asset.tipo}</span>
+              <h3 className="text-xl font-bold mb-1">{asset.nome}</h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="capitalize text-xs">
+                  {asset.tipo}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  {asset.fabricante} {asset.modelo && `• ${asset.modelo}`}
+                </span>
               </div>
-              <h3 className="font-medium text-sm text-muted-foreground truncate">
-                {asset.fabricante || 'Sem fabricante'} {asset.modelo || ''}
-              </h3>
-              <div className="flex items-center gap-1 mt-1">
+              <div className="flex items-center gap-1 mt-2">
                 <Building2 className="h-3 w-3 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground truncate">{companyName}</span>
               </div>
