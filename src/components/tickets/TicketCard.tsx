@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, User, AlertCircle, Phone, MessageSquare, MapPin } from 'lucide-react';
+import { Clock, User, AlertCircle, Phone, MessageSquare, MapPin, QrCode, Building2, Package } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -60,7 +60,7 @@ export const TicketCard = memo(({ ticket }: TicketCardProps) => {
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-shadow"
+      className={`cursor-pointer hover:shadow-md transition-shadow ${ticket.public_request && ticket.status === 'novo' ? 'border-destructive border-2' : ''}`}
       onClick={() => navigate(`/tickets/${ticket.id}`)}
     >
       <CardHeader className="pb-3">
@@ -70,6 +70,12 @@ export const TicketCard = memo(({ ticket }: TicketCardProps) => {
               <span className="text-sm font-mono text-muted-foreground">#{ticket.numero}</span>
               <Badge variant={ticket.status as any}>{ticket.status.replace(/_/g, ' ')}</Badge>
               <Badge variant={ticket.prioridade as any}>{ticket.prioridade}</Badge>
+              {ticket.public_request && (
+                <Badge variant="destructive" className="gap-1">
+                  <QrCode className="h-3 w-3" />
+                  QR Code
+                </Badge>
+              )}
               {ticket.canal && (
                 <Badge variant="outline" className="gap-1">
                   {getCanalIcon()}
@@ -89,10 +95,39 @@ export const TicketCard = memo(({ ticket }: TicketCardProps) => {
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <User className="h-4 w-4" />
-            {ticket.profiles_safe?.nome || ticket.profiles?.nome || 'Sem solicitante'}
-          </div>
+          {ticket.public_request ? (
+            <>
+              <div className="flex items-center gap-1">
+                <User className="h-4 w-4" />
+                {ticket.solicitante_nome || 'Solicitante externo'}
+              </div>
+              {ticket.solicitante_contato && (
+                <div className="flex items-center gap-1">
+                  <Phone className="h-4 w-4" />
+                  {ticket.solicitante_contato}
+                </div>
+              )}
+              {ticket.companies && (
+                <div className="flex items-center gap-1">
+                  <Building2 className="h-4 w-4" />
+                  {ticket.companies.nome_fantasia}
+                </div>
+              )}
+              {ticket.assets && (
+                <div className="flex items-center gap-1">
+                  <Package className="h-4 w-4" />
+                  {ticket.assets.nome || ticket.assets.tipo}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1">
+                <User className="h-4 w-4" />
+                {ticket.profiles_safe?.nome || ticket.profiles?.nome || 'Sem solicitante'}
+              </div>
+            </>
+          )}
           {ticket.categories && (
             <div className="flex items-center gap-1">
               <AlertCircle className="h-4 w-4" />

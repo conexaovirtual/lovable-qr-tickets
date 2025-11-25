@@ -17,7 +17,9 @@ import {
   Building2,
   FileText,
   Calendar as CalendarIcon,
-  ClipboardList
+  ClipboardList,
+  Ticket,
+  AlertCircle
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -29,7 +31,8 @@ export default function Dashboard() {
     os_agendadas_hoje: 0,
     os_pendentes: 0,
     os_finalizadas: 0,
-    atendimentos_mes: 0
+    atendimentos_mes: 0,
+    chamados_qrcode: 0
   });
   const [loading, setLoading] = useState(true);
   const [upcomingServiceOrders, setUpcomingServiceOrders] = useState<any[]>([]);
@@ -75,7 +78,8 @@ export default function Dashboard() {
       osPendentesResult,
       osFinalizadasResult,
       upcomingResult,
-      atendimentosMesResult
+      atendimentosMesResult,
+      qrcodeTicketsResult
     ] = await Promise.all([
       supabase.from('assets').select('id', { count: 'exact', head: true }),
       profile?.roles?.includes('admin_provedor') 
@@ -85,7 +89,10 @@ export default function Dashboard() {
       supabase.from('service_orders').select('id').in('status', ['agendada', 'confirmada']),
       supabase.from('service_orders').select('id').eq('status', 'finalizada'),
       supabase.from('service_orders').select('*, companies(nome_fantasia), profiles!service_orders_tecnico_id_fkey(nome)').gte('data_agendada', today.toISOString()).lte('data_agendada', nextWeek.toISOString()).in('status', ['agendada', 'confirmada']).order('data_agendada', { ascending: true }).limit(5),
-      supabase.from('daily_service_records').select('id, titulo, data_atendimento, status, companies(nome_fantasia)').gte('data_atendimento', firstDayOfMonth.toISOString().split('T')[0]).order('data_atendimento', { ascending: false }).limit(5)
+      supabase.from('daily_service_records').select('id, titulo, data_atendimento, status, companies(nome_fantasia)').gte('data_atendimento', firstDayOfMonth.toISOString().split('T')[0]).order('data_atendimento', { ascending: false }).limit(5),
+      (profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico'))
+        ? supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('public_request', true).eq('status', 'novo')
+        : Promise.resolve({ count: 0 })
     ]);
 
     setStats({
@@ -94,7 +101,8 @@ export default function Dashboard() {
       os_agendadas_hoje: osHojeResult.data?.length || 0,
       os_pendentes: osPendentesResult.data?.length || 0,
       os_finalizadas: osFinalizadasResult.data?.length || 0,
-      atendimentos_mes: atendimentosMesResult.data?.length || 0
+      atendimentos_mes: atendimentosMesResult.data?.length || 0,
+      chamados_qrcode: qrcodeTicketsResult.count || 0
     });
 
     if (upcomingResult.data) setUpcomingServiceOrders(upcomingResult.data);
@@ -150,6 +158,27 @@ export default function Dashboard() {
           </div>
         ) : (
           <>
+            {(profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico')) && stats.chamados_qrcode > 0 && (
+              <Card className="mb-6 border-destructive bg-destructive/5">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-destructive" />
+                      <CardTitle className="text-base">Novos Chamados via QR Code</CardTitle>
+                    </div>
+                    <Button onClick={() => navigate('/tickets?filter=qrcode')} size="sm">
+                      Ver Chamados
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-bold text-destructive text-lg">{stats.chamados_qrcode}</span> {stats.chamados_qrcode === 1 ? 'chamado novo' : 'chamados novos'} aguardando atendimento
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
               <Card 
                 className="hover:shadow-lg transition-shadow cursor-pointer"

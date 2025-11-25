@@ -9,11 +9,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, User, LogOut, LayoutDashboard, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList, FileText } from 'lucide-react';
+import { Menu, User, LogOut, LayoutDashboard, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList, FileText, Ticket } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export function AppHeader() {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+
+  // Query para contar tickets novos via QR code
+  const { data: newTicketsCount = 0 } = useQuery({
+    queryKey: ['new-qrcode-tickets-count'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('public_request', true)
+        .eq('status', 'novo');
+      return count || 0;
+    },
+    enabled: !!profile && (profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')),
+    refetchInterval: 30000, // Atualiza a cada 30 segundos
+  });
 
   if (!profile) return null;
 
@@ -43,12 +61,25 @@ export function AppHeader() {
                 </Button>
               </Link>
               {(profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')) && (
-                <Link to="/daily-services">
-                  <Button variant="ghost" size="sm">
-                    <ClipboardList className="h-4 w-4 mr-2" />
-                    Atendimentos
-                  </Button>
-                </Link>
+                <>
+                  <Link to="/tickets">
+                    <Button variant="ghost" size="sm" className="relative">
+                      <Ticket className="h-4 w-4 mr-2" />
+                      Chamados
+                      {newTicketsCount > 0 && (
+                        <Badge variant="destructive" className="ml-2 h-5 min-w-5 px-1 text-xs">
+                          {newTicketsCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </Link>
+                  <Link to="/daily-services">
+                    <Button variant="ghost" size="sm">
+                      <ClipboardList className="h-4 w-4 mr-2" />
+                      Atendimentos
+                    </Button>
+                  </Link>
+                </>
               )}
               <Link to="/reports?tab=service-orders">
                 <Button variant="ghost" size="sm">
@@ -114,10 +145,21 @@ export function AppHeader() {
                   Dashboard
                 </DropdownMenuItem>
                 {(profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')) && (
-                  <DropdownMenuItem onClick={() => navigate('/daily-services')}>
-                    <ClipboardList className="h-4 w-4 mr-2" />
-                    Atendimentos
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem onClick={() => navigate('/tickets')} className="relative">
+                      <Ticket className="h-4 w-4 mr-2" />
+                      Chamados
+                      {newTicketsCount > 0 && (
+                        <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
+                          {newTicketsCount}
+                        </Badge>
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/daily-services')}>
+                      <ClipboardList className="h-4 w-4 mr-2" />
+                      Atendimentos
+                    </DropdownMenuItem>
+                  </>
                 )}
                 <DropdownMenuItem onClick={() => navigate('/reports?tab=service-orders')}>
                   <FileText className="h-4 w-4 mr-2" />

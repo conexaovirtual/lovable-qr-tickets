@@ -13,6 +13,7 @@ interface TicketListProps {
     prioridade: string;
     categoria: string;
     canal: string;
+    viaQRCode: string;
   };
 }
 
@@ -48,10 +49,12 @@ export function TicketList({ filters }: TicketListProps) {
       .from('tickets')
       .select(`
         id, numero, titulo, status, prioridade, created_at, canal, descricao,
-        sla_atendimento_limite, sla_solucao_limite,
+        sla_atendimento_limite, sla_solucao_limite, public_request,
+        solicitante_nome, solicitante_contato,
         categories(nome),
-        assets(tipo, tag_patrimonial, numero_serie),
-        profiles!tickets_solicitante_id_fkey(nome)
+        assets(tipo, tag_patrimonial, numero_serie, nome),
+        profiles!tickets_solicitante_id_fkey(nome),
+        companies(nome_fantasia)
       `, { count: 'exact' })
       .range(from, to)
       .order('created_at', { ascending: false });
@@ -64,6 +67,9 @@ export function TicketList({ filters }: TicketListProps) {
     }
     if (filters.categoria) {
       query = query.eq('category_id', filters.categoria);
+    }
+    if (filters.viaQRCode) {
+      query = query.eq('public_request', filters.viaQRCode === 'true');
     }
 
     const { data, error, count } = await query;
