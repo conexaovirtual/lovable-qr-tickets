@@ -236,6 +236,12 @@ export function DailyServiceCalendar({ refreshTrigger }: DailyServiceCalendarPro
                 </div>
               ))}
               
+              {/* Empty cells to align the first day of the week */}
+              {Array.from({ length: monthStart.getDay() }, (_, i) => (
+                <div key={`empty-${i}`} className="min-h-[120px] p-2 border rounded-lg bg-muted/20" />
+              ))}
+              
+              {/* Days of the month */}
               {monthDays.map((day, idx) => {
                 const dayRecords = getRecordsForDay(day);
                 const isToday = isSameDay(day, new Date());
