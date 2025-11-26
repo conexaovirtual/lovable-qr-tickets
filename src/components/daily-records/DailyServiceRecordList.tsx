@@ -5,14 +5,20 @@ import { DailyServiceRecordDialog } from "./DailyServiceRecordDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Filter, X, FileDown } from "lucide-react";
+import { Search, Filter, X, FileDown, ChevronDown, ChevronRight, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { exportDailyServicesToPDF } from "@/lib/exportDailyServices";
 
 interface DailyServiceRecordListProps {
   onUpdate?: () => void;
+}
+
+interface CompanyGroup {
+  id: string;
+  name: string;
+  records: any[];
 }
 
 export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps) {
@@ -27,6 +33,19 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
   const [companies, setCompanies] = useState<any[]>([]);
   const [editingRecord, setEditingRecord] = useState<string | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
+
+  const toggleCompany = (companyId: string) => {
+    setExpandedCompanies((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(companyId)) {
+        newSet.delete(companyId);
+      } else {
+        newSet.add(companyId);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     loadCompanies();
@@ -153,6 +172,26 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
   };
 
   const hasActiveFilters = search || (filterCanal !== "all") || (filterStatus !== "all") || (filterCompany !== "all") || dataInicio || dataFim;
+
+  // Group records by company
+  const recordsByCompany = records.reduce((acc, record) => {
+    const companyId = record.company_id;
+    const companyName = record.companies?.nome_fantasia || 'Sem Empresa';
+    
+    if (!acc[companyId]) {
+      acc[companyId] = {
+        id: companyId,
+        name: companyName,
+        records: [],
+      };
+    }
+    
+    acc[companyId].records.push(record);
+    return acc;
+  }, {} as Record<string, CompanyGroup>);
+
+  const companiesList = (Object.values(recordsByCompany) as CompanyGroup[])
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="space-y-4">
@@ -283,13 +322,42 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {records.map((record) => (
-            <DailyServiceRecordCard
-              key={record.id}
-              record={record}
-              onEdit={handleEdit}
-            />
+        <div className="space-y-4">
+          {companiesList.map((company) => (
+            <Card key={company.id}>
+              <CardHeader
+                className="cursor-pointer hover:bg-accent/50 transition-colors"
+                onClick={() => toggleCompany(company.id)}
+              >
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-primary" />
+                    <span>{company.name}</span>
+                    <span className="text-sm text-muted-foreground font-normal">
+                      ({company.records.length} {company.records.length === 1 ? 'atendimento' : 'atendimentos'})
+                    </span>
+                  </div>
+                  {expandedCompanies.has(company.id) ? (
+                    <ChevronDown className="h-5 w-5" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5" />
+                  )}
+                </CardTitle>
+              </CardHeader>
+              {expandedCompanies.has(company.id) && (
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {company.records.map((record) => (
+                      <DailyServiceRecordCard
+                        key={record.id}
+                        record={record}
+                        onEdit={handleEdit}
+                      />
+                    ))}
+                  </div>
+                </CardContent>
+              )}
+            </Card>
           ))}
         </div>
       )}
