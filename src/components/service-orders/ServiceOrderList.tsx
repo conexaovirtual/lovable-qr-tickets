@@ -8,10 +8,16 @@ import { Button } from '@/components/ui/button';
 import { ServiceOrderCard } from './ServiceOrderCard';
 import { ServiceOrderDetailDialog } from './ServiceOrderDetailDialog';
 import { ServiceOrderCreateDialog } from './ServiceOrderCreateDialog';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronRight, Building2 } from 'lucide-react';
 
 interface ServiceOrderListProps {
   statusFilter?: string | null;
+}
+
+interface CompanyGroup {
+  id: string;
+  name: string;
+  serviceOrders: any[];
 }
 
 export function ServiceOrderList({ statusFilter }: ServiceOrderListProps) {
@@ -22,7 +28,20 @@ export function ServiceOrderList({ statusFilter }: ServiceOrderListProps) {
   const [selectedServiceOrder, setSelectedServiceOrder] = useState<any>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  const toggleCompany = (companyId: string) => {
+    setExpandedCompanies((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(companyId)) {
+        newSet.delete(companyId);
+      } else {
+        newSet.add(companyId);
+      }
+      return newSet;
+    });
+  };
 
   const handleViewDetails = (serviceOrder: any) => {
     setSelectedServiceOrder(serviceOrder);
@@ -78,6 +97,26 @@ export function ServiceOrderList({ statusFilter }: ServiceOrderListProps) {
   useEffect(() => {
     loadServiceOrders();
   }, [startDate, endDate, statusFilter]);
+
+  // Group service orders by company
+  const serviceOrdersByCompany = serviceOrders.reduce((acc, so) => {
+    const companyId = so.company_id;
+    const companyName = so.companies?.nome_fantasia || 'Sem Empresa';
+    
+    if (!acc[companyId]) {
+      acc[companyId] = {
+        id: companyId,
+        name: companyName,
+        serviceOrders: [],
+      };
+    }
+    
+    acc[companyId].serviceOrders.push(so);
+    return acc;
+  }, {} as Record<string, CompanyGroup>);
+
+  const companies = (Object.values(serviceOrdersByCompany) as CompanyGroup[])
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   if (loading) {
     return (
@@ -135,13 +174,42 @@ export function ServiceOrderList({ statusFilter }: ServiceOrderListProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {serviceOrders.map((so) => (
-            <ServiceOrderCard 
-              key={so.id} 
-              serviceOrder={so}
-              onViewDetails={handleViewDetails}
-            />
+        <div className="space-y-4">
+          {companies.map((company) => (
+            <Card key={company.id}>
+              <CardHeader
+                className="cursor-pointer hover:bg-accent/50 transition-colors"
+                onClick={() => toggleCompany(company.id)}
+              >
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-primary" />
+                    <span>{company.name}</span>
+                    <span className="text-sm text-muted-foreground font-normal">
+                      ({company.serviceOrders.length} {company.serviceOrders.length === 1 ? 'OS' : 'OSs'})
+                    </span>
+                  </div>
+                  {expandedCompanies.has(company.id) ? (
+                    <ChevronDown className="h-5 w-5" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5" />
+                  )}
+                </CardTitle>
+              </CardHeader>
+              {expandedCompanies.has(company.id) && (
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {company.serviceOrders.map((so) => (
+                      <ServiceOrderCard 
+                        key={so.id} 
+                        serviceOrder={so}
+                        onViewDetails={handleViewDetails}
+                      />
+                    ))}
+                  </div>
+                </CardContent>
+              )}
+            </Card>
           ))}
         </div>
       )}
