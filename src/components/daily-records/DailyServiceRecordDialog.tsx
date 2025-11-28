@@ -32,6 +32,7 @@ const statusEnum = z.union([
 
 const formSchema = z.object({
   company_id: z.string().min(1, "Selecione uma empresa"),
+  asset_id: z.string().min(1, "Selecione o ativo"),
   data_atendimento: z.string().min(1, "Data é obrigatória"),
   hora_inicio: z.string().min(1, "Horário de início é obrigatório"),
   hora_fim: z.string().optional(),
@@ -40,7 +41,6 @@ const formSchema = z.object({
   descricao: z.string().min(20, "Descrição deve ter no mínimo 20 caracteres"),
   solucao: z.string().optional(),
   status: statusEnum,
-  asset_id: z.string().optional().transform(val => val === "none" ? undefined : val),
   observacoes: z.string().optional(),
 }).refine(
   (data) => {
@@ -80,6 +80,7 @@ export function DailyServiceRecordDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       company_id: "",
+      asset_id: "",
       data_atendimento: format(new Date(), "yyyy-MM-dd"),
       hora_inicio: "",
       hora_fim: "",
@@ -88,7 +89,6 @@ export function DailyServiceRecordDialog({
       descricao: "",
       solucao: "",
       status: "em_andamento",
-      asset_id: "none",
       observacoes: "",
     },
   });
@@ -96,7 +96,6 @@ export function DailyServiceRecordDialog({
   useEffect(() => {
     if (open) {
       loadCompanies();
-      loadAssets();
       if (recordId) {
         loadRecord();
       }
@@ -118,18 +117,24 @@ export function DailyServiceRecordDialog({
     }
   };
 
-  const loadAssets = async () => {
+  const loadAssets = async (companyId: string) => {
+    if (!companyId) {
+      setAssets([]);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from("assets")
-        .select("id, tag_patrimonial, tipo")
-        .order("tag_patrimonial")
-        .limit(100);
+        .select("id, nome, tipo, tag_patrimonial")
+        .eq("company_id", companyId)
+        .order("nome");
 
       if (error) throw error;
       setAssets(data || []);
     } catch (error) {
       console.error("Error loading assets:", error);
+      setAssets([]);
     }
   };
 
@@ -148,6 +153,7 @@ export function DailyServiceRecordDialog({
       if (data) {
         form.reset({
           company_id: data.company_id,
+          asset_id: data.asset_id || "",
           data_atendimento: data.data_atendimento,
           hora_inicio: data.hora_inicio,
           hora_fim: data.hora_fim || "",
@@ -156,9 +162,11 @@ export function DailyServiceRecordDialog({
           descricao: data.descricao,
           solucao: data.solucao || "",
           status: data.status as "em_andamento" | "concluido" | "pendente",
-          asset_id: data.asset_id || "none",
           observacoes: data.observacoes || "",
         });
+        
+        // Carregar ativos da empresa
+        loadAssets(data.company_id);
         
         // Carregar fotos existentes
         if (data.fotos && Array.isArray(data.fotos)) {
@@ -179,6 +187,7 @@ export function DailyServiceRecordDialog({
 
       const payload: any = {
         company_id: data.company_id,
+        asset_id: data.asset_id,
         data_atendimento: data.data_atendimento,
         hora_inicio: data.hora_inicio,
         canal: data.canal,
@@ -186,7 +195,6 @@ export function DailyServiceRecordDialog({
         descricao: data.descricao,
         status: data.status,
         tecnico_id: profile.id,
-        asset_id: data.asset_id === "none" ? null : data.asset_id,
         hora_fim: data.hora_fim || null,
         solucao: data.solucao || null,
         observacoes: data.observacoes || null,
@@ -242,7 +250,14 @@ export function DailyServiceRecordDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Empresa *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select 
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      loadAssets(value);
+                      form.setValue("asset_id", "");
+                    }} 
+                    value={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione a empresa" />
@@ -254,6 +269,48 @@ export function DailyServiceRecordDialog({
                           {company.nome_fantasia}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="asset_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ativo/Equipamento *</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={!form.watch("company_id")}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          !form.watch("company_id")
+                            ? "Selecione uma empresa primeiro"
+                            : assets.length === 0
+                              ? "Nenhum ativo disponível"
+                              : "Selecione o ativo"
+                        } />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {assets.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground text-center">
+                          Nenhum ativo disponível para esta empresa
+                        </div>
+                      ) : (
+                        assets.map((asset) => (
+                          <SelectItem key={asset.id} value={asset.id}>
+                            {asset.nome} - {asset.tipo}
+                            {asset.tag_patrimonial && ` (${asset.tag_patrimonial})`}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -429,31 +486,6 @@ export function DailyServiceRecordDialog({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="asset_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Vincular a Ativo (Opcional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um ativo" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
-                      {assets.map((asset) => (
-                        <SelectItem key={asset.id} value={asset.id}>
-                          {asset.tag_patrimonial} - {asset.tipo}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <ImageUpload
               bucketName="daily-service-photos"
