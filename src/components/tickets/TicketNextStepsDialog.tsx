@@ -44,6 +44,11 @@ export function TicketNextStepsDialog({
       return;
     }
 
+    if (!assetId) {
+      toast.error('É necessário vincular um ativo ao chamado antes de criar o atendimento');
+      return;
+    }
+
     setCreatingService(true);
     
     try {
@@ -63,7 +68,7 @@ export function TicketNextStepsDialog({
           company_id: companyId,
           tecnico_id: user.id,
           ticket_id: ticketId,
-          asset_id: assetId || null,
+          asset_id: assetId,
           data_atendimento: format(new Date(), 'yyyy-MM-dd'),
           hora_inicio: format(new Date(), 'HH:mm'),
           canal: 'visita_tecnica',
@@ -106,6 +111,11 @@ export function TicketNextStepsDialog({
       return;
     }
 
+    if (!assetId) {
+      toast.error('É necessário vincular um ativo ao chamado antes de criar a ordem de serviço');
+      return;
+    }
+
     setCreatingService(true);
     
     try {
@@ -133,6 +143,7 @@ export function TicketNextStepsDialog({
         .from('service_orders')
         .insert({
           company_id: companyId,
+          asset_id: assetId,
           ticket_id: ticketId,
           tecnico_id: user.id,
           numero_os: numeroOS,

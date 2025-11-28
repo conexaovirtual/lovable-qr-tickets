@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   company_id: z.string().min(1, "Selecione uma empresa"),
+  asset_id: z.string().min(1, "Selecione o ativo"),
   tipo_servico: z.enum(["corretivo", "preventivo", "instalacao", "consultoria"], {
     message: "Selecione o tipo de serviço",
   }),
@@ -58,7 +59,9 @@ export function ServiceOrderCreateDialog({
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [loadingAssets, setLoadingAssets] = useState(false);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [assets, setAssets] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const { toast } = useToast();
@@ -67,6 +70,7 @@ export function ServiceOrderCreateDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       company_id: preSelectedCompanyId || "",
+      asset_id: preSelectedAssetId || "",
       tipo_servico: "corretivo",
       prioridade: "media",
       descricao_servicos: "",
@@ -84,6 +88,10 @@ export function ServiceOrderCreateDialog({
       if (preSelectedCompanyId) {
         form.setValue("company_id", preSelectedCompanyId);
         loadCompanyDetails(preSelectedCompanyId);
+        loadAssets(preSelectedCompanyId);
+      }
+      if (preSelectedAssetId) {
+        form.setValue("asset_id", preSelectedAssetId);
       }
     }
   }, [open]);
@@ -162,6 +170,40 @@ export function ServiceOrderCreateDialog({
     setTechnicians(data || []);
   };
 
+  const loadAssets = async (companyId: string) => {
+    if (!companyId) {
+      setAssets([]);
+      return;
+    }
+
+    setLoadingAssets(true);
+    try {
+      const { data, error } = await supabase
+        .from("assets")
+        .select("id, nome, tipo, tag_patrimonial")
+        .eq("company_id", companyId)
+        .order("nome");
+
+      if (error) {
+        console.error("Erro ao carregar ativos:", error);
+        toast({
+          title: "Erro ao carregar ativos",
+          description: error.message,
+          variant: "destructive",
+        });
+        setAssets([]);
+        return;
+      }
+
+      setAssets(data || []);
+    } catch (error: any) {
+      console.error("Erro ao carregar ativos:", error);
+      setAssets([]);
+    } finally {
+      setLoadingAssets(false);
+    }
+  };
+
   const loadCompanyDetails = async (companyId: string) => {
     const { data } = await supabase
       .from("companies")
@@ -194,6 +236,7 @@ export function ServiceOrderCreateDialog({
 
       const insertData: any = {
         company_id: values.company_id,
+        asset_id: values.asset_id,
         ticket_id: preSelectedTicketId || null,
         tipo_servico: values.tipo_servico,
         prioridade: values.prioridade,
@@ -324,7 +367,7 @@ export function ServiceOrderCreateDialog({
   const getFieldsForStep = (currentStep: number): (keyof z.infer<typeof formSchema>)[] => {
     switch (currentStep) {
       case 1:
-        return ["company_id", "tipo_servico", "prioridade", "descricao_servicos"];
+        return ["company_id", "asset_id", "tipo_servico", "prioridade", "descricao_servicos"];
       case 2:
         return ["data_agendada", "hora_agendada"];
       case 3:
@@ -359,11 +402,13 @@ export function ServiceOrderCreateDialog({
                       <FormLabel>Empresa Cliente *</FormLabel>
                       <Select 
                         disabled={loadingCompanies || companies.length === 0}
-                        onValueChange={(value) => {
+                     onValueChange={(value) => {
                           console.log('[ServiceOrderCreateDialog] Empresa selecionada:', value);
                           field.onChange(value);
                           loadCompanyDetails(value);
-                        }} 
+                          loadAssets(value);
+                          form.setValue("asset_id", "");
+                        }}
                         value={field.value}
                       >
                         <FormControl>
@@ -386,6 +431,50 @@ export function ServiceOrderCreateDialog({
                             companies.map((company) => (
                               <SelectItem key={company.id} value={company.id}>
                                 {company.nome_fantasia}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="asset_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ativo/Equipamento *</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                        disabled={!form.watch("company_id") || loadingAssets}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={
+                              !form.watch("company_id") 
+                                ? "Selecione uma empresa primeiro" 
+                                : loadingAssets
+                                  ? "Carregando ativos..."
+                                  : assets.length === 0
+                                    ? "Nenhum ativo disponível"
+                                    : "Selecione o ativo"
+                            } />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="z-[100]">
+                          {assets.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground text-center">
+                              Nenhum ativo disponível para esta empresa
+                            </div>
+                          ) : (
+                            assets.map((asset) => (
+                              <SelectItem key={asset.id} value={asset.id}>
+                                {asset.nome} - {asset.tipo}
+                                {asset.tag_patrimonial && ` (${asset.tag_patrimonial})`}
                               </SelectItem>
                             ))
                           )}
