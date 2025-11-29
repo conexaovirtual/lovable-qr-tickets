@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { companySchema, type CompanyFormData } from '@/lib/validations';
 import { formatCNPJ, formatPhone } from '@/lib/formatters';
 import { useCNPJLookup } from '@/hooks/useCNPJLookup';
-import { Search, Loader2, CheckCircle2, AlertCircle, RotateCw, Upload, X } from 'lucide-react';
+import { Search, Loader2, CheckCircle2, AlertCircle, RotateCw, Upload, X, Edit } from 'lucide-react';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import {
   Dialog,
@@ -41,6 +41,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
   const [companySituation, setCompanySituation] = useState<'ativa' | 'baixada' | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [cnpjEditConfirmed, setCnpjEditConfirmed] = useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout>();
   
   const form = useForm<CompanyFormData>({
@@ -72,6 +73,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         sla_solucao_horas: company.sla_solucao_horas || 16,
       });
       setLogoUrl(company.logo_url || null);
+      setCnpjEditConfirmed(false);
     } else {
       form.reset({
         nome_fantasia: '',
@@ -87,6 +89,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       setCnpjValidated(false);
       setCompanySituation(null);
       setLogoUrl(null);
+      setCnpjEditConfirmed(false);
     }
   }, [company, form]);
 
@@ -223,6 +226,28 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       }
 
       if (company) {
+        // Se CNPJ foi alterado, verificar duplicidade
+        const newCnpj = cleanedData.cnpj?.replace(/[^\d]/g, '');
+        const oldCnpj = company.cnpj?.replace(/[^\d]/g, '');
+        
+        if (newCnpj && newCnpj !== oldCnpj) {
+          const { data: existingByCnpj } = await supabase
+            .from('companies')
+            .select('id, nome_fantasia')
+            .eq('cnpj', cleanedData.cnpj)
+            .neq('id', company.id)
+            .maybeSingle();
+
+          if (existingByCnpj) {
+            toast({
+              title: 'CNPJ já cadastrado',
+              description: `Já existe outra empresa com este CNPJ: ${existingByCnpj.nome_fantasia}`,
+              variant: 'destructive',
+            });
+            return;
+          }
+        }
+        
         const { error } = await supabase
           .from('companies')
           .update(cleanedData)
@@ -314,6 +339,14 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {cnpjEditConfirmed && company?.cnpj && (
+              <Alert className="bg-yellow-50 border-yellow-200">
+                <AlertCircle className="h-4 w-4 text-yellow-600" />
+                <AlertDescription className="text-yellow-800">
+                  O CNPJ foi desbloqueado para edição. O sistema verificará duplicidades ao salvar.
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -346,81 +379,104 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
               <FormField
                 control={form.control}
                 name="cnpj"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      CNPJ
-                      {cnpjValidated && companySituation === 'ativa' && (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      )}
-                      {cnpjValidated && companySituation === 'baixada' && (
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                      )}
-                    </FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          placeholder="00.000.000/0000-00"
-                          disabled={!!company}
-                          onChange={(e) => {
-                            const formatted = formatCNPJ(e.target.value);
-                            field.onChange(formatted);
-                            setCnpjValidated(false);
-                            setCompanySituation(null);
-                          }}
-                          onBlur={handleCNPJBlur}
-                        />
-                      </FormControl>
-                      {!company && (
-                        <>
+                render={({ field }) => {
+                  const canEditCNPJ = !company || !company.cnpj || cnpjEditConfirmed;
+                  
+                  return (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        CNPJ
+                        {cnpjValidated && companySituation === 'ativa' && (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        )}
+                        {cnpjValidated && companySituation === 'baixada' && (
+                          <AlertCircle className="h-4 w-4 text-destructive" />
+                        )}
+                      </FormLabel>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            placeholder="00.000.000/0000-00"
+                            disabled={!!company && !!company.cnpj && !cnpjEditConfirmed}
+                            onChange={(e) => {
+                              const formatted = formatCNPJ(e.target.value);
+                              field.onChange(formatted);
+                              setCnpjValidated(false);
+                              setCompanySituation(null);
+                            }}
+                            onBlur={handleCNPJBlur}
+                          />
+                        </FormControl>
+                        {canEditCNPJ && (
+                          <>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={handleCNPJLookup}
+                              disabled={isLoadingCNPJ || !field.value || field.value.replace(/[^\d]/g, '').length !== 14}
+                              title="Buscar dados da empresa"
+                            >
+                              {isLoadingCNPJ ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Search className="h-4 w-4" />
+                              )}
+                            </Button>
+                            {error && isRateLimitError && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setTimeout(handleCNPJLookup, 2000);
+                                }}
+                                title="Tentar novamente"
+                              >
+                                <RotateCw className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </>
+                        )}
+                        {company && company.cnpj && !cnpjEditConfirmed && (
                           <Button
                             type="button"
                             variant="outline"
-                            size="icon"
-                            onClick={handleCNPJLookup}
-                            disabled={isLoadingCNPJ || !field.value || field.value.replace(/[^\d]/g, '').length !== 14}
-                            title="Buscar dados da empresa"
+                            size="sm"
+                            onClick={() => {
+                              if (window.confirm(
+                                'Atenção: Alterar o CNPJ pode causar inconsistências no sistema.\n\n' +
+                                'Deseja realmente editar o CNPJ desta empresa?'
+                              )) {
+                                setCnpjEditConfirmed(true);
+                              }
+                            }}
+                            className="text-xs whitespace-nowrap"
                           >
-                            {isLoadingCNPJ ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Search className="h-4 w-4" />
-                            )}
+                            <Edit className="h-3 w-3 mr-1" />
+                            Editar CNPJ
                           </Button>
-                          {error && isRateLimitError && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setTimeout(handleCNPJLookup, 2000);
-                              }}
-                              title="Tentar novamente"
-                            >
-                              <RotateCw className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </>
+                        )}
+                      </div>
+                      {error && (
+                        <Alert variant={isRateLimitError ? "default" : "destructive"} className="mt-2">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertTitle>{isRateLimitError ? 'Aguarde um momento' : 'Erro'}</AlertTitle>
+                          <AlertDescription>
+                            {error}
+                            {isRateLimitError && (
+                              <p className="mt-2 text-sm">
+                                O serviço de consulta está temporariamente indisponível. Você pode preencher os dados manualmente ou tentar novamente em alguns instantes.
+                              </p>
+                            )}
+                          </AlertDescription>
+                        </Alert>
                       )}
-                    </div>
-                    {error && (
-                      <Alert variant={isRateLimitError ? "default" : "destructive"} className="mt-2">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>{isRateLimitError ? 'Aguarde um momento' : 'Erro'}</AlertTitle>
-                        <AlertDescription>
-                          {error}
-                          {isRateLimitError && (
-                            <p className="mt-2 text-sm">
-                              O serviço de consulta está temporariamente indisponível. Você pode preencher os dados manualmente ou tentar novamente em alguns instantes.
-                            </p>
-                          )}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField
