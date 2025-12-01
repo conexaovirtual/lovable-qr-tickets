@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.notify-ticket-created]
 verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = false
+
+[functions.check-service-orders-reminder]
+verify_jwt = false
