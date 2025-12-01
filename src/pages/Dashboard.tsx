@@ -8,6 +8,7 @@ import { AppHeader } from '@/components/layout/AppHeader';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ServiceOrderCreateDialog } from '@/components/service-orders/ServiceOrderCreateDialog';
 import { ServiceOrderDetailDialog } from '@/components/service-orders/ServiceOrderDetailDialog';
+import { NotificationPermissionPrompt } from '@/components/notifications/NotificationPermissionPrompt';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
@@ -158,6 +159,8 @@ export default function Dashboard() {
           </div>
         ) : (
           <>
+            <NotificationPermissionPrompt />
+            
             {(profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico')) && stats.chamados_qrcode > 0 && (
               <Card className="mb-6 border-destructive bg-destructive/5">
                 <CardHeader className="pb-3">

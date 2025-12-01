@@ -182,6 +182,33 @@ const handler = async (req: Request): Promise<Response> => {
     const data = await emailResponse.json();
     console.log("Email enviado com sucesso:", data);
 
+    // Enviar push notification para admins e técnicos
+    try {
+      await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-push-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`
+        },
+        body: JSON.stringify({
+          role: 'admin_provedor',
+          title: `🔔 Novo Chamado #${ticketNumero}`,
+          body: `${companyNome} - ${assetNome}`,
+          data: {
+            type: 'new_ticket',
+            ticketId: ticketId,
+            ticketNumero: ticketNumero
+          },
+          tag: `ticket-${ticketId}`
+        })
+      });
+      
+      console.log("Push notification sent for new ticket");
+    } catch (pushError) {
+      console.error("Error sending push notification:", pushError);
+      // Não falhar se o push falhar
+    }
+
     return new Response(JSON.stringify({ success: true, emailResponse: data }), {
       status: 200,
       headers: {
