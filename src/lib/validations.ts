@@ -119,8 +119,9 @@ const validateCNPJ = (cnpj: string): boolean => {
  */
 const validateBrazilianPhone = (phone: string): boolean => {
   const cleaned = phone.replace(/[^\d]/g, '');
-  // Formats: (XX) XXXX-XXXX or (XX) 9XXXX-XXXX
-  return /^(\d{2})9?\d{8}$/.test(cleaned);
+  // Accept phones with 8-11 digits (with or without area code)
+  // Formats: XXXX-XXXX (8), 9XXXX-XXXX (9), (XX) XXXX-XXXX (10), (XX) 9XXXX-XXXX (11)
+  return cleaned.length >= 8 && cleaned.length <= 11;
 };
 
 export const companySchema = z.object({
