@@ -261,36 +261,40 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         });
       } else {
         // Validação client-side: verificar se empresa já existe
-        // SECURITY FIX: Use separate queries instead of .or() to prevent SQL injection
-        const [existingByCnpj, existingByName] = await Promise.all([
-          supabase
-            .from('companies')
-            .select('id, nome_fantasia')
-            .eq('cnpj', data.cnpj)
-            .maybeSingle(),
-          supabase
-            .from('companies')
-            .select('id, cnpj')
-            .eq('nome_fantasia', data.nome_fantasia)
-            .maybeSingle()
-        ]);
+        const cnpjToCheck = data.cnpj?.replace(/[^\d]/g, '');
+        
+        // Verificar nome fantasia duplicado
+        const { data: existingByName } = await supabase
+          .from('companies')
+          .select('id, cnpj')
+          .eq('nome_fantasia', data.nome_fantasia)
+          .maybeSingle();
 
-        if (existingByCnpj.data) {
+        if (existingByName) {
           toast({
-            title: 'CNPJ já cadastrado',
-            description: `Já existe uma empresa com este CNPJ: ${existingByCnpj.data.nome_fantasia}`,
+            title: 'Nome fantasia já cadastrado',
+            description: `Já existe uma empresa com este nome: ${existingByName.cnpj || 'CNPJ não informado'}`,
             variant: 'destructive',
           });
           return;
         }
 
-        if (existingByName.data) {
-          toast({
-            title: 'Nome fantasia já cadastrado',
-            description: `Já existe uma empresa com este nome: ${existingByName.data.cnpj || 'CNPJ não informado'}`,
-            variant: 'destructive',
-          });
-          return;
+        // Verificar CNPJ duplicado apenas se foi preenchido
+        if (cnpjToCheck && cnpjToCheck.length === 14) {
+          const { data: existingByCnpj } = await supabase
+            .from('companies')
+            .select('id, nome_fantasia')
+            .eq('cnpj', data.cnpj)
+            .maybeSingle();
+
+          if (existingByCnpj) {
+            toast({
+              title: 'CNPJ já cadastrado',
+              description: `Já existe uma empresa com este CNPJ: ${existingByCnpj.nome_fantasia}`,
+              variant: 'destructive',
+            });
+            return;
+          }
         }
 
         const { error } = await supabase
