@@ -209,6 +209,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
   };
 
   const onSubmit = async (data: CompanyFormData) => {
+    console.log('[CompanyDialog] onSubmit called with data:', data);
     try {
       // Remover campos vazios opcionais antes de enviar
       const cleanedData = Object.entries(data).reduce((acc, [key, value]) => {
@@ -342,7 +343,9 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+            console.log('[CompanyDialog] Form validation errors:', errors);
+          })} className="space-y-4">
             {cnpjEditConfirmed && company?.cnpj && (
               <Alert className="bg-yellow-50 border-yellow-200">
                 <AlertCircle className="h-4 w-4 text-yellow-600" />
