@@ -27,7 +27,7 @@ export function CompanyList({ onEdit, refreshTrigger }: CompanyListProps) {
     const to = from + ITEMS_PER_PAGE - 1;
     
     const { data, error, count } = await supabase
-      .from('companies_safe')
+      .from('companies')
       .select('*', { count: 'exact' })
       .range(from, to)
       .order('nome_fantasia');
