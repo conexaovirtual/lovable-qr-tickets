@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Mail, Phone, Building2, Edit, Trash2 } from 'lucide-react';
+import { Phone, Building2, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -16,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { TechnicianEditDialog } from './TechnicianEditDialog';
 
 interface TechnicianCardProps {
   technician: any;
@@ -25,6 +27,7 @@ interface TechnicianCardProps {
 export function TechnicianCard({ technician, onUpdate }: TechnicianCardProps) {
   const { profile } = useAuth();
   const isAdmin = profile?.roles?.includes('admin_provedor');
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const handleDelete = async () => {
     try {
@@ -85,6 +88,15 @@ export function TechnicianCard({ technician, onUpdate }: TechnicianCardProps) {
 
         {isAdmin && (
           <div className="flex gap-2 pt-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1 gap-2"
+              onClick={() => setEditDialogOpen(true)}
+            >
+              <Edit className="h-4 w-4" />
+              Editar
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm" className="flex-1 gap-2">
@@ -107,6 +119,18 @@ export function TechnicianCard({ technician, onUpdate }: TechnicianCardProps) {
             </AlertDialog>
           </div>
         )}
+
+        <TechnicianEditDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          technician={{
+            id: technician.id,
+            nome: technician.nome,
+            telefone: technician.telefone,
+            company_id: technician.company_id,
+          }}
+          onSuccess={onUpdate}
+        />
       </CardContent>
     </Card>
   );
