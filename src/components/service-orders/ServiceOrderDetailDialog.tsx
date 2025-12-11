@@ -350,15 +350,18 @@ export function ServiceOrderDetailDialog({
 
           {/* Ações */}
           <div className="flex flex-wrap gap-2">
-            {/* Botão Editar - disponível para agendada, confirmada, em_execucao */}
-            {["agendada", "confirmada", "em_execucao"].includes(serviceOrder.status) && (
+            {/* Botão Editar - disponível para agendada, confirmada, em_execucao, ou finalizadas/executadas sem empresa */}
+            {(["agendada", "confirmada", "em_execucao"].includes(serviceOrder.status) || 
+              (["finalizada", "executada"].includes(serviceOrder.status) && !serviceOrder.company_id)) && (
               <Button
                 onClick={() => setIsEditDialogOpen(true)}
                 variant="outline"
                 size="sm"
               >
                 <Edit className="h-4 w-4 mr-2" />
-                Editar OS
+                {["finalizada", "executada"].includes(serviceOrder.status) && !serviceOrder.company_id 
+                  ? "Atribuir Empresa" 
+                  : "Editar OS"}
               </Button>
             )}
 
