@@ -79,6 +79,18 @@ export function AppHeader() {
                       Atendimentos
                     </Button>
                   </Link>
+                  <Link to="/companies">
+                    <Button variant="ghost" size="sm">
+                      <Building2 className="h-4 w-4 mr-2" />
+                      Empresas
+                    </Button>
+                  </Link>
+                  <Link to="/reports">
+                    <Button variant="ghost" size="sm">
+                      <FileBarChart className="h-4 w-4 mr-2" />
+                      Relatórios
+                    </Button>
+                  </Link>
                 </>
               )}
               <Link to="/reports?tab=service-orders">
@@ -100,26 +112,12 @@ export function AppHeader() {
                 </Button>
               </Link>
               {profile.roles?.includes('admin_provedor') && (
-                <>
-                  <Link to="/companies">
-                    <Button variant="ghost" size="sm">
-                      <Building2 className="h-4 w-4 mr-2" />
-                      Empresas
-                    </Button>
-                  </Link>
-                  <Link to="/technicians">
-                    <Button variant="ghost" size="sm">
-                      <Wrench className="h-4 w-4 mr-2" />
-                      Técnicos
-                    </Button>
-                  </Link>
-                  <Link to="/reports">
-                    <Button variant="ghost" size="sm">
-                      <FileBarChart className="h-4 w-4 mr-2" />
-                      Relatórios
-                    </Button>
-                  </Link>
-                </>
+                <Link to="/technicians">
+                  <Button variant="ghost" size="sm">
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Técnicos
+                  </Button>
+                </Link>
               )}
               {profile.roles?.includes('gestor_cliente') && (
                 <Link to="/reports">
@@ -159,6 +157,14 @@ export function AppHeader() {
                       <ClipboardList className="h-4 w-4 mr-2" />
                       Atendimentos
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/companies')}>
+                      <Building2 className="h-4 w-4 mr-2" />
+                      Empresas
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/reports')}>
+                      <FileBarChart className="h-4 w-4 mr-2" />
+                      Relatórios
+                    </DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuItem onClick={() => navigate('/reports?tab=service-orders')}>
@@ -174,20 +180,10 @@ export function AppHeader() {
                   Inventário
                 </DropdownMenuItem>
                 {profile.roles?.includes('admin_provedor') && (
-                  <>
-                    <DropdownMenuItem onClick={() => navigate('/companies')}>
-                      <Building2 className="h-4 w-4 mr-2" />
-                      Empresas
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/technicians')}>
-                      <Wrench className="h-4 w-4 mr-2" />
-                      Técnicos
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/reports')}>
-                      <FileBarChart className="h-4 w-4 mr-2" />
-                      Relatórios
-                    </DropdownMenuItem>
-                  </>
+                  <DropdownMenuItem onClick={() => navigate('/technicians')}>
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Técnicos
+                  </DropdownMenuItem>
                 )}
                 {profile.roles?.includes('gestor_cliente') && (
                   <DropdownMenuItem onClick={() => navigate('/reports')}>

@@ -34,7 +34,12 @@ export default function Reports() {
       return;
     }
 
-    if (profile && !profile.roles?.includes('admin_provedor') && !profile.roles?.includes('gestor_cliente')) {
+    // Permitir acesso para admin, gestor_cliente e técnico
+    const canAccess = profile?.roles?.includes('admin_provedor') || 
+                      profile?.roles?.includes('gestor_cliente') ||
+                      profile?.roles?.includes('tecnico');
+
+    if (profile && !canAccess) {
       navigate('/dashboard');
       toast.error('Acesso negado');
       return;

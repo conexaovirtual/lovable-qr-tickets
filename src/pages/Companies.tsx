@@ -14,17 +14,23 @@ export default function Companies() {
   const [editingCompany, setEditingCompany] = useState<any>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Verifica se é admin ou técnico
+  const canAccess = profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico');
+  const canCreate = canAccess; // Técnicos podem criar
+  const canEdit = canAccess; // Técnicos podem editar
+
   useEffect(() => {
     if (!loading) {
       if (!profile) {
         navigate('/auth');
-      } else if (!isAdmin()) {
+      } else if (!canAccess) {
         navigate('/dashboard');
       }
     }
-  }, [profile, navigate, isAdmin, loading]);
+  }, [profile, navigate, loading, canAccess]);
 
   const handleEdit = (company: any) => {
+    if (!canEdit) return;
     setEditingCompany(company);
     setDialogOpen(true);
   };
@@ -38,7 +44,7 @@ export default function Companies() {
     setRefreshTrigger(prev => prev + 1);
   };
 
-  if (loading || !profile || !isAdmin()) {
+  if (loading || !profile || !canAccess) {
     return null;
   }
 
@@ -52,10 +58,12 @@ export default function Companies() {
               <h1 className="text-2xl font-bold">Empresas</h1>
               <p className="text-muted-foreground">Gerencie empresas atendidas</p>
             </div>
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Empresa
-            </Button>
+            {canCreate && (
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Empresa
+              </Button>
+            )}
           </div>
         </div>
       </header>

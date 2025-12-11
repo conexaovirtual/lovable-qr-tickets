@@ -23,21 +23,24 @@ export default function CompanyDetail() {
   const [company, setCompany] = useState<any>(null);
   const [statistics, setStatistics] = useState<any>(null);
 
+  // Verifica se é admin ou técnico
+  const canAccess = profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico');
+
   useEffect(() => {
     if (!authLoading) {
       if (!profile) {
         navigate('/auth');
-      } else if (!isAdmin()) {
+      } else if (!canAccess) {
         navigate('/dashboard');
       }
     }
-  }, [profile, navigate, isAdmin, authLoading]);
+  }, [profile, navigate, canAccess, authLoading]);
 
   useEffect(() => {
-    if (id && profile && isAdmin()) {
+    if (id && profile && canAccess) {
       loadCompanyData();
     }
-  }, [id, profile]);
+  }, [id, profile, canAccess]);
 
   const loadCompanyData = async () => {
     try {
