@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.check-service-orders-reminder]
 verify_jwt = false
+
+[functions.update-user]
+verify_jwt = false
