@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Eye, EyeOff, Info } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Info, Mail } from 'lucide-react';
 import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator';
 
 // Configure zxcvbn
@@ -73,8 +73,10 @@ export function TechnicianEditDialog({
   onSuccess,
 }: TechnicianEditDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [loadingEmail, setLoadingEmail] = useState(false);
   const [companies, setCompanies] = useState<{ id: string; nome_fantasia: string }[]>([]);
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState<string>('');
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -94,7 +96,9 @@ export function TechnicianEditDialog({
         company_id: technician.company_id || '__all__',
         password: '',
       });
+      setEmail('');
       loadCompanies();
+      loadUserEmail();
     }
   }, [open, technician]);
 
@@ -111,6 +115,28 @@ export function TechnicianEditDialog({
     }
 
     setCompanies(data || []);
+  };
+
+  const loadUserEmail = async () => {
+    setLoadingEmail(true);
+    try {
+      const response = await supabase.functions.invoke('get-user-email', {
+        body: { user_id: technician.id },
+      });
+
+      if (response.error) {
+        console.error('Error loading email:', response.error);
+        return;
+      }
+
+      if (response.data?.email) {
+        setEmail(response.data.email);
+      }
+    } catch (error) {
+      console.error('Error loading email:', error);
+    } finally {
+      setLoadingEmail(false);
+    }
   };
 
   const onSubmit = async (data: FormData) => {
@@ -170,6 +196,26 @@ export function TechnicianEditDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Email field - read only */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Email (login)
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={loadingEmail ? 'Carregando...' : email}
+                  readOnly
+                  disabled
+                  className="pl-10 bg-muted cursor-not-allowed"
+                  placeholder="Email do técnico"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                O email de acesso não pode ser alterado
+              </p>
+            </div>
+
             <FormField
               control={form.control}
               name="nome"
