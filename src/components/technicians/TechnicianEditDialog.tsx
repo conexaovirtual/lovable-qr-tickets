@@ -81,7 +81,7 @@ export function TechnicianEditDialog({
     defaultValues: {
       nome: technician.nome || '',
       telefone: technician.telefone || '',
-      company_id: technician.company_id || '',
+      company_id: technician.company_id || '__all__',
       password: '',
     },
   });
@@ -91,7 +91,7 @@ export function TechnicianEditDialog({
       form.reset({
         nome: technician.nome || '',
         telefone: technician.telefone || '',
-        company_id: technician.company_id || '',
+        company_id: technician.company_id || '__all__',
         password: '',
       });
       loadCompanies();
@@ -129,7 +129,7 @@ export function TechnicianEditDialog({
           user_id: technician.id,
           nome: data.nome,
           telefone: data.telefone || null,
-          company_id: data.company_id || null,
+          company_id: data.company_id === '__all__' ? null : data.company_id,
           password: data.password || null,
         },
       });
@@ -205,7 +205,7 @@ export function TechnicianEditDialog({
                 <FormItem>
                   <FormLabel>Empresa Vinculada</FormLabel>
                   <Select
-                    value={field.value || ''}
+                    value={field.value || '__all__'}
                     onValueChange={field.onChange}
                   >
                     <FormControl>
@@ -214,7 +214,7 @@ export function TechnicianEditDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Acesso a todas as empresas</SelectItem>
+                      <SelectItem value="__all__">Acesso a todas as empresas</SelectItem>
                       {companies.map((company) => (
                         <SelectItem key={company.id} value={company.id}>
                           {company.nome_fantasia}
