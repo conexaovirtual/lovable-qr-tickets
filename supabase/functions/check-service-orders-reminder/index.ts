@@ -1,7 +1,17 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const handler = async (req: Request): Promise<Response> => {
+interface ServiceOrderWithRelations {
+  id: string;
+  numero_os: number;
+  data_agendada: string;
+  hora_agendada: string | null;
+  tecnico_id: string | null;
+  notified_at: string | null;
+  companies: { nome_fantasia: string } | null;
+  assets: { nome: string; tipo: string } | null;
+}
+
+Deno.serve(async (req: Request): Promise<Response> => {
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -46,7 +56,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    for (const os of serviceOrders) {
+    for (const os of serviceOrders as unknown as ServiceOrderWithRelations[]) {
       const recipients: string[] = [];
       
       // Buscar admins
@@ -122,6 +132,4 @@ const handler = async (req: Request): Promise<Response> => {
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
-};
-
-serve(handler);
+});
