@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import webpush from "https://esm.sh/web-push@3.6.7";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,7 +17,7 @@ interface PushPayload {
   tag?: string;
 }
 
-const handler = async (req: Request): Promise<Response> => {
+Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -82,8 +82,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('VAPID keys not configured');
     }
 
-    const webpush = await import('npm:web-push@3.6.7');
-    
     webpush.setVapidDetails(
       `mailto:${vapidEmail}`,
       vapidPublicKey,
@@ -143,6 +141,4 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
   }
-};
-
-serve(handler);
+});
