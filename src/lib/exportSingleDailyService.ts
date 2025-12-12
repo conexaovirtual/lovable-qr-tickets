@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { imageUrlToBase64 } from '@/lib/imageUtils';
+import { formatDateBR } from '@/lib/formatters';
 
 // Função auxiliar para carregar logo local
 const getConexaoVirtualLogo = async (): Promise<string | null> => {
@@ -93,7 +94,7 @@ export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) 
   const infoRows: [string, string][] = [
     ['Empresa', record.companies.nome_fantasia],
     ['Técnico', record.profiles.nome],
-    ['Data', format(new Date(record.data_atendimento), 'dd/MM/yyyy', { locale: ptBR })],
+    ['Data', formatDateBR(record.data_atendimento)],
     ['Horário Início', record.hora_inicio],
     ['Horário Fim', record.hora_fim || '-'],
     ['Canal', canalLabel],

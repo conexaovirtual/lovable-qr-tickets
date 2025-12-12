@@ -10,8 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { FileDown, MessageCircle, Phone, MapPin, Clock, FileImage, Building2 } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatDateBR } from "@/lib/formatters";
 import { toast } from "sonner";
 import { exportDailyServicesToPDF, exportDailyServicesWithPhotosToPDF } from "@/lib/exportDailyServices";
 import { exportDailyServicesByCompanyToPDF } from "@/lib/exportDailyServicesByCompany";
@@ -518,7 +517,7 @@ export function DailyServicesReport() {
                   records.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell>
-                        {format(new Date(record.data_atendimento), "dd/MM/yyyy", { locale: ptBR })}
+                        {formatDateBR(record.data_atendimento)}
                       </TableCell>
                       <TableCell>{getChannelBadge(record.canal)}</TableCell>
                       <TableCell className="font-medium">{record.titulo}</TableCell>

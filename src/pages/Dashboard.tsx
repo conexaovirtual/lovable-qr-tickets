@@ -9,8 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ServiceOrderCreateDialog } from '@/components/service-orders/ServiceOrderCreateDialog';
 import { ServiceOrderDetailDialog } from '@/components/service-orders/ServiceOrderDetailDialog';
 import { NotificationPermissionPrompt } from '@/components/notifications/NotificationPermissionPrompt';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDateBR } from '@/lib/formatters';
 import { 
   Clock, 
   CheckCircle2, 
@@ -291,7 +290,7 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between">
                             <span className="font-semibold text-sm">OS #{os.numero_os}</span>
                             <span className="text-xs text-muted-foreground">
-                              {os.data_agendada && format(new Date(os.data_agendada), "dd/MM/yyyy", { locale: ptBR })}
+                              {os.data_agendada && formatDateBR(os.data_agendada)}
                             </span>
                           </div>
                           <div className="text-sm">{os.companies?.nome_fantasia}</div>
@@ -326,7 +325,7 @@ export default function Dashboard() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-xs text-muted-foreground">
-                                {service.data_atendimento && format(new Date(service.data_atendimento), "dd/MM/yyyy", { locale: ptBR })}
+                                {service.data_atendimento && formatDateBR(service.data_atendimento)}
                               </span>
                               <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary capitalize">
                                 {service.status.replace(/_/g, ' ')}
