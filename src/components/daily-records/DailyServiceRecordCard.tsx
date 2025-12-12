@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { PhotoGallery } from "@/components/ui/PhotoGallery";
 import { UploadedImage } from "@/lib/imageUtils";
 import { MessageCircle, Phone, MapPin, Clock, Building2, User, Edit, Eye, Camera, FileDown } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatDateBR } from "@/lib/formatters";
 import { exportSingleDailyServiceToPDF } from "@/lib/exportSingleDailyService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -167,7 +166,7 @@ export function DailyServiceRecordCard({ record, onEdit, onView }: DailyServiceR
             <div className="flex items-center gap-2 text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span>
-                {format(new Date(record.data_atendimento), "dd/MM/yyyy", { locale: ptBR })}
+                {formatDateBR(record.data_atendimento)}
                 {" • "}
                 {record.hora_inicio}
                 {record.hora_fim && ` - ${record.hora_fim}`}

@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { imageUrlToBase64Cached } from './imageUtils';
+import { formatDateBR } from './formatters';
 
 const getConexaoVirtualLogo = async (): Promise<string | null> => {
   try {
@@ -180,7 +181,7 @@ export const exportDailyServicesByCompanyToPDF = async (
     }[record.status] || record.status;
 
     const infoData = [
-      ['Data', format(new Date(record.data_atendimento), 'dd/MM/yyyy', { locale: ptBR })],
+      ['Data', formatDateBR(record.data_atendimento)],
       ['Horário', record.hora_fim ? `${record.hora_inicio} - ${record.hora_fim}` : record.hora_inicio],
       ['Técnico', record.profiles?.nome || '-'],
       ['Canal', canalLabel],

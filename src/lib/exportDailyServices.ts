@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { imageUrlToBase64Cached } from './imageUtils';
+import { formatDateBR } from './formatters';
 
 // Função auxiliar para carregar logo local
 const getConexaoVirtualLogo = async (): Promise<string | null> => {
@@ -109,11 +110,7 @@ export const exportDailyServicesToPDF = async (
 
   // ============= TABELA DE ATENDIMENTOS =============
   const tableData = records.map(record => {
-    const dataFormatada = format(
-      new Date(record.data_atendimento), 
-      'dd/MM/yyyy', 
-      { locale: ptBR }
-    );
+    const dataFormatada = formatDateBR(record.data_atendimento);
     
     const canalLabel = {
       whatsapp: 'WhatsApp',
@@ -271,11 +268,7 @@ export const exportDailyServicesWithPhotosToPDF = async (
 
   // ============= TABELA RESUMIDA =============
   const tableData = records.map(record => {
-    const dataFormatada = format(
-      new Date(record.data_atendimento), 
-      'dd/MM/yyyy', 
-      { locale: ptBR }
-    );
+    const dataFormatada = formatDateBR(record.data_atendimento);
     
     const canalLabel = {
       whatsapp: 'WhatsApp',
@@ -380,7 +373,7 @@ export const exportDailyServicesWithPhotosToPDF = async (
 
       // Informações básicas
       doc.text(
-        `Data: ${format(new Date(record.data_atendimento), 'dd/MM/yyyy', { locale: ptBR })} | Técnico: ${record.profiles?.nome || '-'}`,
+        `Data: ${formatDateBR(record.data_atendimento)} | Técnico: ${record.profiles?.nome || '-'}`,
         14,
         currentY
       );
