@@ -81,7 +81,7 @@ export function DailyServiceRecordDialog({
     defaultValues: {
       company_id: "",
       asset_id: "",
-      data_atendimento: format(new Date(), "yyyy-MM-dd"),
+      data_atendimento: new Date().toLocaleDateString('en-CA'), // Formato ISO usando timezone local
       hora_inicio: "",
       hora_fim: "",
       canal: "whatsapp",
@@ -326,7 +326,7 @@ export function DailyServiceRecordDialog({
                   <FormItem>
                     <FormLabel>Data do Atendimento *</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} max={format(new Date(), "yyyy-MM-dd")} />
+                      <Input type="date" {...field} max={new Date().toLocaleDateString('en-CA')} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
