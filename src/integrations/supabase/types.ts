@@ -1418,7 +1418,11 @@ export type Database = {
       impact_level: "alto" | "medio" | "baixo"
       phone_visibility: "everyone" | "managers_only" | "private"
       priority_level: "critica" | "alta" | "media" | "baixa"
-      service_channel: "whatsapp" | "ligacao" | "visita_tecnica"
+      service_channel:
+        | "whatsapp"
+        | "ligacao"
+        | "visita_tecnica"
+        | "acesso_remoto"
       ticket_status:
         | "novo"
         | "triagem"
@@ -1579,7 +1583,12 @@ export const Constants = {
       impact_level: ["alto", "medio", "baixo"],
       phone_visibility: ["everyone", "managers_only", "private"],
       priority_level: ["critica", "alta", "media", "baixa"],
-      service_channel: ["whatsapp", "ligacao", "visita_tecnica"],
+      service_channel: [
+        "whatsapp",
+        "ligacao",
+        "visita_tecnica",
+        "acesso_remoto",
+      ],
       ticket_status: [
         "novo",
         "triagem",

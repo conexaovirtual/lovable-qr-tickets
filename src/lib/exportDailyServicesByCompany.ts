@@ -41,6 +41,7 @@ interface CompanyStats {
   whatsapp: number;
   ligacao: number;
   visita_tecnica: number;
+  acesso_remoto: number;
   concluidos: number;
   em_andamento: number;
   pendentes: number;
@@ -120,6 +121,7 @@ export const exportDailyServicesByCompanyToPDF = async (
     ['WhatsApp', stats.whatsapp.toString()],
     ['Ligações', stats.ligacao.toString()],
     ['Visitas Técnicas', stats.visita_tecnica.toString()],
+    ['Acesso Remoto', stats.acesso_remoto.toString()],
   ];
 
   autoTable(doc, {
@@ -171,7 +173,8 @@ export const exportDailyServicesByCompanyToPDF = async (
     const canalLabel = {
       whatsapp: 'WhatsApp',
       ligacao: 'Ligação',
-      visita_tecnica: 'Visita Técnica'
+      visita_tecnica: 'Visita Técnica',
+      acesso_remoto: 'Acesso Remoto'
     }[record.canal] || record.canal;
 
     const statusLabel = {

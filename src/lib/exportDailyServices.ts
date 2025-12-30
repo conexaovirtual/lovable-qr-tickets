@@ -28,6 +28,7 @@ interface DailyServiceStats {
   whatsapp: number;
   ligacao: number;
   visita_tecnica: number;
+  acesso_remoto: number;
   concluidos: number;
   em_andamento: number;
   pendentes: number;
@@ -99,11 +100,12 @@ export const exportDailyServicesToPDF = async (
 
   // Linha 2 de estatísticas (canais)
   doc.text(`WhatsApp: ${stats.whatsapp}`, 14, currentY);
-  doc.text(`Ligações: ${stats.ligacao}`, 80, currentY);
-  doc.text(`Visitas Técnicas: ${stats.visita_tecnica}`, 140, currentY);
+  doc.text(`Ligações: ${stats.ligacao}`, 70, currentY);
+  doc.text(`Visitas: ${stats.visita_tecnica}`, 120, currentY);
+  doc.text(`Remoto: ${stats.acesso_remoto}`, 165, currentY);
   doc.text(
     `Tempo Médio: ${Math.floor(stats.tempo_medio / 60)}h ${stats.tempo_medio % 60}m`,
-    200,
+    210,
     currentY
   );
   currentY += 10;
@@ -115,7 +117,8 @@ export const exportDailyServicesToPDF = async (
     const canalLabel = {
       whatsapp: 'WhatsApp',
       ligacao: 'Ligação',
-      visita_tecnica: 'Visita'
+      visita_tecnica: 'Visita',
+      acesso_remoto: 'Remoto'
     }[record.canal] || record.canal;
 
     const statusLabel = {
@@ -257,11 +260,12 @@ export const exportDailyServicesWithPhotosToPDF = async (
   currentY += 6;
 
   doc.text(`WhatsApp: ${stats.whatsapp}`, 14, currentY);
-  doc.text(`Ligações: ${stats.ligacao}`, 80, currentY);
-  doc.text(`Visitas Técnicas: ${stats.visita_tecnica}`, 140, currentY);
+  doc.text(`Ligações: ${stats.ligacao}`, 70, currentY);
+  doc.text(`Visitas: ${stats.visita_tecnica}`, 120, currentY);
+  doc.text(`Remoto: ${stats.acesso_remoto}`, 165, currentY);
   doc.text(
     `Tempo Médio: ${Math.floor(stats.tempo_medio / 60)}h ${stats.tempo_medio % 60}m`,
-    200,
+    210,
     currentY
   );
   currentY += 10;
@@ -273,7 +277,8 @@ export const exportDailyServicesWithPhotosToPDF = async (
     const canalLabel = {
       whatsapp: 'WhatsApp',
       ligacao: 'Ligação',
-      visita_tecnica: 'Visita'
+      visita_tecnica: 'Visita',
+      acesso_remoto: 'Remoto'
     }[record.canal] || record.canal;
 
     const statusLabel = {

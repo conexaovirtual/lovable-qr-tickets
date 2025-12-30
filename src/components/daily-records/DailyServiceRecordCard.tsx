@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PhotoGallery } from "@/components/ui/PhotoGallery";
 import { UploadedImage } from "@/lib/imageUtils";
-import { MessageCircle, Phone, MapPin, Clock, Building2, User, Edit, Eye, Camera, FileDown } from "lucide-react";
+import { MessageCircle, Phone, MapPin, Clock, Building2, User, Edit, Eye, Camera, FileDown, Monitor } from "lucide-react";
 import { formatDateBR } from "@/lib/formatters";
 import { exportSingleDailyServiceToPDF } from "@/lib/exportSingleDailyService";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,6 +63,12 @@ export function DailyServiceRecordCard({ record, onEdit, onView }: DailyServiceR
           icon: MapPin,
           label: "Visita Técnica",
           className: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
+        };
+      case "acesso_remoto":
+        return {
+          icon: Monitor,
+          label: "Acesso Remoto",
+          className: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
         };
       default:
         return {

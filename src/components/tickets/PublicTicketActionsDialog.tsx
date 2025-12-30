@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { MessageCircle, Phone, MapPin, Monitor } from 'lucide-react';
 
 interface PublicTicketActionsDialogProps {
   open: boolean;
@@ -47,7 +48,7 @@ export function PublicTicketActionsDialog({
   const [loadingTechnicians, setLoadingTechnicians] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date>(new Date());
   const [scheduledTime, setScheduledTime] = useState('09:00');
-  const [canal, setCanal] = useState<'whatsapp' | 'ligacao' | 'visita_tecnica'>('visita_tecnica');
+  const [canal, setCanal] = useState<'whatsapp' | 'ligacao' | 'visita_tecnica' | 'acesso_remoto'>('visita_tecnica');
 
   useEffect(() => {
     if (open) {
@@ -302,18 +303,34 @@ export function PublicTicketActionsDialog({
 
         <div className="space-y-2">
           <Label>Canal de Atendimento</Label>
-          <RadioGroup value={canal} onValueChange={(value: any) => setCanal(value)} className="flex gap-4">
+          <RadioGroup value={canal} onValueChange={(value: any) => setCanal(value)} className="grid grid-cols-2 gap-2">
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="visita_tecnica" id="visita" />
-              <Label htmlFor="visita" className="cursor-pointer">Visita Técnica</Label>
+              <Label htmlFor="visita" className="cursor-pointer flex items-center gap-1">
+                <MapPin className="h-4 w-4 text-orange-600" />
+                Visita Técnica
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="acesso_remoto" id="remoto" />
+              <Label htmlFor="remoto" className="cursor-pointer flex items-center gap-1">
+                <Monitor className="h-4 w-4 text-purple-600" />
+                Acesso Remoto
+              </Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="whatsapp" id="whatsapp" />
-              <Label htmlFor="whatsapp" className="cursor-pointer">WhatsApp</Label>
+              <Label htmlFor="whatsapp" className="cursor-pointer flex items-center gap-1">
+                <MessageCircle className="h-4 w-4 text-green-600" />
+                WhatsApp
+              </Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="ligacao" id="ligacao" />
-              <Label htmlFor="ligacao" className="cursor-pointer">Ligação</Label>
+              <Label htmlFor="ligacao" className="cursor-pointer flex items-center gap-1">
+                <Phone className="h-4 w-4 text-blue-600" />
+                Ligação
+              </Label>
             </div>
           </RadioGroup>
         </div>
