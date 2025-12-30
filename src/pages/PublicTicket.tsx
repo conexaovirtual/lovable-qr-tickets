@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { PublicTicketActionsDialog } from "@/components/tickets/PublicTicketActionsDialog";
 
 export default function PublicTicket() {
   const [searchParams] = useSearchParams();
@@ -21,6 +22,8 @@ export default function PublicTicket() {
   const [success, setSuccess] = useState(false);
   const [asset, setAsset] = useState<any>(null);
   const [company, setCompany] = useState<any>(null);
+  const [createdTicket, setCreatedTicket] = useState<any>(null);
+  const [showActionsDialog, setShowActionsDialog] = useState(false);
 
   const [formData, setFormData] = useState({
     nome: "",
@@ -133,7 +136,10 @@ export default function PublicTicket() {
         console.error("Error sending notification:", notifyError);
       }
 
+      setCreatedTicket(ticket);
       setSuccess(true);
+      setShowActionsDialog(true);
+      
       toast({
         title: "Chamado criado!",
         description: "Seu chamado foi registrado com sucesso. Em breve entraremos em contato.",
@@ -199,6 +205,9 @@ export default function PublicTicket() {
                 <p className="text-sm font-medium mb-2">Detalhes do chamado:</p>
                 <div className="space-y-2 text-sm">
                   <p>
+                    <span className="text-muted-foreground">Número:</span> #{createdTicket?.numero}
+                  </p>
+                  <p>
                     <span className="text-muted-foreground">Ativo:</span> {asset.nome}
                   </p>
                   <p>
@@ -209,12 +218,34 @@ export default function PublicTicket() {
                   </p>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">
+              
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setShowActionsDialog(true)}
+              >
+                Abrir Atendimento / Ordem de Serviço
+              </Button>
+              
+              <p className="text-sm text-muted-foreground text-center">
                 Você pode fechar esta página agora.
               </p>
             </div>
           </CardContent>
         </Card>
+
+        {createdTicket && (
+          <PublicTicketActionsDialog
+            open={showActionsDialog}
+            onOpenChange={setShowActionsDialog}
+            ticketId={createdTicket.id}
+            ticketNumber={createdTicket.numero}
+            companyId={company.id}
+            assetId={asset.id}
+            ticketTitle={`Chamado via QR Code - ${asset.nome}`}
+            ticketDescription={formData.descricao}
+          />
+        )}
       </div>
     );
   }
