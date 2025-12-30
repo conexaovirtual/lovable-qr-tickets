@@ -73,7 +73,7 @@ export function DailyServiceCalendar({ refreshTrigger }: DailyServiceCalendarPro
       query = query.eq("status", selectedStatus);
     }
     if (selectedChannel !== "all") {
-      query = query.eq("canal", selectedChannel as "whatsapp" | "ligacao" | "visita_tecnica");
+      query = query.eq("canal", selectedChannel as "whatsapp" | "ligacao" | "visita_tecnica" | "acesso_remoto");
     }
 
     const { data, error } = await query;
@@ -220,6 +220,7 @@ export function DailyServiceCalendar({ refreshTrigger }: DailyServiceCalendarPro
                 <SelectItem value="whatsapp">WhatsApp</SelectItem>
                 <SelectItem value="ligacao">Ligação</SelectItem>
                 <SelectItem value="visita_tecnica">Visita Técnica</SelectItem>
+                <SelectItem value="acesso_remoto">Acesso Remoto</SelectItem>
               </SelectContent>
             </Select>
           </div>

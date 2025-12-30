@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { FileDown, MessageCircle, Phone, MapPin, Clock, FileImage, Building2 } from "lucide-react";
+import { FileDown, MessageCircle, Phone, MapPin, Clock, FileImage, Building2, Monitor } from "lucide-react";
 import { formatDateBR } from "@/lib/formatters";
 import { toast } from "sonner";
 import { exportDailyServicesToPDF, exportDailyServicesWithPhotosToPDF } from "@/lib/exportDailyServices";
@@ -26,6 +26,7 @@ export function DailyServicesReport() {
     whatsapp: 0,
     ligacao: 0,
     visita_tecnica: 0,
+    acesso_remoto: 0,
     concluidos: 0,
     em_andamento: 0,
     pendentes: 0,
@@ -145,6 +146,7 @@ export function DailyServicesReport() {
       whatsapp: data.filter((r) => r.canal === "whatsapp").length,
       ligacao: data.filter((r) => r.canal === "ligacao").length,
       visita_tecnica: data.filter((r) => r.canal === "visita_tecnica").length,
+      acesso_remoto: data.filter((r) => r.canal === "acesso_remoto").length,
       concluidos: data.filter((r) => r.status === "concluido").length,
       em_andamento: data.filter((r) => r.status === "em_andamento").length,
       pendentes: data.filter((r) => r.status === "pendente").length,
@@ -170,6 +172,7 @@ export function DailyServicesReport() {
     { name: "WhatsApp", value: stats.whatsapp, color: "#25D366" },
     { name: "Ligação", value: stats.ligacao, color: "#3B82F6" },
     { name: "Visita Técnica", value: stats.visita_tecnica, color: "#F59E0B" },
+    { name: "Acesso Remoto", value: stats.acesso_remoto, color: "#8B5CF6" },
   ];
 
   const statusData = [
@@ -252,6 +255,7 @@ export function DailyServicesReport() {
       whatsapp: { icon: MessageCircle, label: "WhatsApp", className: "bg-green-100 text-green-800" },
       ligacao: { icon: Phone, label: "Ligação", className: "bg-blue-100 text-blue-800" },
       visita_tecnica: { icon: MapPin, label: "Visita", className: "bg-orange-100 text-orange-800" },
+      acesso_remoto: { icon: Monitor, label: "Remoto", className: "bg-purple-100 text-purple-800" },
     };
     const config = configs[canal as keyof typeof configs] || configs.whatsapp;
     const Icon = config.icon;
@@ -388,6 +392,7 @@ export function DailyServicesReport() {
                   <SelectItem value="whatsapp">WhatsApp</SelectItem>
                   <SelectItem value="ligacao">Ligação</SelectItem>
                   <SelectItem value="visita_tecnica">Visita Técnica</SelectItem>
+                  <SelectItem value="acesso_remoto">Acesso Remoto</SelectItem>
                 </SelectContent>
               </Select>
             </div>

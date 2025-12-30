@@ -14,7 +14,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { UploadedImage } from "@/lib/imageUtils";
 import { toast } from "sonner";
-import { Loader2, MessageCircle, Phone, MapPin, FileDown } from "lucide-react";
+import { Loader2, MessageCircle, Phone, MapPin, FileDown, Monitor } from "lucide-react";
 import { format } from "date-fns";
 import { exportSingleDailyServiceToPDF } from "@/lib/exportSingleDailyService";
 
@@ -22,6 +22,7 @@ const canalEnum = z.union([
   z.literal("whatsapp"),
   z.literal("ligacao"),
   z.literal("visita_tecnica"),
+  z.literal("acesso_remoto"),
 ]);
 
 const statusEnum = z.union([
@@ -157,7 +158,7 @@ export function DailyServiceRecordDialog({
           data_atendimento: data.data_atendimento,
           hora_inicio: data.hora_inicio,
           hora_fim: data.hora_fim || "",
-          canal: data.canal as "whatsapp" | "ligacao" | "visita_tecnica",
+          canal: data.canal as "whatsapp" | "ligacao" | "visita_tecnica" | "acesso_remoto",
           titulo: data.titulo,
           descricao: data.descricao,
           solucao: data.solucao || "",
@@ -424,6 +425,15 @@ export function DailyServiceRecordDialog({
                         <FormLabel className="font-normal flex items-center gap-2">
                           <MapPin className="h-4 w-4 text-orange-600" />
                           Visita Técnica
+                        </FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="acesso_remoto" />
+                        </FormControl>
+                        <FormLabel className="font-normal flex items-center gap-2">
+                          <Monitor className="h-4 w-4 text-purple-600" />
+                          Acesso Remoto (DATTO)
                         </FormLabel>
                       </FormItem>
                     </RadioGroup>

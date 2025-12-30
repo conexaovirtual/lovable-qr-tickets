@@ -86,7 +86,7 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
         .order("hora_inicio", { ascending: false });
 
       if (filterCanal && filterCanal !== "all") {
-        query = query.eq("canal", filterCanal as "whatsapp" | "ligacao" | "visita_tecnica");
+        query = query.eq("canal", filterCanal as "whatsapp" | "ligacao" | "visita_tecnica" | "acesso_remoto");
       }
 
       if (filterStatus && filterStatus !== "all") {
@@ -157,6 +157,7 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
         whatsapp: records.filter(r => r.canal === 'whatsapp').length,
         ligacao: records.filter(r => r.canal === 'ligacao').length,
         visita_tecnica: records.filter(r => r.canal === 'visita_tecnica').length,
+        acesso_remoto: records.filter(r => r.canal === 'acesso_remoto').length,
         concluidos: records.filter(r => r.status === 'concluido').length,
         em_andamento: records.filter(r => r.status === 'em_andamento').length,
         pendentes: records.filter(r => r.status === 'pendente').length,
@@ -218,6 +219,7 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
                 <SelectItem value="whatsapp">WhatsApp</SelectItem>
                 <SelectItem value="ligacao">Ligação</SelectItem>
                 <SelectItem value="visita_tecnica">Visita Técnica</SelectItem>
+                <SelectItem value="acesso_remoto">Acesso Remoto</SelectItem>
               </SelectContent>
             </Select>
 

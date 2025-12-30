@@ -38,7 +38,7 @@ export default function TicketDetail() {
   const [selectedTechnician, setSelectedTechnician] = useState<string>('');
   const [scheduledDate, setScheduledDate] = useState<Date>(new Date());
   const [scheduledTime, setScheduledTime] = useState('09:00');
-  const [channel, setChannel] = useState<'whatsapp' | 'ligacao' | 'visita_tecnica'>('visita_tecnica');
+  const [channel, setChannel] = useState<'whatsapp' | 'ligacao' | 'visita_tecnica' | 'acesso_remoto'>('visita_tecnica');
   const [creatingService, setCreatingService] = useState(false);
 
   useEffect(() => {
@@ -492,6 +492,7 @@ export default function TicketDetail() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="visita_tecnica">Visita Técnica</SelectItem>
+                    <SelectItem value="acesso_remoto">Acesso Remoto (DATTO)</SelectItem>
                     <SelectItem value="whatsapp">WhatsApp</SelectItem>
                     <SelectItem value="ligacao">Ligação</SelectItem>
                   </SelectContent>
