@@ -9,6 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ServiceOrderCreateDialog } from '@/components/service-orders/ServiceOrderCreateDialog';
 import { ServiceOrderDetailDialog } from '@/components/service-orders/ServiceOrderDetailDialog';
 import { NotificationPermissionPrompt } from '@/components/notifications/NotificationPermissionPrompt';
+import { QuickRemoteServiceCard } from '@/components/dashboard/QuickRemoteServiceCard';
+import { RemoteServiceQuickDialog } from '@/components/dashboard/RemoteServiceQuickDialog';
 import { formatDateBR } from '@/lib/formatters';
 import { 
   Clock, 
@@ -18,7 +20,7 @@ import {
   FileText,
   Calendar as CalendarIcon,
   ClipboardList,
-  Ticket,
+  Monitor,
   AlertCircle
 } from 'lucide-react';
 
@@ -32,7 +34,8 @@ export default function Dashboard() {
     os_pendentes: 0,
     os_finalizadas: 0,
     atendimentos_mes: 0,
-    chamados_qrcode: 0
+    chamados_qrcode: 0,
+    atendimentos_remotos_hoje: 0
   });
   const [loading, setLoading] = useState(true);
   const [upcomingServiceOrders, setUpcomingServiceOrders] = useState<any[]>([]);
@@ -40,6 +43,7 @@ export default function Dashboard() {
   const [isCreateOSDialogOpen, setIsCreateOSDialogOpen] = useState(false);
   const [selectedServiceOrder, setSelectedServiceOrder] = useState<any>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isRemoteServiceDialogOpen, setIsRemoteServiceDialogOpen] = useState(false);
 
   useEffect(() => {
     if (import.meta.env.DEV) {
@@ -71,6 +75,7 @@ export default function Dashboard() {
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
     // Executar queries em paralelo
+    const todayStr = today.toISOString().split('T')[0];
     const [
       assetsResult,
       companiesResult,
@@ -79,7 +84,8 @@ export default function Dashboard() {
       osFinalizadasResult,
       upcomingResult,
       atendimentosMesResult,
-      qrcodeTicketsResult
+      qrcodeTicketsResult,
+      remotosHojeResult
     ] = await Promise.all([
       supabase.from('assets').select('id', { count: 'exact', head: true }),
       profile?.roles?.includes('admin_provedor') 
@@ -92,7 +98,8 @@ export default function Dashboard() {
       supabase.from('daily_service_records').select('id, titulo, data_atendimento, status, companies(nome_fantasia)').gte('data_atendimento', firstDayOfMonth.toISOString().split('T')[0]).order('data_atendimento', { ascending: false }).limit(5),
       (profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico'))
         ? supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('public_request', true).eq('status', 'novo')
-        : Promise.resolve({ count: 0 })
+        : Promise.resolve({ count: 0 }),
+      supabase.from('daily_service_records').select('id', { count: 'exact', head: true }).eq('data_atendimento', todayStr).eq('canal', 'acesso_remoto')
     ]);
 
     setStats({
@@ -102,7 +109,8 @@ export default function Dashboard() {
       os_pendentes: osPendentesResult.data?.length || 0,
       os_finalizadas: osFinalizadasResult.data?.length || 0,
       atendimentos_mes: atendimentosMesResult.data?.length || 0,
-      chamados_qrcode: qrcodeTicketsResult.count || 0
+      chamados_qrcode: qrcodeTicketsResult.count || 0,
+      atendimentos_remotos_hoje: remotosHojeResult.count || 0
     });
 
     if (upcomingResult.data) setUpcomingServiceOrders(upcomingResult.data);
@@ -159,6 +167,13 @@ export default function Dashboard() {
         ) : (
           <>
             <NotificationPermissionPrompt />
+
+            {(profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico')) && (
+              <QuickRemoteServiceCard
+                atendimentosHoje={stats.atendimentos_remotos_hoje}
+                onOpenDialog={() => setIsRemoteServiceDialogOpen(true)}
+              />
+            )}
             
             {(profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico')) && stats.chamados_qrcode > 0 && (
               <Card className="mb-6 border-destructive bg-destructive/5">
@@ -351,6 +366,14 @@ export default function Dashboard() {
                   <FileText className="h-4 w-4 mr-2" />
                   Nova Ordem de Serviço
                 </Button>
+                <Button 
+                  onClick={() => setIsRemoteServiceDialogOpen(true)} 
+                  variant="outline" 
+                  className="w-full justify-start border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-300 dark:hover:bg-purple-950/30"
+                >
+                  <Monitor className="h-4 w-4 mr-2" />
+                  Novo Atendimento Remoto
+                </Button>
                 <Button onClick={() => navigate('/daily-services')} variant="outline" className="w-full justify-start">
                   <ClipboardList className="h-4 w-4 mr-2" />
                   Ver Atendimentos
@@ -376,6 +399,12 @@ export default function Dashboard() {
         onOpenChange={setIsDetailDialogOpen}
         serviceOrder={selectedServiceOrder}
         onUpdate={loadDashboardData}
+      />
+
+      <RemoteServiceQuickDialog
+        open={isRemoteServiceDialogOpen}
+        onOpenChange={setIsRemoteServiceDialogOpen}
+        onSuccess={loadDashboardData}
       />
     </div>
   );
