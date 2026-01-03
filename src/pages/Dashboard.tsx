@@ -46,19 +46,22 @@ export default function Dashboard() {
   const [isRemoteServiceDialogOpen, setIsRemoteServiceDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.log('[Dashboard] Auth loading:', authLoading, 'Profile:', profile);
-    }
+    // DEBUG: Log detalhado das roles para diagnóstico
+    console.log('[Dashboard] ===== DEBUG ROLES =====');
+    console.log('[Dashboard] Auth loading:', authLoading);
+    console.log('[Dashboard] Profile:', profile);
+    console.log('[Dashboard] Profile roles:', profile?.roles);
+    console.log('[Dashboard] Is admin_provedor?:', profile?.roles?.includes('admin_provedor'));
+    console.log('[Dashboard] Is tecnico?:', profile?.roles?.includes('tecnico'));
+    console.log('[Dashboard] Should show DATTO card?:', 
+      profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico'));
+    console.log('[Dashboard] ===== END DEBUG =====');
     
     if (!authLoading && !profile) {
-      if (import.meta.env.DEV) {
-        console.log('[Dashboard] No profile found, redirecting to /auth');
-      }
+      console.log('[Dashboard] No profile found, redirecting to /auth');
       navigate('/auth');
     } else if (profile) {
-      if (import.meta.env.DEV) {
-        console.log('[Dashboard] Profile loaded, loading dashboard data');
-      }
+      console.log('[Dashboard] Profile loaded, loading dashboard data');
       loadDashboardData();
     }
   }, [profile, authLoading, navigate]);
