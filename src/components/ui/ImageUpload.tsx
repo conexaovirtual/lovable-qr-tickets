@@ -1,11 +1,55 @@
 import { useState } from "react";
-import { Camera, X, Upload, Loader2 } from "lucide-react";
+import { Camera, X, Upload, Loader2, ImageOff } from "lucide-react";
 import { Button } from "./button";
 import { Card } from "./card";
 import { toast } from "@/hooks/use-toast";
 import { uploadImageToStorage, deleteImageFromStorage, UploadedImage } from "@/lib/imageUtils";
 import { supabase } from "@/integrations/supabase/client";
 import imageCompression from 'browser-image-compression';
+
+// Componente para thumbnail com tratamento de erro
+function ImageThumbnail({ 
+  image, 
+  onRemove, 
+  disabled 
+}: { 
+  image: UploadedImage; 
+  onRemove: () => void; 
+  disabled: boolean;
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <Card className="relative group overflow-hidden">
+      {hasError ? (
+        <div className="w-full h-32 flex flex-col items-center justify-center bg-muted">
+          <ImageOff className="h-8 w-8 text-muted-foreground mb-1" />
+          <span className="text-xs text-muted-foreground">Indisponível</span>
+        </div>
+      ) : (
+        <img
+          src={image.url}
+          alt={image.name}
+          className="w-full h-32 object-cover"
+          onError={() => setHasError(true)}
+        />
+      )}
+      <Button
+        type="button"
+        variant="destructive"
+        size="icon"
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
+        onClick={onRemove}
+        disabled={disabled}
+      >
+        <X className="h-4 w-4" />
+      </Button>
+      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 truncate">
+        {image.name}
+      </div>
+    </Card>
+  );
+}
 
 interface ImageUploadProps {
   bucketName: 'daily-service-photos' | 'service-order-photos';
@@ -147,26 +191,12 @@ export function ImageUpload({
       {/* Grid de thumbnails */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
         {images.map((image, index) => (
-          <Card key={index} className="relative group overflow-hidden">
-            <img
-              src={image.url}
-              alt={image.name}
-              className="w-full h-32 object-cover"
-            />
-            <Button
-              type="button"
-              variant="destructive"
-              size="icon"
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
-              onClick={() => handleRemoveImage(index)}
-              disabled={disabled || uploading}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 truncate">
-              {image.name}
-            </div>
-          </Card>
+          <ImageThumbnail
+            key={index}
+            image={image}
+            onRemove={() => handleRemoveImage(index)}
+            disabled={disabled || uploading}
+          />
         ))}
 
         {/* Botões de adicionar - Câmera e Galeria */}
@@ -188,7 +218,7 @@ export function ImageUpload({
               </Card>
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*"
                 multiple
                 className="hidden"
                 onChange={handleFileSelect}
@@ -213,10 +243,13 @@ export function ImageUpload({
               </Card>
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*"
                 multiple
                 className="hidden"
-                onChange={handleFileSelect}
+                onChange={(e) => {
+                  console.log('[ImageUpload] Galeria input triggered, files:', e.target.files);
+                  handleFileSelect(e);
+                }}
                 disabled={disabled || uploading}
               />
             </label>
