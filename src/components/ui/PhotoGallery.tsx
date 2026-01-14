@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, X, Download } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Download, ImageOff, RefreshCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,10 +23,31 @@ export function PhotoGallery({
   initialIndex = 0
 }: PhotoGalleryProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
+  const [retryCount, setRetryCount] = useState<Record<number, number>>({});
+
+  // Reset errors when dialog opens
+  useEffect(() => {
+    if (open) {
+      setImageErrors({});
+      setRetryCount({});
+    }
+  }, [open]);
 
   if (images.length === 0) return null;
 
   const currentImage = images[currentIndex];
+  const hasError = imageErrors[currentIndex];
+
+  const handleImageError = (index: number) => {
+    console.log('[PhotoGallery] Image failed to load:', images[index]?.url);
+    setImageErrors(prev => ({ ...prev, [index]: true }));
+  };
+
+  const handleRetry = (index: number) => {
+    setRetryCount(prev => ({ ...prev, [index]: (prev[index] || 0) + 1 }));
+    setImageErrors(prev => ({ ...prev, [index]: false }));
+  };
 
   const handlePrevious = () => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
@@ -84,14 +105,34 @@ export function PhotoGallery({
         </DialogHeader>
 
         <div className="relative flex-1 flex items-center justify-center bg-black/5 p-4">
-          {/* Imagem */}
-          <img
-            src={currentImage.url}
-            alt={currentImage.name}
-            loading="lazy"
-            decoding="async"
-            className="max-w-full max-h-[calc(90vh-200px)] object-contain rounded-lg"
-          />
+          {/* Imagem ou placeholder de erro */}
+          {hasError ? (
+            <div className="flex flex-col items-center justify-center text-center p-8">
+              <ImageOff className="h-16 w-16 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-2">Imagem não disponível</p>
+              <p className="text-xs text-muted-foreground mb-4">
+                A imagem pode ter sido removida ou o link está inválido
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleRetry(currentIndex)}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Tentar novamente
+              </Button>
+            </div>
+          ) : (
+            <img
+              key={`${currentImage.url}-${retryCount[currentIndex] || 0}`}
+              src={currentImage.url}
+              alt={currentImage.name}
+              loading="lazy"
+              decoding="async"
+              className="max-w-full max-h-[calc(90vh-200px)] object-contain rounded-lg"
+              onError={() => handleImageError(currentIndex)}
+            />
+          )}
 
           {/* Botões de navegação */}
           {images.length > 1 && (
