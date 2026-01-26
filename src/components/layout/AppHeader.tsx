@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, User, LogOut, LayoutDashboard, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList, FileText, Ticket } from 'lucide-react';
+import { Menu, User, LogOut, LayoutDashboard, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList, FileText, Ticket, BarChart3 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -112,12 +112,20 @@ export function AppHeader() {
                 </Button>
               </Link>
               {profile.roles?.includes('admin_provedor') && (
-                <Link to="/technicians">
-                  <Button variant="ghost" size="sm">
-                    <Wrench className="h-4 w-4 mr-2" />
-                    Técnicos
-                  </Button>
-                </Link>
+                <>
+                  <Link to="/analytics">
+                    <Button variant="ghost" size="sm">
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Analytics
+                    </Button>
+                  </Link>
+                  <Link to="/technicians">
+                    <Button variant="ghost" size="sm">
+                      <Wrench className="h-4 w-4 mr-2" />
+                      Técnicos
+                    </Button>
+                  </Link>
+                </>
               )}
               {profile.roles?.includes('gestor_cliente') && (
                 <Link to="/reports">
@@ -180,10 +188,16 @@ export function AppHeader() {
                   Inventário
                 </DropdownMenuItem>
                 {profile.roles?.includes('admin_provedor') && (
-                  <DropdownMenuItem onClick={() => navigate('/technicians')}>
-                    <Wrench className="h-4 w-4 mr-2" />
-                    Técnicos
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem onClick={() => navigate('/analytics')}>
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Analytics
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/technicians')}>
+                      <Wrench className="h-4 w-4 mr-2" />
+                      Técnicos
+                    </DropdownMenuItem>
+                  </>
                 )}
                 {profile.roles?.includes('gestor_cliente') && (
                   <DropdownMenuItem onClick={() => navigate('/reports')}>
