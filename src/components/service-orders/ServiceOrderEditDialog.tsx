@@ -13,6 +13,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { VoiceInputButton } from "@/components/ui/VoiceInputButton";
 
 interface ServiceOrderEditDialogProps {
   open: boolean;
@@ -422,7 +423,13 @@ export function ServiceOrderEditDialog({
               name="descricao_servicos"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descrição do Serviço</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Descrição do Serviço</FormLabel>
+                    <VoiceInputButton
+                      onFinalResult={(text) => field.onChange(field.value ? `${field.value} ${text}` : text)}
+                      size="sm"
+                    />
+                  </div>
                   <FormControl>
                     <Textarea {...field} rows={4} />
                   </FormControl>
@@ -549,7 +556,13 @@ export function ServiceOrderEditDialog({
               name="observacoes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Observações</FormLabel>
+                    <VoiceInputButton
+                      onFinalResult={(text) => field.onChange(field.value ? `${field.value} ${text}` : text)}
+                      size="sm"
+                    />
+                  </div>
                   <FormControl>
                     <Textarea {...field} rows={3} />
                   </FormControl>

@@ -12,6 +12,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { UploadedImage } from "@/lib/imageUtils";
+import { VoiceInputButton } from "@/components/ui/VoiceInputButton";
 
 interface ServiceOrderExecutionDialogProps {
   open: boolean;
@@ -174,7 +175,13 @@ export function ServiceOrderExecutionDialog({
               name="descricao_servicos"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Serviço Realizado *</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Serviço Realizado *</FormLabel>
+                    <VoiceInputButton
+                      onFinalResult={(text) => field.onChange(field.value ? `${field.value} ${text}` : text)}
+                      size="sm"
+                    />
+                  </div>
                   <FormControl>
                     <Textarea 
                       {...field} 
@@ -250,7 +257,13 @@ export function ServiceOrderExecutionDialog({
               name="observacoes_execucao"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações da Execução</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Observações da Execução</FormLabel>
+                    <VoiceInputButton
+                      onFinalResult={(text) => field.onChange(field.value ? `${field.value} ${text}` : text)}
+                      size="sm"
+                    />
+                  </div>
                   <FormControl>
                     <Textarea {...field} rows={3} placeholder="Descreva o que foi realizado..." />
                   </FormControl>
