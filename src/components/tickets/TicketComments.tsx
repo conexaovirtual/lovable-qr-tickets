@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Send } from 'lucide-react';
 import { commentSchema } from '@/lib/validations';
+import { VoiceInputButton } from '@/components/ui/VoiceInputButton';
 
 interface TicketCommentsProps {
   ticketId: string;
@@ -67,10 +68,21 @@ export function TicketComments({ ticketId }: TicketCommentsProps) {
     setLoading(false);
   };
 
+  // Função para adicionar texto da transcrição de voz
+  const handleVoiceTranscript = (transcript: string) => {
+    setComment(prev => prev ? `${prev} ${transcript}` : transcript);
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Adicionar Comentário</CardTitle>
+        <CardTitle className="text-base flex items-center justify-between">
+          <span>Adicionar Comentário</span>
+          <VoiceInputButton
+            onFinalResult={handleVoiceTranscript}
+            size="sm"
+          />
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-3">

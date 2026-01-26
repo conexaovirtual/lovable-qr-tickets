@@ -10,10 +10,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, AlertCircle, Plus, QrCode } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowLeft, AlertCircle, Plus, QrCode, Sparkles, Check, X, Loader2 } from 'lucide-react';
 import { ticketSchema, type TicketFormData } from '@/lib/validations';
 import { AssetDialog } from '@/components/assets/AssetDialog';
 import { TicketNextStepsDialog } from '@/components/tickets/TicketNextStepsDialog';
+import { VoiceInputButton } from '@/components/ui/VoiceInputButton';
 
 export default function NewTicket() {
   const navigate = useNavigate();
@@ -35,6 +37,18 @@ export default function NewTicket() {
   const [selectedAssetInfo, setSelectedAssetInfo] = useState<any>(null);
   const [tokenValid, setTokenValid] = useState(false);
   const [tokenError, setTokenError] = useState(false);
+  
+  // Estados para entrada por voz
+  const [isCategorizingVoice, setIsCategorizingVoice] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [aiSuggestion, setAiSuggestion] = useState<{
+    titulo: string;
+    categoria: string;
+    subcategoria: string;
+    impacto: 'baixo' | 'medio' | 'alto';
+    urgencia: 'baixa' | 'media' | 'alta';
+    descricao_formatada: string;
+  } | null>(null);
 
   const preSelectedAssetId = searchParams.get('ativo');
   const preSelectedCompanyId = searchParams.get('empresa');
@@ -48,8 +62,8 @@ export default function NewTicket() {
     asset_id: preSelectedAssetId || '',
     company_id: preSelectedCompanyId || '',
     canal: 'web' as 'whatsapp' | 'ligacao' | 'visita_tecnica' | 'email' | 'web',
-    impacto: 'medio' as const,
-    urgencia: 'media' as const,
+    impacto: 'medio' as 'baixo' | 'medio' | 'alto',
+    urgencia: 'media' as 'baixa' | 'media' | 'alta',
     tecnico_id: '',
   });
 
@@ -200,6 +214,111 @@ export default function NewTicket() {
 
     setTokenValid(true);
     setSelectedAssetInfo(asset);
+  };
+
+  // Função para processar transcrição de voz com IA
+  const handleVoiceTranscript = async (transcript: string) => {
+    if (!transcript.trim()) return;
+    
+    setVoiceTranscript(transcript);
+    setIsCategorizingVoice(true);
+    setAiSuggestion(null);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-ticket-categorizer`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ transcription: transcript }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Falha na categorização');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.categorization) {
+        setAiSuggestion(data.categorization);
+        toast({
+          title: '✨ IA analisou o chamado',
+          description: 'Revise as sugestões e confirme ou edite manualmente',
+        });
+      } else {
+        throw new Error(data.error || 'Erro na categorização');
+      }
+    } catch (error) {
+      console.error('Erro ao categorizar:', error);
+      toast({
+        title: 'Erro na categorização',
+        description: 'Não foi possível categorizar. Preencha manualmente.',
+        variant: 'destructive',
+      });
+      // Pelo menos preenche a descrição com o texto falado
+      setFormData(prev => ({
+        ...prev,
+        descricao: transcript,
+      }));
+    } finally {
+      setIsCategorizingVoice(false);
+    }
+  };
+
+  // Função para aceitar sugestão da IA
+  const acceptAiSuggestion = () => {
+    if (!aiSuggestion) return;
+
+    // Encontrar IDs de categoria e subcategoria baseado nos nomes
+    const categoryMatch = categories.find(c => 
+      c.nome.toLowerCase() === aiSuggestion.categoria.toLowerCase()
+    );
+    
+    let subcategoryMatch = null;
+    if (categoryMatch && subcategories.length > 0) {
+      subcategoryMatch = subcategories.find(s => 
+        s.nome.toLowerCase() === aiSuggestion.subcategoria.toLowerCase()
+      );
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      titulo: aiSuggestion.titulo,
+      descricao: aiSuggestion.descricao_formatada,
+      category_id: categoryMatch?.id || prev.category_id,
+      subcategory_id: subcategoryMatch?.id || '',
+      impacto: aiSuggestion.impacto,
+      urgencia: aiSuggestion.urgencia,
+    }));
+
+    // Se encontrou categoria, carregar subcategorias
+    if (categoryMatch) {
+      loadSubcategories(categoryMatch.id);
+    }
+
+    setAiSuggestion(null);
+    setVoiceTranscript('');
+
+    toast({
+      title: 'Sugestão aplicada',
+      description: 'Revise os campos e faça ajustes se necessário',
+    });
+  };
+
+  // Função para rejeitar sugestão da IA
+  const rejectAiSuggestion = () => {
+    // Apenas preenche a descrição com o texto original
+    setFormData(prev => ({
+      ...prev,
+      descricao: voiceTranscript,
+    }));
+    setAiSuggestion(null);
+    setVoiceTranscript('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -402,8 +521,89 @@ export default function NewTicket() {
             </div>
           )}
 
+          {/* Card de Sugestão da IA */}
+          {aiSuggestion && (
+            <Card className="border-primary/50 bg-primary/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  IA Sugeriu
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid gap-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Título:</span>{' '}
+                    <span className="font-medium">{aiSuggestion.titulo}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Categoria:</span>{' '}
+                    <span className="font-medium">{aiSuggestion.categoria} › {aiSuggestion.subcategoria}</span>
+                  </div>
+                  <div className="flex gap-4">
+                    <div>
+                      <span className="text-muted-foreground">Impacto:</span>{' '}
+                      <span className="font-medium capitalize">{aiSuggestion.impacto}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Urgência:</span>{' '}
+                      <span className="font-medium capitalize">{aiSuggestion.urgencia}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={acceptAiSuggestion}
+                    className="flex-1"
+                  >
+                    <Check className="h-4 w-4 mr-1" />
+                    Aceitar Sugestão
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={rejectAiSuggestion}
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Editar Manualmente
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Loading da categorização por voz */}
+          {isCategorizingVoice && (
+            <Card className="border-muted">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <div>
+                    <p className="font-medium">Analisando com IA...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Categorizando o chamado automaticamente
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="space-y-2">
-            <Label htmlFor="titulo">Título *</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="titulo">Título *</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Fale o chamado</span>
+                <VoiceInputButton
+                  onFinalResult={handleVoiceTranscript}
+                  disabled={isCategorizingVoice}
+                  size="sm"
+                />
+              </div>
+            </div>
             <Input
               id="titulo"
               required
