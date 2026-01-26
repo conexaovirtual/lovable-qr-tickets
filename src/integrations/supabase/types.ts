@@ -1129,6 +1129,7 @@ export type Database = {
           observacoes: string | null
           prioridade: Database["public"]["Enums"]["visit_priority"]
           proxima_visita: string
+          service_order_id: string | null
           status: Database["public"]["Enums"]["visit_status"]
           tecnico_responsavel_id: string | null
           ultima_visita: string | null
@@ -1144,6 +1145,7 @@ export type Database = {
           observacoes?: string | null
           prioridade?: Database["public"]["Enums"]["visit_priority"]
           proxima_visita: string
+          service_order_id?: string | null
           status?: Database["public"]["Enums"]["visit_status"]
           tecnico_responsavel_id?: string | null
           ultima_visita?: string | null
@@ -1159,6 +1161,7 @@ export type Database = {
           observacoes?: string | null
           prioridade?: Database["public"]["Enums"]["visit_priority"]
           proxima_visita?: string
+          service_order_id?: string | null
           status?: Database["public"]["Enums"]["visit_status"]
           tecnico_responsavel_id?: string | null
           ultima_visita?: string | null
@@ -1199,6 +1202,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_statistics"
             referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "visit_schedules_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "visit_schedules_tecnico_responsavel_id_fkey"

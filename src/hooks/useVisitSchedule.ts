@@ -103,11 +103,86 @@ export function useVisitSchedule() {
     }
   };
 
-  const saveVisitPlan = async (visits: VisitPlan[]) => {
+  const mapPrioridade = (visitPriority: string): string => {
+    switch (visitPriority) {
+      case 'alta': return 'urgente';
+      case 'media': return 'media';
+      case 'baixa': return 'baixa';
+      default: return 'media';
+    }
+  };
+
+  const getNextOsNumber = async (): Promise<number> => {
+    const { data } = await supabase
+      .from('service_orders')
+      .select('numero_os')
+      .order('numero_os', { ascending: false })
+      .limit(1);
+    
+    return (data?.[0]?.numero_os || 0) + 1;
+  };
+
+  const createServiceOrdersForVisits = async (visits: VisitPlan[]): Promise<{ visitCompanyId: string; osId: string }[]> => {
+    const serviceOrders: { visitCompanyId: string; osId: string }[] = [];
+    
+    for (const visit of visits) {
+      // Buscar endereco da empresa
+      const { data: company } = await supabase
+        .from('companies')
+        .select('endereco, telefone')
+        .eq('id', visit.company_id)
+        .single();
+
+      const nextNumber = await getNextOsNumber();
+
+      // Criar OS
+      const { data: os, error } = await supabase
+        .from('service_orders')
+        .insert({
+          company_id: visit.company_id,
+          tipo_servico: 'preventivo',
+          prioridade: mapPrioridade(visit.prioridade),
+          descricao_servicos: `Visita preventiva - ${visit.company_name}`,
+          data_agendada: `${visit.proxima_visita}T09:00:00`,
+          hora_agendada: '09:00',
+          status: 'agendada',
+          numero_os: nextNumber,
+          endereco_atendimento: company?.endereco || null,
+          telefone_contato: company?.telefone || null,
+          observacoes: `Visita gerada pelo Planejador de Visitas IA.\n\nJustificativa: ${visit.justificativa_ia}`,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating service order:', error);
+        continue;
+      }
+
+      if (os) {
+        serviceOrders.push({ visitCompanyId: visit.company_id, osId: os.id });
+      }
+    }
+    
+    return serviceOrders;
+  };
+
+  const saveVisitPlan = async (visits: VisitPlan[], options?: { createServiceOrders?: boolean }): Promise<{ success: boolean; osCount?: number }> => {
     setLoading(true);
+    const createServiceOrders = options?.createServiceOrders ?? false;
 
     try {
-      // Use raw query since types haven't been regenerated yet
+      let createdOrders: { visitCompanyId: string; osId: string }[] = [];
+
+      // Criar OSs se solicitado
+      if (createServiceOrders) {
+        createdOrders = await createServiceOrdersForVisits(visits);
+      }
+
+      // Criar mapa de company_id -> service_order_id
+      const osMap = new Map(createdOrders.map(o => [o.visitCompanyId, o.osId]));
+
+      // Inserir visit_schedules com referência às OSs criadas
       const { error } = await supabase.from('visit_schedules' as any).insert(
         visits.map(v => ({
           company_id: v.company_id,
@@ -117,20 +192,25 @@ export function useVisitSchedule() {
           prioridade: v.prioridade,
           status: 'pendente',
           ai_justificativa: v.justificativa_ia,
+          service_order_id: osMap.get(v.company_id) || null,
         }))
       );
 
       if (error) throw error;
 
+      const osCountMsg = createServiceOrders && createdOrders.length > 0 
+        ? ` e ${createdOrders.length} ordens de serviço criadas`
+        : '';
+
       toast({
         title: 'Plano salvo com sucesso!',
-        description: `${visits.length} visitas agendadas`,
+        description: `${visits.length} visitas agendadas${osCountMsg}`,
       });
 
       setGeneratedPlan(null);
       setPlanSummary(null);
 
-      return true;
+      return { success: true, osCount: createdOrders.length };
     } catch (error) {
       console.error('Error saving visit plan:', error);
       toast({
@@ -138,7 +218,7 @@ export function useVisitSchedule() {
         description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: 'destructive',
       });
-      return false;
+      return { success: false };
     } finally {
       setLoading(false);
     }
