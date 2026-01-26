@@ -120,7 +120,7 @@ export function VisitPlannerCard({ neglectedCompanies }: VisitPlannerCardProps) 
               </Button>
 
               <p className="text-xs text-center text-muted-foreground">
-                A IA analisará o histórico e sugerirá datas e frequências ideais
+                A IA analisará apenas <strong>clientes de contrato</strong> e sugerirá datas e frequências ideais para visitas preventivas obrigatórias
               </p>
             </div>
           )}

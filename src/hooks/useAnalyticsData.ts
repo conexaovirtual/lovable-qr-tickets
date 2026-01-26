@@ -11,6 +11,7 @@ export interface CompanyHealth {
   dias_sem_visita: number;
   tendencia: 'aumentando' | 'diminuindo' | 'estavel';
   health_score: number; // 0-100
+  tipo_contrato: 'eventual' | 'contrato_manutencao';
 }
 
 export interface AnalyticsStats {
@@ -70,7 +71,7 @@ export function useAnalyticsData() {
         categoriesResult
       ] = await Promise.all([
         supabase.from('tickets').select('*'),
-        supabase.from('companies').select('id, nome_fantasia, status'),
+        supabase.from('companies').select('id, nome_fantasia, status, tipo_contrato'),
         supabase.from('daily_service_records').select('company_id, data_atendimento, canal'),
         supabase.from('categories').select('id, nome')
       ]);
@@ -175,12 +176,17 @@ export function useAnalyticsData() {
           ultimo_atendimento: ultimoAtendimento,
           dias_sem_visita: diasSemVisita,
           tendencia,
-          health_score: healthScore
+          health_score: healthScore,
+          tipo_contrato: (company as any).tipo_contrato || 'eventual'
         });
       }
 
       const companyHealthArray = Array.from(companyMap.values());
-      const neglected = companyHealthArray.filter(c => c.dias_sem_visita >= NEGLIGENCE_DAYS_THRESHOLD);
+      // Apenas empresas COM CONTRATO que precisam de visita preventiva
+      const neglected = companyHealthArray.filter(c => 
+        c.tipo_contrato === 'contrato_manutencao' && 
+        c.dias_sem_visita >= NEGLIGENCE_DAYS_THRESHOLD
+      );
 
       // Calculate trend data (last 6 months)
       const months: TrendData[] = [];

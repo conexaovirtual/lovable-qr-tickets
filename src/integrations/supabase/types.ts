@@ -248,6 +248,7 @@ export type Database = {
           sla_solucao_horas: number | null
           status: boolean | null
           telefone: string | null
+          tipo_contrato: Database["public"]["Enums"]["company_contract_type"]
           updated_at: string | null
         }
         Insert: {
@@ -263,6 +264,7 @@ export type Database = {
           sla_solucao_horas?: number | null
           status?: boolean | null
           telefone?: string | null
+          tipo_contrato?: Database["public"]["Enums"]["company_contract_type"]
           updated_at?: string | null
         }
         Update: {
@@ -278,6 +280,7 @@ export type Database = {
           sla_solucao_horas?: number | null
           status?: boolean | null
           telefone?: string | null
+          tipo_contrato?: Database["public"]["Enums"]["company_contract_type"]
           updated_at?: string | null
         }
         Relationships: []
@@ -1513,6 +1516,7 @@ export type Database = {
         | "visita_tecnica"
         | "email"
         | "web"
+      company_contract_type: "eventual" | "contrato_manutencao"
       impact_level: "alto" | "medio" | "baixo"
       phone_visibility: "everyone" | "managers_only" | "private"
       priority_level: "critica" | "alta" | "media" | "baixa"
@@ -1687,6 +1691,7 @@ export const Constants = {
         "email",
         "web",
       ],
+      company_contract_type: ["eventual", "contrato_manutencao"],
       impact_level: ["alto", "medio", "baixo"],
       phone_visibility: ["everyone", "managers_only", "private"],
       priority_level: ["critica", "alta", "media", "baixa"],
