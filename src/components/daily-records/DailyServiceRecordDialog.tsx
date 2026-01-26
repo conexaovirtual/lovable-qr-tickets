@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ImageUpload } from "@/components/ui/ImageUpload";
+import { VoiceInputButton } from "@/components/ui/VoiceInputButton";
 import { UploadedImage } from "@/lib/imageUtils";
 import { toast } from "sonner";
 import { Loader2, MessageCircle, Phone, MapPin, FileDown, Monitor } from "lucide-react";
@@ -448,7 +449,16 @@ export function DailyServiceRecordDialog({
               name="titulo"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Título *</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Título *</FormLabel>
+                    <VoiceInputButton
+                      onFinalResult={(transcript) => {
+                        const currentValue = form.getValues("titulo") || "";
+                        form.setValue("titulo", currentValue ? `${currentValue} ${transcript}` : transcript);
+                      }}
+                      size="sm"
+                    />
+                  </div>
                   <FormControl>
                     <Input placeholder="Ex: Suporte instalação impressora" {...field} />
                   </FormControl>
@@ -462,7 +472,16 @@ export function DailyServiceRecordDialog({
               name="descricao"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descrição do Atendimento *</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Descrição do Atendimento *</FormLabel>
+                    <VoiceInputButton
+                      onFinalResult={(transcript) => {
+                        const currentValue = form.getValues("descricao") || "";
+                        form.setValue("descricao", currentValue ? `${currentValue} ${transcript}` : transcript);
+                      }}
+                      size="sm"
+                    />
+                  </div>
                   <FormControl>
                     <Textarea
                       placeholder="Descreva o atendimento realizado..."
@@ -483,7 +502,16 @@ export function DailyServiceRecordDialog({
               name="solucao"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Solução Aplicada</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Solução Aplicada</FormLabel>
+                    <VoiceInputButton
+                      onFinalResult={(transcript) => {
+                        const currentValue = form.getValues("solucao") || "";
+                        form.setValue("solucao", currentValue ? `${currentValue} ${transcript}` : transcript);
+                      }}
+                      size="sm"
+                    />
+                  </div>
                   <FormControl>
                     <Textarea
                       placeholder="Descreva a solução aplicada..."
@@ -510,7 +538,16 @@ export function DailyServiceRecordDialog({
               name="observacoes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações Adicionais</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Observações Adicionais</FormLabel>
+                    <VoiceInputButton
+                      onFinalResult={(transcript) => {
+                        const currentValue = form.getValues("observacoes") || "";
+                        form.setValue("observacoes", currentValue ? `${currentValue} ${transcript}` : transcript);
+                      }}
+                      size="sm"
+                    />
+                  </div>
                   <FormControl>
                     <Textarea
                       placeholder="Observações, anotações ou informações adicionais..."
