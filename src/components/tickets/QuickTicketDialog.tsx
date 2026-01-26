@@ -10,8 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Plus } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertCircle, Plus, Sparkles, Check, X, Loader2 } from 'lucide-react';
 import { AssetDialog } from '@/components/assets/AssetDialog';
+import { VoiceInputButton } from '@/components/ui/VoiceInputButton';
 
 interface QuickTicketDialogProps {
   open: boolean;
@@ -27,6 +29,11 @@ export function QuickTicketDialog({ open, onOpenChange, onSuccess }: QuickTicket
   const [companies, setCompanies] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [showAssetDialog, setShowAssetDialog] = useState(false);
+  const [isCategorizingVoice, setIsCategorizingVoice] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<{
+    titulo: string;
+    descricao_formatada: string;
+  } | null>(null);
   const [formData, setFormData] = useState({
     company_id: '',
     asset_id: '',
@@ -70,9 +77,59 @@ export function QuickTicketDialog({ open, onOpenChange, onSuccess }: QuickTicket
     loadAssets(companyId);
   };
 
+  // Função para processar transcrição de voz
+  const handleVoiceTranscript = async (transcript: string) => {
+    if (!transcript.trim()) return;
+    
+    setIsCategorizingVoice(true);
+    setAiSuggestion(null);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-ticket-categorizer`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ transcription: transcript }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Falha na categorização');
+
+      const data = await response.json();
+      
+      if (data.success && data.categorization) {
+        setAiSuggestion({
+          titulo: data.categorization.titulo,
+          descricao_formatada: data.categorization.descricao_formatada,
+        });
+      } else {
+        setFormData(prev => ({ ...prev, descricao: transcript }));
+      }
+    } catch (error) {
+      console.error('Erro ao categorizar:', error);
+      setFormData(prev => ({ ...prev, descricao: transcript }));
+    } finally {
+      setIsCategorizingVoice(false);
+    }
+  };
+
+  // Aceitar sugestão da IA
+  const acceptAiSuggestion = () => {
+    if (!aiSuggestion) return;
+    setFormData(prev => ({
+      ...prev,
+      titulo: aiSuggestion.titulo,
+      descricao: aiSuggestion.descricao_formatada,
+    }));
+    setAiSuggestion(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
 
     try {
       const { data: ticketData, error } = await supabase
@@ -226,8 +283,51 @@ export function QuickTicketDialog({ open, onOpenChange, onSuccess }: QuickTicket
             )}
           </div>
 
+          {/* Card de Sugestão da IA */}
+          {aiSuggestion && (
+            <Card className="border-primary/50 bg-primary/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  IA Sugeriu
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Título:</span>{' '}
+                  <span className="font-medium">{aiSuggestion.titulo}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" onClick={acceptAiSuggestion}>
+                    <Check className="h-4 w-4 mr-1" />
+                    Aceitar
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setAiSuggestion(null)}>
+                    <X className="h-4 w-4 mr-1" />
+                    Ignorar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Loading da categorização por voz */}
+          {isCategorizingVoice && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Analisando com IA...
+            </div>
+          )}
+
           <div className="space-y-2">
-            <Label htmlFor="titulo">Título *</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="titulo">Título *</Label>
+              <VoiceInputButton
+                onFinalResult={handleVoiceTranscript}
+                disabled={isCategorizingVoice}
+                size="sm"
+              />
+            </div>
             <Input
               required
               value={formData.titulo}
