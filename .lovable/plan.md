@@ -1,245 +1,335 @@
 
-
-# Plano: Tipagem de Clientes - Contrato vs Eventual
+# Plano: Abertura de Chamado e Anotacoes por Comando de Voz com Tipificacao IA
 
 ## Resumo
 
-Adicionar um campo de **tipo de contrato** na tabela de empresas para diferenciar entre:
-
-1. **Cliente Eventual** - Atendido apenas sob demanda (quando abre chamado)
-2. **Cliente de Contrato** - Obrigatoriedade de visitas preventivas mensais
-
-Apenas os **clientes de contrato** aparecerao no planejador de visitas da IA.
+Implementar funcionalidade de **comando de voz** para:
+1. **Abrir chamados** falando - a IA transcreve e categoriza automaticamente
+2. **Adicionar anotacoes/comentarios** em chamados existentes por voz
+3. Funciona em **celular** (campo) e **computador** (escritorio)
 
 ---
 
-## Alteracoes no Banco de Dados
-
-### Nova Coluna: `tipo_contrato`
-
-Adicionar na tabela `companies`:
-
-| Campo | Tipo | Default | Descricao |
-|-------|------|---------|-----------|
-| tipo_contrato | ENUM | 'eventual' | Tipo de contrato do cliente |
-
-Valores do ENUM:
-- `eventual` - Cliente eventual (sem obrigacao de visitas)
-- `contrato_manutencao` - Cliente com contrato de manutencao mensal
-
----
-
-## Alteracoes na Interface
-
-### 1. Formulario de Empresa (`CompanyDialog.tsx`)
-
-Adicionar um novo campo de selecao com duas opcoes:
+## Arquitetura da Solucao
 
 ```text
-+----------------------------------+
-| Tipo de Contrato                 |
-| [x] Cliente Eventual             |
-|     Atendido apenas sob demanda  |
-|                                  |
-| [ ] Contrato de Manutencao       |
-|     Visitas preventivas mensais  |
-+----------------------------------+
-```
-
-Posicionar logo apos o campo "Status" ou na mesma linha.
-
-### 2. Card de Empresa (`CompanyCard.tsx`)
-
-Exibir um badge indicando o tipo de contrato:
-
-```text
-+---------------------------+
-|  🏢 CENTER MALHAS        |
-|  [Eventual]  [Ativo]     |   <- Badge de tipo + status
-|  ...                      |
-+---------------------------+
-
-ou
-
-+---------------------------+
-|  🏢 TECHTRONIC           |
-|  [Contrato] [Ativo]      |   <- Badge azul/primario para contrato
-|  ...                      |
-+---------------------------+
-```
-
-### 3. Lista de Empresas (`CompanyList.tsx`)
-
-Opcao de filtro por tipo de contrato:
-
-```text
-Filtrar: [Todos ▼] [Eventual] [Contrato]
++-------------------+     +------------------------+     +------------------+
+| Botao Microfone   |---->| Web Speech API         |---->| Texto Transcrito |
+| (UI Component)    |     | (Navegador)            |     |                  |
++-------------------+     +------------------------+     +------------------+
+                                                                 |
+                                                                 v
+                                                    +------------------------+
+                                                    | Edge Function          |
+                                                    | ai-ticket-categorizer  |
+                                                    +------------------------+
+                                                                 |
+                                                                 v
+                                                    +------------------+
+                                                    | Lovable AI       |
+                                                    | (Gemini Flash)   |
+                                                    +------------------+
+                                                                 |
+                                                                 v
+                                                    +------------------+
+                                                    | Categoria + Sub  |
+                                                    | Impacto + Urgencia|
+                                                    | Titulo Sugerido  |
+                                                    +------------------+
 ```
 
 ---
 
-## Alteracoes no Hook de Analytics
+## Componentes a Implementar
 
-### `useAnalyticsData.ts`
+### 1. Hook: `useVoiceInput`
 
-Modificar a query de empresas para incluir o campo `tipo_contrato`:
+Hook reutilizavel para captura de voz usando a **Web Speech API** nativa do navegador:
 
-```typescript
-const { data: companies } = await supabase
-  .from('companies')
-  .select('id, nome_fantasia, status, tipo_contrato')
-```
+- Funciona em Chrome, Edge, Safari (desktop e mobile)
+- Transcricao em tempo real (streaming)
+- Suporte a portugues brasileiro (pt-BR)
+- Feedback visual enquanto escuta
+- Estados: idle, listening, processing, error
 
-Adicionar ao tipo `CompanyHealth`:
+### 2. Componente: `VoiceInputButton`
 
-```typescript
-export interface CompanyHealth {
-  // ... campos existentes
-  tipo_contrato: 'eventual' | 'contrato_manutencao';
-}
-```
+Botao de microfone reutilizavel:
 
-Modificar a lista de empresas negligenciadas para filtrar APENAS clientes de contrato:
+- Icone de microfone que muda para indicar gravacao
+- Animacao pulsante enquanto escuta
+- Feedback de transcricao em tempo real
+- Compativel com mobile (toque longo para gravar)
 
-```typescript
-// Apenas empresas COM CONTRATO que precisam de visita
-const neglected = companyHealthArray.filter(c => 
-  c.tipo_contrato === 'contrato_manutencao' && 
-  c.dias_sem_visita >= NEGLIGENCE_DAYS_THRESHOLD
-);
-```
+### 3. Edge Function: `ai-ticket-categorizer`
+
+Analisa o texto falado e extrai:
+
+- **Titulo** sugerido (resumo curto)
+- **Categoria** mais adequada (Hardware, Software, Rede, Acesso)
+- **Subcategoria** especifica
+- **Impacto** (baixo, medio, alto)
+- **Urgencia** (baixa, media, alta)
+- **Descricao** formatada/melhorada
+
+**Categorias disponiveis no sistema:**
+- Acesso (Email, VPN)
+- Hardware (Desktop, Notebook, Impressora, Monitor)
+- Rede (Cabeada, Wi-Fi)
+- Software (Antivirus, Office, Sistema Operacional)
 
 ---
 
-## Alteracoes no Planejador de Visitas
-
-### `VisitPlannerCard.tsx`
-
-O card automaticamente mostrara apenas empresas de contrato pois o filtro sera aplicado no hook `useAnalyticsData`.
-
-Atualizar o texto informativo:
+## Fluxo de Uso - Abertura de Chamado
 
 ```text
-"A IA analisará apenas os clientes de contrato e sugerirá 
-datas e frequências ideais para visitas preventivas."
-```
-
-### Edge Function `ai-visit-planner`
-
-Atualizar o prompt da IA para enfatizar que sao clientes de contrato:
-
-```text
-"Estas são empresas com CONTRATO DE MANUTENÇÃO que exigem 
-visitas preventivas mensais obrigatórias..."
-```
-
----
-
-## Alteracoes no Schema de Validacao
-
-### `validations.ts`
-
-Adicionar o campo ao schema de empresa:
-
-```typescript
-export const companySchema = z.object({
-  // ... campos existentes
-  tipo_contrato: z.enum(['eventual', 'contrato_manutencao'])
-    .default('eventual'),
-});
-```
-
----
-
-## Resumo de Arquivos
-
-### Novos
-- Migracao SQL para adicionar `tipo_contrato`
-
-### Modificados
-1. `src/lib/validations.ts` - Adicionar campo no schema
-2. `src/components/companies/CompanyDialog.tsx` - Campo de selecao
-3. `src/components/companies/CompanyCard.tsx` - Badge de tipo
-4. `src/components/companies/CompanyList.tsx` - Filtro opcional
-5. `src/hooks/useAnalyticsData.ts` - Filtrar por tipo contrato
-6. `src/components/analytics/VisitPlannerCard.tsx` - Texto atualizado
-7. `supabase/functions/ai-visit-planner/index.ts` - Prompt atualizado
-
----
-
-## Fluxo de Uso
-
-```text
-1. Admin cadastra empresa
+1. Tecnico acessa /tickets/new
           |
           v
-2. Seleciona tipo: Eventual ou Contrato
+2. Clica no botao de microfone ao lado do campo "Titulo"
           |
           v
-3. Empresa aparece na lista com badge indicativo
+3. Fala: "Computador da Maria do financeiro nao liga,
+          tela preta, ja verifiquei a tomada e esta ok"
           |
           v
-4. Na pagina Analytics:
-   - Empresas EVENTUAIS: NAO aparecem como negligenciadas
-   - Empresas de CONTRATO: Aparecem se >30 dias sem visita
+4. Sistema transcreve em tempo real
           |
           v
-5. Ao clicar "Gerar Mapa de Visitas":
-   - IA analisa APENAS empresas de contrato
-   - Gera plano de visitas preventivas
+5. Ao finalizar, envia para IA analisar
+          |
+          v
+6. IA retorna:
+   - Titulo: "Desktop nao liga - tela preta"
+   - Categoria: Hardware > Desktop
+   - Impacto: Alto
+   - Urgencia: Alta
+   - Descricao: "Computador da Maria (Financeiro) nao liga.
+                 Sintoma: tela preta. Verificacoes: tomada OK."
+          |
+          v
+7. Formulario e preenchido automaticamente
+          |
+          v
+8. Tecnico revisa e confirma/ajusta
 ```
 
 ---
 
-## Beneficios
+## Fluxo de Uso - Anotacoes no Cliente
 
-1. **Foco no que importa**: Somente clientes de contrato geram alertas
-2. **Reducao de ruido**: Clientes eventuais nao poluem o planejador
-3. **Clareza visual**: Badge mostra rapidamente o tipo de cliente
-4. **Obrigatoriedade**: Sistema cobra visitas apenas onde e obrigatorio
-5. **Flexibilidade**: Facil mudar cliente de eventual para contrato
+```text
+1. Tecnico chega no cliente
+          |
+          v
+2. Acessa detalhes do chamado no celular
+          |
+          v
+3. Na area de comentarios, clica no microfone
+          |
+          v
+4. Fala: "Chegando no cliente, vou verificar o cabo
+          de forca e testar a fonte"
+          |
+          v
+5. Comentario e adicionado automaticamente
+          |
+          v
+6. Depois: "Problema resolvido, era a fonte queimada,
+            substitui por uma nova 500W"
+          |
+          v
+7. Comentario com solucao e registrado
+```
 
 ---
 
 ## Detalhes Tecnicos
 
-### Migracao SQL
+### Web Speech API
 
-```sql
--- Criar enum para tipo de contrato
-CREATE TYPE company_contract_type AS ENUM ('eventual', 'contrato_manutencao');
-
--- Adicionar coluna na tabela companies
-ALTER TABLE companies 
-ADD COLUMN tipo_contrato company_contract_type 
-DEFAULT 'eventual' NOT NULL;
-
--- Comentario explicativo
-COMMENT ON COLUMN companies.tipo_contrato IS 
-  'Tipo de contrato: eventual (sob demanda) ou contrato_manutencao (visitas mensais)';
-```
-
-### Interface do Formulario
-
-O campo sera implementado como RadioGroup ou Select com labels claros:
-
-- **Cliente Eventual**: "Atendemos apenas quando solicitado"
-- **Contrato de Manutencao**: "Visitas preventivas obrigatorias"
-
-### Logica de Filtragem
-
-No `useAnalyticsData.ts`, a linha que filtra empresas negligenciadas mudara de:
+A API nativa do navegador sera usada para transcricao:
 
 ```typescript
-// ANTES
-const neglected = companyHealthArray.filter(c => c.dias_sem_visita >= 30);
+const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+recognition.lang = 'pt-BR';
+recognition.continuous = true;
+recognition.interimResults = true;
 
-// DEPOIS
-const neglected = companyHealthArray.filter(c => 
-  c.tipo_contrato === 'contrato_manutencao' && 
-  c.dias_sem_visita >= 30
-);
+recognition.onresult = (event) => {
+  const transcript = event.results[0][0].transcript;
+  // Exibir em tempo real
+};
 ```
 
-Isso garante que apenas clientes de contrato aparecam no alerta e no planejador de visitas.
+**Compatibilidade:**
+- Chrome (desktop/Android): Suportado
+- Edge: Suportado
+- Safari (iOS): Suportado
+- Firefox: Limitado (pode requerer fallback)
 
+### Edge Function: `ai-ticket-categorizer`
+
+Usara Lovable AI (Gemini Flash) com tool calling para saida estruturada:
+
+```typescript
+const tools = [{
+  type: "function",
+  function: {
+    name: "categorize_ticket",
+    parameters: {
+      type: "object",
+      properties: {
+        titulo: { type: "string" },
+        categoria: { 
+          type: "string", 
+          enum: ["Acesso", "Hardware", "Rede", "Software"] 
+        },
+        subcategoria: { type: "string" },
+        impacto: { 
+          type: "string", 
+          enum: ["baixo", "medio", "alto"] 
+        },
+        urgencia: { 
+          type: "string", 
+          enum: ["baixa", "media", "alta"] 
+        },
+        descricao_formatada: { type: "string" }
+      }
+    }
+  }
+}];
+```
+
+---
+
+## Arquivos a Criar
+
+### Novos Arquivos
+
+1. **`src/hooks/useVoiceInput.ts`**
+   - Hook para gerenciar Web Speech API
+   - Estados: idle, listening, processing
+   - Callbacks: onTranscript, onFinalResult, onError
+
+2. **`src/components/ui/VoiceInputButton.tsx`**
+   - Botao reutilizavel com icone de microfone
+   - Animacao pulsante durante gravacao
+   - Feedback visual de transcricao
+
+3. **`supabase/functions/ai-ticket-categorizer/index.ts`**
+   - Edge function que chama Lovable AI
+   - Analisa texto e retorna categorizacao
+   - Usa tool calling para saida estruturada
+
+### Arquivos a Modificar
+
+1. **`src/pages/NewTicket.tsx`**
+   - Adicionar botao de voz ao lado do campo Titulo
+   - Integrar com categorizacao automatica
+   - Mostrar loading durante analise da IA
+
+2. **`src/components/tickets/TicketComments.tsx`**
+   - Adicionar botao de voz ao lado do Textarea
+   - Permitir adicionar comentarios por voz
+
+3. **`src/components/tickets/QuickTicketDialog.tsx`**
+   - Adicionar entrada por voz no dialog rapido
+
+4. **`supabase/config.toml`**
+   - Adicionar configuracao da nova edge function
+
+---
+
+## Interface do Usuario
+
+### Botao de Microfone
+
+```text
++------------------------------------------+
+| Titulo *                      [🎤]       |
++------------------------------------------+
+| [________________Campo de texto________] |
++------------------------------------------+
+
+Estado Normal:     🎤 (cinza)
+Estado Gravando:   🔴 (vermelho pulsante)
+Estado Processando: ⏳ (spinner)
+```
+
+### Feedback de Transcricao
+
+```text
++------------------------------------------+
+| 🔴 Ouvindo...                            |
+| "Computador da Maria do financeiro..."   |
++------------------------------------------+
+```
+
+### Resultado da IA
+
+```text
++------------------------------------------+
+| ✨ IA Sugeriu:                           |
+|                                          |
+| Titulo: Desktop nao liga - tela preta    |
+| Categoria: Hardware > Desktop            |
+| Impacto: Alto | Urgencia: Alta          |
+|                                          |
+| [Aceitar Sugestao] [Editar Manualmente]  |
++------------------------------------------+
+```
+
+---
+
+## Experiencia Mobile
+
+Para uso no campo com celular:
+
+1. **Touch amigavel**: Botao grande de microfone
+2. **Feedback haptico**: Vibracao ao iniciar/parar
+3. **Tela sempre ligada**: Durante gravacao
+4. **Modo offline**: Transcricao local (quando disponivel)
+
+---
+
+## Ordem de Implementacao
+
+### Etapa 1: Infraestrutura
+1. Criar hook `useVoiceInput`
+2. Criar componente `VoiceInputButton`
+3. Testar transcricao basica
+
+### Etapa 2: Categorizacao por IA
+4. Criar edge function `ai-ticket-categorizer`
+5. Integrar com Lovable AI (Gemini Flash)
+6. Testar categorizacao
+
+### Etapa 3: Integracao - Abertura de Chamado
+7. Adicionar voz em `NewTicket.tsx`
+8. Preenchimento automatico do formulario
+9. UI de confirmacao das sugestoes
+
+### Etapa 4: Integracao - Comentarios
+10. Adicionar voz em `TicketComments.tsx`
+11. Adicionar voz em `QuickTicketDialog.tsx`
+
+---
+
+## Beneficios Esperados
+
+1. **Agilidade**: Abrir chamado em segundos falando
+2. **Precisao**: IA categoriza corretamente
+3. **Mobilidade**: Funciona no celular em campo
+4. **Documentacao**: Anotacoes mais detalhadas por voz
+5. **Hands-free**: Util quando maos ocupadas
+6. **Padronizacao**: IA formata descricoes consistentes
+
+---
+
+## Consideracoes de Seguranca
+
+- Transcricao ocorre no navegador (Web Speech API)
+- Texto enviado para IA apenas para categorizacao
+- Nenhum audio e armazenado
+- Requer permissao do microfone (usuario autoriza)
