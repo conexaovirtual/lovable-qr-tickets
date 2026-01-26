@@ -1,274 +1,245 @@
 
 
-# Plano: IA para Mapa de Visitas e Cobranca Automatica
+# Plano: Tipagem de Clientes - Contrato vs Eventual
 
-## Objetivo
+## Resumo
 
-Criar uma IA que analise seus clientes e gere automaticamente um **mapa de visitas preventivas**, considerando:
-- Empresas negligenciadas (sem visita ha muito tempo)
-- Historico de chamados e atendimentos
-- Frequencia ideal de visitas por empresa
-- Cobranca automatica via notificacoes push
+Adicionar um campo de **tipo de contrato** na tabela de empresas para diferenciar entre:
+
+1. **Cliente Eventual** - Atendido apenas sob demanda (quando abre chamado)
+2. **Cliente de Contrato** - Obrigatoriedade de visitas preventivas mensais
+
+Apenas os **clientes de contrato** aparecerao no planejador de visitas da IA.
 
 ---
 
-## Arquitetura da Solucao
+## Alteracoes no Banco de Dados
+
+### Nova Coluna: `tipo_contrato`
+
+Adicionar na tabela `companies`:
+
+| Campo | Tipo | Default | Descricao |
+|-------|------|---------|-----------|
+| tipo_contrato | ENUM | 'eventual' | Tipo de contrato do cliente |
+
+Valores do ENUM:
+- `eventual` - Cliente eventual (sem obrigacao de visitas)
+- `contrato_manutencao` - Cliente com contrato de manutencao mensal
+
+---
+
+## Alteracoes na Interface
+
+### 1. Formulario de Empresa (`CompanyDialog.tsx`)
+
+Adicionar um novo campo de selecao com duas opcoes:
 
 ```text
-+------------------+     +-------------------------+     +------------------+
-|  Pagina Analytics|---->|  Edge Function          |---->|  Lovable AI      |
-|  (Botao Gerar)   |     |  ai-visit-planner       |     |  (Gemini Flash)  |
-+------------------+     +-------------------------+     +------------------+
-                                    |
-                                    v
-                         +------------------+
-                         |  Mapa de Visitas |
-                         |  + Alertas CRON  |
-                         +------------------+
++----------------------------------+
+| Tipo de Contrato                 |
+| [x] Cliente Eventual             |
+|     Atendido apenas sob demanda  |
+|                                  |
+| [ ] Contrato de Manutencao       |
+|     Visitas preventivas mensais  |
++----------------------------------+
+```
+
+Posicionar logo apos o campo "Status" ou na mesma linha.
+
+### 2. Card de Empresa (`CompanyCard.tsx`)
+
+Exibir um badge indicando o tipo de contrato:
+
+```text
++---------------------------+
+|  🏢 CENTER MALHAS        |
+|  [Eventual]  [Ativo]     |   <- Badge de tipo + status
+|  ...                      |
++---------------------------+
+
+ou
+
++---------------------------+
+|  🏢 TECHTRONIC           |
+|  [Contrato] [Ativo]      |   <- Badge azul/primario para contrato
+|  ...                      |
++---------------------------+
+```
+
+### 3. Lista de Empresas (`CompanyList.tsx`)
+
+Opcao de filtro por tipo de contrato:
+
+```text
+Filtrar: [Todos ▼] [Eventual] [Contrato]
 ```
 
 ---
 
-## Componentes a Implementar
+## Alteracoes no Hook de Analytics
 
-### 1. Nova Tabela: `visit_schedules` (Agendamentos de Visita)
+### `useAnalyticsData.ts`
 
-Campos:
-- `id` - UUID
-- `company_id` - Empresa
-- `frequencia` - semanal/quinzenal/mensal/trimestral
-- `proxima_visita` - Data da proxima visita sugerida
-- `ultima_visita` - Data da ultima visita realizada
-- `motivo` - Preventiva/Corretiva/Acompanhamento
-- `prioridade` - alta/media/baixa
-- `status` - pendente/agendada/concluida/cancelada
-- `ai_justificativa` - Justificativa da IA para a sugestao
-- `created_at`, `updated_at`
+Modificar a query de empresas para incluir o campo `tipo_contrato`:
 
----
+```typescript
+const { data: companies } = await supabase
+  .from('companies')
+  .select('id, nome_fantasia, status, tipo_contrato')
+```
 
-### 2. Edge Function: `ai-visit-planner`
+Adicionar ao tipo `CompanyHealth`:
 
-Funcionalidades:
-- Recebe dados das empresas negligenciadas
-- Analisa historico de chamados e atendimentos
-- Gera plano de visitas inteligente com:
-  - Prioridade baseada em criticidade
-  - Sugestao de frequencia ideal
-  - Justificativa para cada visita
-  - Distribuicao equilibrada ao longo das semanas
+```typescript
+export interface CompanyHealth {
+  // ... campos existentes
+  tipo_contrato: 'eventual' | 'contrato_manutencao';
+}
+```
 
-**Exemplo de Prompt para IA:**
-```text
-Voce e um assistente de gestao de TI. Analise os dados das empresas abaixo
-e crie um plano de visitas preventivas considerando:
+Modificar a lista de empresas negligenciadas para filtrar APENAS clientes de contrato:
 
-1. Empresas que nunca receberam visita devem ter prioridade ALTA
-2. Empresas com muitos chamados precisam de visitas mais frequentes
-3. Distribua as visitas ao longo das semanas para evitar sobrecarga
-4. Considere a saude geral de cada empresa (health_score)
-
-Dados das empresas:
-[JSON com dados de empresas, chamados, ultimo atendimento, health_score]
-
-Retorne um plano estruturado com:
-- company_id, proxima_visita, frequencia, prioridade, justificativa
+```typescript
+// Apenas empresas COM CONTRATO que precisam de visita
+const neglected = companyHealthArray.filter(c => 
+  c.tipo_contrato === 'contrato_manutencao' && 
+  c.dias_sem_visita >= NEGLIGENCE_DAYS_THRESHOLD
+);
 ```
 
 ---
 
-### 3. Edge Function CRON: `check-visit-schedule`
+## Alteracoes no Planejador de Visitas
 
-Executa diariamente e:
-1. Verifica visitas pendentes para hoje/amanha
-2. Envia notificacao push para administradores
-3. Cria alertas no dashboard
-4. Atualiza status de visitas atrasadas
+### `VisitPlannerCard.tsx`
 
-**Notificacoes:**
-- "Lembrete: Visita preventiva em CENTER MALHAS agendada para hoje"
-- "Alerta: 3 visitas atrasadas esta semana"
-- "Sugestao: ROMA DISTRIBUICAO precisa de atencao (90 dias sem visita)"
+O card automaticamente mostrara apenas empresas de contrato pois o filtro sera aplicado no hook `useAnalyticsData`.
 
----
-
-### 4. Novos Componentes UI
-
-**4.1 VisitPlannerCard (no Dashboard Analytics)**
-- Botao "Gerar Mapa de Visitas com IA"
-- Mostra resumo do plano atual
-- Link para calendario de visitas
-
-**4.2 VisitScheduleCalendar**
-- Calendario visual com visitas agendadas
-- Codigo de cores por prioridade
-- Drag-and-drop para reagendar
-
-**4.3 VisitPlanModal**
-- Exibe sugestoes da IA
-- Permite aprovar/rejeitar cada visita
-- Botao para aprovar todas
-
-**4.4 VisitAlertsBanner**
-- Barra de alertas no topo do dashboard
-- "Voce tem 3 visitas atrasadas"
-- "5 empresas sem visita ha mais de 30 dias"
-
----
-
-## Fluxo de Usuario
+Atualizar o texto informativo:
 
 ```text
-1. Admin acessa /analytics
-          |
-          v
-2. Ve card "Clientes Negligenciados" (ja existe)
-          |
-          v
-3. Clica em "Gerar Mapa de Visitas com IA"
-          |
-          v
-4. Sistema envia dados para edge function
-          |
-          v
-5. IA analisa e retorna plano de visitas
-          |
-          v
-6. Modal exibe sugestoes com:
-   - Empresa | Proxima Visita | Frequencia | Prioridade | Justificativa IA
-          |
-          v
-7. Admin aprova/ajusta visitas
-          |
-          v
-8. Visitas sao salvas no banco
-          |
-          v
-9. CRON diario envia lembretes automaticos
-          |
-          v
-10. Apos visita, tecnico registra atendimento
-           |
-           v
-11. Sistema atualiza automaticamente proxima visita
+"A IA analisará apenas os clientes de contrato e sugerirá 
+datas e frequências ideais para visitas preventivas."
 ```
+
+### Edge Function `ai-visit-planner`
+
+Atualizar o prompt da IA para enfatizar que sao clientes de contrato:
+
+```text
+"Estas são empresas com CONTRATO DE MANUTENÇÃO que exigem 
+visitas preventivas mensais obrigatórias..."
+```
+
+---
+
+## Alteracoes no Schema de Validacao
+
+### `validations.ts`
+
+Adicionar o campo ao schema de empresa:
+
+```typescript
+export const companySchema = z.object({
+  // ... campos existentes
+  tipo_contrato: z.enum(['eventual', 'contrato_manutencao'])
+    .default('eventual'),
+});
+```
+
+---
+
+## Resumo de Arquivos
+
+### Novos
+- Migracao SQL para adicionar `tipo_contrato`
+
+### Modificados
+1. `src/lib/validations.ts` - Adicionar campo no schema
+2. `src/components/companies/CompanyDialog.tsx` - Campo de selecao
+3. `src/components/companies/CompanyCard.tsx` - Badge de tipo
+4. `src/components/companies/CompanyList.tsx` - Filtro opcional
+5. `src/hooks/useAnalyticsData.ts` - Filtrar por tipo contrato
+6. `src/components/analytics/VisitPlannerCard.tsx` - Texto atualizado
+7. `supabase/functions/ai-visit-planner/index.ts` - Prompt atualizado
+
+---
+
+## Fluxo de Uso
+
+```text
+1. Admin cadastra empresa
+          |
+          v
+2. Seleciona tipo: Eventual ou Contrato
+          |
+          v
+3. Empresa aparece na lista com badge indicativo
+          |
+          v
+4. Na pagina Analytics:
+   - Empresas EVENTUAIS: NAO aparecem como negligenciadas
+   - Empresas de CONTRATO: Aparecem se >30 dias sem visita
+          |
+          v
+5. Ao clicar "Gerar Mapa de Visitas":
+   - IA analisa APENAS empresas de contrato
+   - Gera plano de visitas preventivas
+```
+
+---
+
+## Beneficios
+
+1. **Foco no que importa**: Somente clientes de contrato geram alertas
+2. **Reducao de ruido**: Clientes eventuais nao poluem o planejador
+3. **Clareza visual**: Badge mostra rapidamente o tipo de cliente
+4. **Obrigatoriedade**: Sistema cobra visitas apenas onde e obrigatorio
+5. **Flexibilidade**: Facil mudar cliente de eventual para contrato
 
 ---
 
 ## Detalhes Tecnicos
 
-### Edge Function `ai-visit-planner`
+### Migracao SQL
+
+```sql
+-- Criar enum para tipo de contrato
+CREATE TYPE company_contract_type AS ENUM ('eventual', 'contrato_manutencao');
+
+-- Adicionar coluna na tabela companies
+ALTER TABLE companies 
+ADD COLUMN tipo_contrato company_contract_type 
+DEFAULT 'eventual' NOT NULL;
+
+-- Comentario explicativo
+COMMENT ON COLUMN companies.tipo_contrato IS 
+  'Tipo de contrato: eventual (sob demanda) ou contrato_manutencao (visitas mensais)';
+```
+
+### Interface do Formulario
+
+O campo sera implementado como RadioGroup ou Select com labels claros:
+
+- **Cliente Eventual**: "Atendemos apenas quando solicitado"
+- **Contrato de Manutencao**: "Visitas preventivas obrigatorias"
+
+### Logica de Filtragem
+
+No `useAnalyticsData.ts`, a linha que filtra empresas negligenciadas mudara de:
 
 ```typescript
-// Estrutura basica da edge function
-// 1. Buscar empresas negligenciadas e seus dados
-// 2. Montar prompt para Lovable AI (Gemini Flash)
-// 3. Usar tool calling para extrair dados estruturados
-// 4. Retornar plano de visitas em JSON
+// ANTES
+const neglected = companyHealthArray.filter(c => c.dias_sem_visita >= 30);
+
+// DEPOIS
+const neglected = companyHealthArray.filter(c => 
+  c.tipo_contrato === 'contrato_manutencao' && 
+  c.dias_sem_visita >= 30
+);
 ```
 
-**Tool Calling para Saida Estruturada:**
-```json
-{
-  "type": "function",
-  "function": {
-    "name": "create_visit_plan",
-    "parameters": {
-      "visits": [
-        {
-          "company_id": "uuid",
-          "proxima_visita": "2026-02-01",
-          "frequencia": "mensal",
-          "prioridade": "alta",
-          "motivo": "Empresa nunca recebeu visita preventiva",
-          "justificativa_ia": "Esta empresa tem 5 chamados abertos..."
-        }
-      ]
-    }
-  }
-}
-```
-
-### CRON para Lembretes
-
-Sera configurado para executar diariamente as 7h:
-- Verificar visitas do dia
-- Verificar visitas atrasadas
-- Enviar notificacoes push
-
----
-
-## Arquivos a Criar/Modificar
-
-### Novos Arquivos
-
-1. `supabase/functions/ai-visit-planner/index.ts`
-   - Edge function que chama Lovable AI
-   - Analisa empresas e gera plano
-
-2. `supabase/functions/check-visit-schedule/index.ts`
-   - CRON para verificar visitas pendentes
-   - Envia alertas e notificacoes
-
-3. `src/components/analytics/VisitPlannerCard.tsx`
-   - Card com botao para gerar mapa de visitas
-   - Exibe resumo do plano atual
-
-4. `src/components/analytics/VisitPlanModal.tsx`
-   - Modal para exibir sugestoes da IA
-   - Aprovar/rejeitar visitas
-
-5. `src/components/analytics/VisitCalendar.tsx`
-   - Calendario visual de visitas
-   - Codigo de cores por prioridade
-
-6. `src/hooks/useVisitSchedule.ts`
-   - Hook para gerenciar agendamentos de visita
-   - CRUD no banco de dados
-
-### Arquivos a Modificar
-
-1. `src/pages/Analytics.tsx`
-   - Adicionar VisitPlannerCard
-   - Adicionar VisitAlertsBanner
-
-2. `src/components/analytics/NeglectedCompaniesAlert.tsx`
-   - Adicionar botao "Gerar Plano de Visitas"
-   - Integrar com modal de planejamento
-
-3. `supabase/config.toml`
-   - Adicionar configuracao das novas edge functions
-
----
-
-## Ordem de Implementacao
-
-### Etapa 1: Infraestrutura (Banco + Edge Function)
-1. Criar tabela `visit_schedules`
-2. Criar edge function `ai-visit-planner`
-3. Testar geracao de plano com IA
-
-### Etapa 2: Interface de Planejamento
-4. Criar `VisitPlannerCard`
-5. Criar `VisitPlanModal`
-6. Integrar com NeglectedCompaniesAlert
-
-### Etapa 3: Visualizacao
-7. Criar `VisitCalendar`
-8. Adicionar calendario na pagina Analytics
-
-### Etapa 4: Automacao
-9. Criar edge function CRON `check-visit-schedule`
-10. Configurar alertas e notificacoes push
-
----
-
-## Beneficios Esperados
-
-1. **Planejamento Inteligente**: IA considera historico e criticidade
-2. **Nenhum Cliente Esquecido**: Sistema cobra visitas atrasadas
-3. **Visibilidade Total**: Calendario mostra todas as visitas planejadas
-4. **Automacao**: Lembretes automaticos via push
-5. **Tomada de Decisao**: Justificativas da IA ajudam a priorizar
-6. **Reducao de Problemas**: Visitas preventivas evitam chamados reativos
+Isso garante que apenas clientes de contrato aparecam no alerta e no planejador de visitas.
 
