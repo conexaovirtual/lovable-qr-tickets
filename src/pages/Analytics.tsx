@@ -9,7 +9,8 @@ import { CategoryPieChart } from '@/components/analytics/CategoryPieChart';
 import { CompanyHealthTable } from '@/components/analytics/CompanyHealthTable';
 import { NeglectedCompaniesAlert } from '@/components/analytics/NeglectedCompaniesAlert';
 import { HealthScoreIndicator } from '@/components/analytics/HealthScoreIndicator';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { VisitPlannerCard } from '@/components/analytics/VisitPlannerCard';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RefreshCw, BarChart3 } from 'lucide-react';
@@ -102,8 +103,11 @@ export default function Analytics() {
           </div>
         ) : stats ? (
           <div className="space-y-6">
-            {/* Alert for neglected companies - always on top */}
-            <NeglectedCompaniesAlert companies={neglectedCompanies} />
+            {/* AI Visit Planner + Neglected Companies Alert */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <VisitPlannerCard neglectedCompanies={neglectedCompanies} />
+              <NeglectedCompaniesAlert companies={neglectedCompanies} />
+            </div>
 
             {/* Stats Cards */}
             <StatsCards stats={stats} />
