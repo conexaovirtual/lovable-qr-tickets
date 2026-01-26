@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.update-user]
 verify_jwt = false
+
+[functions.ai-visit-planner]
+verify_jwt = false

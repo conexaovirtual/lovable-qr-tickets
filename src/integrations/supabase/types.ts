@@ -1115,6 +1115,104 @@ export type Database = {
         }
         Relationships: []
       }
+      visit_schedules: {
+        Row: {
+          ai_justificativa: string | null
+          company_id: string
+          created_at: string
+          frequencia: Database["public"]["Enums"]["visit_frequency"]
+          id: string
+          motivo: Database["public"]["Enums"]["visit_reason"]
+          observacoes: string | null
+          prioridade: Database["public"]["Enums"]["visit_priority"]
+          proxima_visita: string
+          status: Database["public"]["Enums"]["visit_status"]
+          tecnico_responsavel_id: string | null
+          ultima_visita: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_justificativa?: string | null
+          company_id: string
+          created_at?: string
+          frequencia?: Database["public"]["Enums"]["visit_frequency"]
+          id?: string
+          motivo?: Database["public"]["Enums"]["visit_reason"]
+          observacoes?: string | null
+          prioridade?: Database["public"]["Enums"]["visit_priority"]
+          proxima_visita: string
+          status?: Database["public"]["Enums"]["visit_status"]
+          tecnico_responsavel_id?: string | null
+          ultima_visita?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_justificativa?: string | null
+          company_id?: string
+          created_at?: string
+          frequencia?: Database["public"]["Enums"]["visit_frequency"]
+          id?: string
+          motivo?: Database["public"]["Enums"]["visit_reason"]
+          observacoes?: string | null
+          prioridade?: Database["public"]["Enums"]["visit_priority"]
+          proxima_visita?: string
+          status?: Database["public"]["Enums"]["visit_status"]
+          tecnico_responsavel_id?: string | null
+          ultima_visita?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_schedules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "asset_inventory_by_company"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "visit_schedules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_schedules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_basic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_schedules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_schedules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_statistics"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "visit_schedules_tecnico_responsavel_id_fkey"
+            columns: ["tecnico_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_schedules_tecnico_responsavel_id_fkey"
+            columns: ["tecnico_responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       asset_inventory_by_company: {
@@ -1434,6 +1532,15 @@ export type Database = {
         | "fechado"
       urgency_level: "alta" | "media" | "baixa"
       user_role: "admin_provedor" | "tecnico" | "gestor_cliente" | "solicitante"
+      visit_frequency: "semanal" | "quinzenal" | "mensal" | "trimestral"
+      visit_priority: "alta" | "media" | "baixa"
+      visit_reason: "preventiva" | "corretiva" | "acompanhamento"
+      visit_status:
+        | "pendente"
+        | "agendada"
+        | "concluida"
+        | "cancelada"
+        | "atrasada"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1601,6 +1708,16 @@ export const Constants = {
       ],
       urgency_level: ["alta", "media", "baixa"],
       user_role: ["admin_provedor", "tecnico", "gestor_cliente", "solicitante"],
+      visit_frequency: ["semanal", "quinzenal", "mensal", "trimestral"],
+      visit_priority: ["alta", "media", "baixa"],
+      visit_reason: ["preventiva", "corretiva", "acompanhamento"],
+      visit_status: [
+        "pendente",
+        "agendada",
+        "concluida",
+        "cancelada",
+        "atrasada",
+      ],
     },
   },
 } as const
