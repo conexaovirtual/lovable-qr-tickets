@@ -1,335 +1,265 @@
 
-# Plano: Abertura de Chamado e Anotacoes por Comando de Voz com Tipificacao IA
+# Plano: Criacao Automatica de Ordens de Servico a partir do Plano de Visitas
 
 ## Resumo
 
-Implementar funcionalidade de **comando de voz** para:
-1. **Abrir chamados** falando - a IA transcreve e categoriza automaticamente
-2. **Adicionar anotacoes/comentarios** em chamados existentes por voz
-3. Funciona em **celular** (campo) e **computador** (escritorio)
+Apos a IA gerar o plano de visitas, o sistema permitira criar **ordens de servico automaticamente** para cada visita selecionada. Essas OSs serao criadas com:
+- Data agendada conforme sugerido pela IA
+- Tipo de servico: **Preventivo**
+- Status: **Agendada**
+- Aparecendo no **calendario de ordens de servico**
+
+O tecnico entao so precisa executar e fechar cada OS quando chegar no cliente.
 
 ---
 
-## Arquitetura da Solucao
+## Fluxo de Uso
 
 ```text
-+-------------------+     +------------------------+     +------------------+
-| Botao Microfone   |---->| Web Speech API         |---->| Texto Transcrito |
-| (UI Component)    |     | (Navegador)            |     |                  |
-+-------------------+     +------------------------+     +------------------+
-                                                                 |
-                                                                 v
-                                                    +------------------------+
-                                                    | Edge Function          |
-                                                    | ai-ticket-categorizer  |
-                                                    +------------------------+
-                                                                 |
-                                                                 v
-                                                    +------------------+
-                                                    | Lovable AI       |
-                                                    | (Gemini Flash)   |
-                                                    +------------------+
-                                                                 |
-                                                                 v
-                                                    +------------------+
-                                                    | Categoria + Sub  |
-                                                    | Impacto + Urgencia|
-                                                    | Titulo Sugerido  |
-                                                    +------------------+
+1. Admin acessa Analytics
+          |
+          v
+2. Clica "Gerar Mapa de Visitas" no card do planejador
+          |
+          v
+3. IA gera plano com datas e prioridades
+          |
+          v
+4. Modal exibe sugestoes - usuario seleciona quais aprovar
+          |
+          v
+5. [NOVO] Checkbox: "Criar Ordens de Servico para visitas selecionadas"
+          |
+          v
+6. Ao clicar "Salvar", sistema:
+   - Salva agendamentos em visit_schedules
+   - Cria service_orders para cada visita (se checkbox marcado)
+   - Vincula OS ao agendamento
+          |
+          v
+7. OSs aparecem no Calendario de Ordens de Servico
+          |
+          v
+8. Tecnico executa atendimento e fecha cada OS
 ```
 
 ---
 
-## Componentes a Implementar
+## Alteracoes no Banco de Dados
 
-### 1. Hook: `useVoiceInput`
+### Nova Coluna: `service_order_id` em visit_schedules
 
-Hook reutilizavel para captura de voz usando a **Web Speech API** nativa do navegador:
+Adicionar referencia opcional a ordem de servico criada:
 
-- Funciona em Chrome, Edge, Safari (desktop e mobile)
-- Transcricao em tempo real (streaming)
-- Suporte a portugues brasileiro (pt-BR)
-- Feedback visual enquanto escuta
-- Estados: idle, listening, processing, error
+| Campo | Tipo | Nullable | Descricao |
+|-------|------|----------|-----------|
+| service_order_id | UUID | SIM | FK para service_orders |
 
-### 2. Componente: `VoiceInputButton`
-
-Botao de microfone reutilizavel:
-
-- Icone de microfone que muda para indicar gravacao
-- Animacao pulsante enquanto escuta
-- Feedback de transcricao em tempo real
-- Compativel com mobile (toque longo para gravar)
-
-### 3. Edge Function: `ai-ticket-categorizer`
-
-Analisa o texto falado e extrai:
-
-- **Titulo** sugerido (resumo curto)
-- **Categoria** mais adequada (Hardware, Software, Rede, Acesso)
-- **Subcategoria** especifica
-- **Impacto** (baixo, medio, alto)
-- **Urgencia** (baixa, media, alta)
-- **Descricao** formatada/melhorada
-
-**Categorias disponiveis no sistema:**
-- Acesso (Email, VPN)
-- Hardware (Desktop, Notebook, Impressora, Monitor)
-- Rede (Cabeada, Wi-Fi)
-- Software (Antivirus, Office, Sistema Operacional)
+Isso permite rastrear qual OS foi gerada para qual visita planejada.
 
 ---
 
-## Fluxo de Uso - Abertura de Chamado
+## Alteracoes no Modal de Aprovacao
+
+### `VisitPlanModal.tsx`
+
+Adicionar checkbox para criar OSs automaticamente:
 
 ```text
-1. Tecnico acessa /tickets/new
-          |
-          v
-2. Clica no botao de microfone ao lado do campo "Titulo"
-          |
-          v
-3. Fala: "Computador da Maria do financeiro nao liga,
-          tela preta, ja verifiquei a tomada e esta ok"
-          |
-          v
-4. Sistema transcreve em tempo real
-          |
-          v
-5. Ao finalizar, envia para IA analisar
-          |
-          v
-6. IA retorna:
-   - Titulo: "Desktop nao liga - tela preta"
-   - Categoria: Hardware > Desktop
-   - Impacto: Alto
-   - Urgencia: Alta
-   - Descricao: "Computador da Maria (Financeiro) nao liga.
-                 Sintoma: tela preta. Verificacoes: tomada OK."
-          |
-          v
-7. Formulario e preenchido automaticamente
-          |
-          v
-8. Tecnico revisa e confirma/ajusta
++------------------------------------------------+
+|  ✅ Criar Ordens de Servico automaticamente    |
+|     Para cada visita selecionada, uma OS       |
+|     sera criada e agendada no calendario       |
++------------------------------------------------+
+```
+
+Opcao habilitada por padrao para conveniencia.
+
+---
+
+## Alteracoes no Hook useVisitSchedule
+
+### `saveVisitPlan()`
+
+Modificar funcao para:
+
+1. Receber parametro `createServiceOrders: boolean`
+2. Para cada visita:
+   - Inserir em `visit_schedules`
+   - Se `createServiceOrders = true`:
+     - Criar `service_order` com tipo "preventivo"
+     - Vincular `service_order_id` na visit_schedule
+3. Retornar quantidade de OSs criadas
+
+### Dados da OS Criada
+
+Para cada visita, a OS tera:
+
+```typescript
+{
+  company_id: visit.company_id,
+  tipo_servico: 'preventivo',
+  prioridade: mapPrioridade(visit.prioridade), // alta->urgente, media->media, baixa->baixa
+  descricao_servicos: `Visita preventiva - ${visit.justificativa_ia}`,
+  data_agendada: visit.proxima_visita,
+  hora_agendada: '09:00', // horario padrao
+  status: 'agendada',
+  observacoes: `Gerada automaticamente pelo planejador de visitas IA.\n\nJustificativa: ${visit.justificativa_ia}`,
+}
 ```
 
 ---
 
-## Fluxo de Uso - Anotacoes no Cliente
+## Atualizacoes de Interface
 
-```text
-1. Tecnico chega no cliente
-          |
-          v
-2. Acessa detalhes do chamado no celular
-          |
-          v
-3. Na area de comentarios, clica no microfone
-          |
-          v
-4. Fala: "Chegando no cliente, vou verificar o cabo
-          de forca e testar a fonte"
-          |
-          v
-5. Comentario e adicionado automaticamente
-          |
-          v
-6. Depois: "Problema resolvido, era a fonte queimada,
-            substitui por uma nova 500W"
-          |
-          v
-7. Comentario com solucao e registrado
-```
+### 1. VisitPlanModal.tsx
+
+- Adicionar checkbox "Criar Ordens de Servico"
+- Adicionar descricao explicativa
+- Passar flag para funcao de salvamento
+- Mostrar toast com quantidade de OSs criadas
+
+### 2. Badge de OS no card de visita (Opcional)
+
+Apos salvar, cada item pode exibir badge "OS #123" indicando que OS foi criada.
+
+---
+
+## Consulta das OSs no Calendario
+
+As OSs criadas automaticamente aparecerao no `ServiceOrderCalendar`:
+- Tipo: Preventivo
+- Status: Agendada (azul)
+- Data: Conforme sugerido pela IA
+- Descricao: Inclui justificativa da IA
+
+O tecnico pode:
+1. Ver todas as visitas planejadas no calendario
+2. Clicar para ver detalhes
+3. Executar o atendimento
+4. Fechar a OS registrando o servico realizado
+
+---
+
+## Resumo de Arquivos
+
+### Modificados
+
+1. **Migracao SQL** - Adicionar `service_order_id` em visit_schedules
+2. **`src/hooks/useVisitSchedule.ts`** - Logica para criar OSs
+3. **`src/components/analytics/VisitPlanModal.tsx`** - Checkbox e feedback
 
 ---
 
 ## Detalhes Tecnicos
 
-### Web Speech API
+### Migracao SQL
 
-A API nativa do navegador sera usada para transcricao:
+```sql
+-- Adicionar coluna para vincular visita com OS criada
+ALTER TABLE visit_schedules 
+ADD COLUMN service_order_id UUID REFERENCES service_orders(id) ON DELETE SET NULL;
+
+-- Indice para consultas
+CREATE INDEX idx_visit_schedules_service_order ON visit_schedules(service_order_id);
+
+-- Comentario
+COMMENT ON COLUMN visit_schedules.service_order_id IS 
+  'Ordem de servico criada automaticamente para esta visita';
+```
+
+### Logica de Criacao de OS
+
+No hook `useVisitSchedule.ts`:
 
 ```typescript
-const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-recognition.lang = 'pt-BR';
-recognition.continuous = true;
-recognition.interimResults = true;
+const createServiceOrdersForVisits = async (visits: VisitPlan[]) => {
+  const serviceOrders = [];
+  
+  for (const visit of visits) {
+    // Buscar endereco da empresa
+    const { data: company } = await supabase
+      .from('companies')
+      .select('endereco, telefone')
+      .eq('id', visit.company_id)
+      .single();
 
-recognition.onresult = (event) => {
-  const transcript = event.results[0][0].transcript;
-  // Exibir em tempo real
+    // Criar OS
+    const { data: os, error } = await supabase
+      .from('service_orders')
+      .insert({
+        company_id: visit.company_id,
+        tipo_servico: 'preventivo',
+        prioridade: mapPrioridade(visit.prioridade),
+        descricao_servicos: `Visita preventiva mensal - ${visit.company_name}`,
+        data_agendada: `${visit.proxima_visita}T09:00:00`,
+        hora_agendada: '09:00',
+        status: 'agendada',
+        endereco_atendimento: company?.endereco,
+        telefone_contato: company?.telefone,
+        observacoes: `Visita gerada pelo Planejador de Visitas IA.\n\nJustificativa: ${visit.justificativa_ia}`,
+      })
+      .select()
+      .single();
+
+    if (os) {
+      serviceOrders.push({ visitCompanyId: visit.company_id, osId: os.id });
+    }
+  }
+  
+  return serviceOrders;
 };
 ```
 
-**Compatibilidade:**
-- Chrome (desktop/Android): Suportado
-- Edge: Suportado
-- Safari (iOS): Suportado
-- Firefox: Limitado (pode requerer fallback)
-
-### Edge Function: `ai-ticket-categorizer`
-
-Usara Lovable AI (Gemini Flash) com tool calling para saida estruturada:
+### Mapeamento de Prioridade
 
 ```typescript
-const tools = [{
-  type: "function",
-  function: {
-    name: "categorize_ticket",
-    parameters: {
-      type: "object",
-      properties: {
-        titulo: { type: "string" },
-        categoria: { 
-          type: "string", 
-          enum: ["Acesso", "Hardware", "Rede", "Software"] 
-        },
-        subcategoria: { type: "string" },
-        impacto: { 
-          type: "string", 
-          enum: ["baixo", "medio", "alto"] 
-        },
-        urgencia: { 
-          type: "string", 
-          enum: ["baixa", "media", "alta"] 
-        },
-        descricao_formatada: { type: "string" }
-      }
-    }
+const mapPrioridade = (visitPriority: string) => {
+  switch (visitPriority) {
+    case 'alta': return 'urgente';
+    case 'media': return 'media';
+    case 'baixa': return 'baixa';
+    default: return 'media';
   }
-}];
+};
 ```
 
 ---
 
-## Arquivos a Criar
+## Fluxo Completo no Codigo
 
-### Novos Arquivos
-
-1. **`src/hooks/useVoiceInput.ts`**
-   - Hook para gerenciar Web Speech API
-   - Estados: idle, listening, processing
-   - Callbacks: onTranscript, onFinalResult, onError
-
-2. **`src/components/ui/VoiceInputButton.tsx`**
-   - Botao reutilizavel com icone de microfone
-   - Animacao pulsante durante gravacao
-   - Feedback visual de transcricao
-
-3. **`supabase/functions/ai-ticket-categorizer/index.ts`**
-   - Edge function que chama Lovable AI
-   - Analisa texto e retorna categorizacao
-   - Usa tool calling para saida estruturada
-
-### Arquivos a Modificar
-
-1. **`src/pages/NewTicket.tsx`**
-   - Adicionar botao de voz ao lado do campo Titulo
-   - Integrar com categorizacao automatica
-   - Mostrar loading durante analise da IA
-
-2. **`src/components/tickets/TicketComments.tsx`**
-   - Adicionar botao de voz ao lado do Textarea
-   - Permitir adicionar comentarios por voz
-
-3. **`src/components/tickets/QuickTicketDialog.tsx`**
-   - Adicionar entrada por voz no dialog rapido
-
-4. **`supabase/config.toml`**
-   - Adicionar configuracao da nova edge function
+1. Usuario clica "Salvar X Visitas" com checkbox marcado
+2. `handleSave()` chama `saveVisitPlan(visits, { createServiceOrders: true })`
+3. Hook executa:
+   - Cria OSs em `service_orders` (uma por visita)
+   - Insere agendamentos em `visit_schedules` com `service_order_id`
+4. Toast exibe: "X visitas agendadas e X ordens de servico criadas!"
+5. OSs aparecem no calendario para o tecnico executar
 
 ---
 
-## Interface do Usuario
+## Beneficios
 
-### Botao de Microfone
-
-```text
-+------------------------------------------+
-| Titulo *                      [🎤]       |
-+------------------------------------------+
-| [________________Campo de texto________] |
-+------------------------------------------+
-
-Estado Normal:     🎤 (cinza)
-Estado Gravando:   🔴 (vermelho pulsante)
-Estado Processando: ⏳ (spinner)
-```
-
-### Feedback de Transcricao
-
-```text
-+------------------------------------------+
-| 🔴 Ouvindo...                            |
-| "Computador da Maria do financeiro..."   |
-+------------------------------------------+
-```
-
-### Resultado da IA
-
-```text
-+------------------------------------------+
-| ✨ IA Sugeriu:                           |
-|                                          |
-| Titulo: Desktop nao liga - tela preta    |
-| Categoria: Hardware > Desktop            |
-| Impacto: Alto | Urgencia: Alta          |
-|                                          |
-| [Aceitar Sugestao] [Editar Manualmente]  |
-+------------------------------------------+
-```
+1. **Automacao Total**: IA gera plano, OSs sao criadas automaticamente
+2. **Rastreabilidade**: Cada visita fica vinculada a sua OS
+3. **Agenda Integrada**: Tecnico ve tudo no calendario de OSs
+4. **Cobranca**: Sistema cobra atendimento atraves das OSs agendadas
+5. **Fechamento Simples**: Tecnico so precisa executar e fechar
 
 ---
 
-## Experiencia Mobile
+## Consideracoes
 
-Para uso no campo com celular:
+### Asset ID
 
-1. **Touch amigavel**: Botao grande de microfone
-2. **Feedback haptico**: Vibracao ao iniciar/parar
-3. **Tela sempre ligada**: Durante gravacao
-4. **Modo offline**: Transcricao local (quando disponivel)
+A criacao de OS normalmente requer um `asset_id`. Para visitas preventivas geradas automaticamente, temos opcoes:
 
----
+1. **Criar sem asset** (requer ajuste no schema ou usar null se permitido)
+2. **Selecionar primeiro asset da empresa** automaticamente
+3. **Deixar tecnico selecionar** ao executar a OS
 
-## Ordem de Implementacao
+Recomendacao: Permitir `asset_id` nulo para visitas preventivas gerais, ja que o tecnico pode verificar multiplos equipamentos em uma visita.
 
-### Etapa 1: Infraestrutura
-1. Criar hook `useVoiceInput`
-2. Criar componente `VoiceInputButton`
-3. Testar transcricao basica
+### Verificacao do Schema
 
-### Etapa 2: Categorizacao por IA
-4. Criar edge function `ai-ticket-categorizer`
-5. Integrar com Lovable AI (Gemini Flash)
-6. Testar categorizacao
-
-### Etapa 3: Integracao - Abertura de Chamado
-7. Adicionar voz em `NewTicket.tsx`
-8. Preenchimento automatico do formulario
-9. UI de confirmacao das sugestoes
-
-### Etapa 4: Integracao - Comentarios
-10. Adicionar voz em `TicketComments.tsx`
-11. Adicionar voz em `QuickTicketDialog.tsx`
-
----
-
-## Beneficios Esperados
-
-1. **Agilidade**: Abrir chamado em segundos falando
-2. **Precisao**: IA categoriza corretamente
-3. **Mobilidade**: Funciona no celular em campo
-4. **Documentacao**: Anotacoes mais detalhadas por voz
-5. **Hands-free**: Util quando maos ocupadas
-6. **Padronizacao**: IA formata descricoes consistentes
-
----
-
-## Consideracoes de Seguranca
-
-- Transcricao ocorre no navegador (Web Speech API)
-- Texto enviado para IA apenas para categorizacao
-- Nenhum audio e armazenado
-- Requer permissao do microfone (usuario autoriza)
+O campo `asset_id` em `service_orders` ja e nullable (`asset_id: string | null`), entao podemos criar OSs sem especificar um ativo.
