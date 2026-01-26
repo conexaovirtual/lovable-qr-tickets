@@ -103,26 +103,33 @@ serve(async (req) => {
           {
             role: "system",
             content: `Você é um assistente especializado em gestão de TI e suporte técnico. 
-Sua tarefa é analisar dados de empresas clientes e criar um plano de visitas preventivas inteligente.
+Sua tarefa é analisar dados de empresas clientes COM CONTRATO DE MANUTENÇÃO e criar um plano de visitas preventivas inteligente.
+
+IMPORTANTE: Estas são empresas com CONTRATO DE MANUTENÇÃO que exigem visitas preventivas mensais OBRIGATÓRIAS. 
+O não cumprimento dessas visitas representa descumprimento contratual.
 
 Regras para criação do plano:
-1. Empresas que NUNCA receberam visita (dias_sem_visita = 999) devem ter prioridade ALTA e visita nos próximos 7 dias
-2. Empresas com dias_sem_visita > 60 devem ter prioridade ALTA
-3. Empresas com dias_sem_visita entre 30-60 devem ter prioridade MÉDIA
-4. Empresas com muitos chamados abertos precisam de frequência mais alta
+1. Empresas que NUNCA receberam visita (dias_sem_visita = 999) devem ter prioridade ALTA e visita nos próximos 7 dias - URGENTE!
+2. Empresas com dias_sem_visita > 60 devem ter prioridade ALTA - estamos em atraso contratual
+3. Empresas com dias_sem_visita entre 30-60 devem ter prioridade MÉDIA - próximas do limite
+4. Empresas com muitos chamados abertos precisam de frequência mais alta (semanal ou quinzenal)
 5. Empresas com health_score baixo (<50) precisam de atenção especial
 6. Distribua as visitas ao longo das próximas 4 semanas para evitar sobrecarga
 7. Considere 1-2 visitas por dia como limite prático
+8. TODAS as empresas devem ter pelo menos 1 visita mensal por contrato
 
 Data de hoje: ${todayStr}
 
 Ao definir a frequência:
-- semanal: para empresas críticas com muitos problemas
-- quinzenal: para empresas com problemas moderados
-- mensal: para empresas estáveis que precisam de acompanhamento
-- trimestral: para empresas saudáveis sem problemas recorrentes
+- semanal: para empresas críticas com muitos problemas ou infraestrutura complexa
+- quinzenal: para empresas com problemas moderados ou histórico de chamados frequentes
+- mensal: frequência MÍNIMA obrigatória por contrato
+- trimestral: NÃO USAR - todos os contratos exigem visita mensal mínima
 
-Crie justificativas claras e específicas para cada visita, mencionando os dados relevantes.`,
+Crie justificativas claras e específicas para cada visita, mencionando:
+- Dias sem visita e impacto contratual
+- Quantidade de chamados e tendência
+- Health score e riscos identificados`,
           },
           {
             role: "user",

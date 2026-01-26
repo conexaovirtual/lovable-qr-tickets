@@ -8,6 +8,7 @@ import { formatCNPJ, formatPhone } from '@/lib/formatters';
 import { useCNPJLookup } from '@/hooks/useCNPJLookup';
 import { Search, Loader2, CheckCircle2, AlertCircle, RotateCw, Upload, X, Edit } from 'lucide-react';
 import { ImageUpload } from '@/components/ui/ImageUpload';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       status: true,
       sla_primeiro_atendimento_horas: 4,
       sla_solucao_horas: 16,
+      tipo_contrato: 'eventual',
     },
   });
 
@@ -71,6 +73,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         status: company.status ?? true,
         sla_primeiro_atendimento_horas: company.sla_primeiro_atendimento_horas || 4,
         sla_solucao_horas: company.sla_solucao_horas || 16,
+        tipo_contrato: company.tipo_contrato || 'eventual',
       });
       setLogoUrl(company.logo_url || null);
       setCnpjEditConfirmed(false);
@@ -85,6 +88,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         status: true,
         sla_primeiro_atendimento_horas: 4,
         sla_solucao_horas: 16,
+        tipo_contrato: 'eventual',
       });
       setCnpjValidated(false);
       setCompanySituation(null);
@@ -621,6 +625,43 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                         min="1"
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 16)}
                       />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="tipo_contrato"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Tipo de Contrato</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        className="flex flex-col sm:flex-row gap-4"
+                      >
+                        <div className="flex items-center space-x-2 border rounded-lg p-4 flex-1 cursor-pointer hover:bg-accent/50 transition-colors">
+                          <RadioGroupItem value="eventual" id="eventual" />
+                          <label htmlFor="eventual" className="flex-1 cursor-pointer">
+                            <div className="font-medium">Cliente Eventual</div>
+                            <div className="text-sm text-muted-foreground">
+                              Atendido apenas sob demanda (quando abre chamado)
+                            </div>
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2 border rounded-lg p-4 flex-1 cursor-pointer hover:bg-accent/50 transition-colors border-primary/30 bg-primary/5">
+                          <RadioGroupItem value="contrato_manutencao" id="contrato_manutencao" />
+                          <label htmlFor="contrato_manutencao" className="flex-1 cursor-pointer">
+                            <div className="font-medium">Contrato de Manutenção</div>
+                            <div className="text-sm text-muted-foreground">
+                              Visitas preventivas mensais obrigatórias
+                            </div>
+                          </label>
+                        </div>
+                      </RadioGroup>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

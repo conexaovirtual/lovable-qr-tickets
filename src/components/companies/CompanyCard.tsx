@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Mail, Phone, MapPin, Clock, Eye } from 'lucide-react';
+import { Edit, Mail, Phone, MapPin, Clock, Eye, FileText, Calendar } from 'lucide-react';
 
 interface CompanyCardProps {
   company: any;
@@ -24,9 +24,21 @@ export const CompanyCard = memo(({ company, onEdit }: CompanyCardProps) => {
               <p className="text-sm text-muted-foreground truncate">{company.razao_social}</p>
             )}
           </div>
-          <Badge variant={company.status ? 'default' : 'secondary'}>
-            {company.status ? 'Ativo' : 'Inativo'}
-          </Badge>
+          <div className="flex flex-col gap-1 items-end">
+            <Badge 
+              variant={company.tipo_contrato === 'contrato_manutencao' ? 'default' : 'outline'}
+              className={company.tipo_contrato === 'contrato_manutencao' ? 'bg-primary' : ''}
+            >
+              {company.tipo_contrato === 'contrato_manutencao' ? (
+                <><Calendar className="h-3 w-3 mr-1" />Contrato</>
+              ) : (
+                <><FileText className="h-3 w-3 mr-1" />Eventual</>
+              )}
+            </Badge>
+            <Badge variant={company.status ? 'secondary' : 'outline'} className="text-xs">
+              {company.status ? 'Ativo' : 'Inativo'}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

@@ -166,6 +166,8 @@ export const companySchema = z.object({
   sla_solucao_horas: z.number()
     .min(1, 'SLA deve ser maior que 0')
     .default(16),
+  tipo_contrato: z.enum(['eventual', 'contrato_manutencao'])
+    .default('eventual'),
 });
 
 export const authSchema = z.object({
