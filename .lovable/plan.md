@@ -1,255 +1,274 @@
 
-# Plano: Dashboard Analítico Inteligente + IA para Gestão de Chamados
 
-## Resumo Executivo
+# Plano: IA para Mapa de Visitas e Cobranca Automatica
 
-Este plano transforma seu sistema de help desk em uma plataforma inteligente com:
-- **Dashboard Analítico** para visualização clara de problemas e oportunidades
-- **Assistente IA** para abertura inteligente de chamados e sugestoes de manutencao
-- **Sistema de Alertas** para clientes sem visitas e manutencoes programadas
-- **Plano de Manutencao Preventiva** com cobranca automatica
+## Objetivo
 
----
-
-## Fase 1: Dashboard Analítico de Gestão
-
-### 1.1 Nova Página: Centro de Comando (`/analytics`)
-
-Criar uma nova pagina dedicada a analise com as seguintes secoes:
-
-**Painel de Saude Geral**
-- Indicador de saude do suporte (verde/amarelo/vermelho)
-- Taxa de resolucao de chamados
-- Tempo medio de resposta
-- SLA cumprido vs violado
-
-**Mapa de Problemas por Empresa**
-- Lista de empresas ordenada por quantidade de problemas
-- Codigo de cores (vermelho = muitos chamados, verde = poucos)
-- Tendencia (aumentando/diminuindo/estavel)
-
-**Grafico de Tendencias**
-- Chamados criados vs resolvidos por mes
-- Comparativo com meses anteriores
-- Previsao baseada em historico
-
-**Distribuicao por Categoria**
-- Quais tipos de problemas mais ocorrem
-- Hardware vs Software vs Rede vs Acesso
-- Identificacao de padroes recorrentes
-
-### 1.2 Cards de Insight Rapido
-
-```text
-+------------------+  +------------------+  +------------------+
-| Empresas em      |  | Chamados sem     |  | SLA em Risco     |
-| Alerta           |  | Categoria        |  | (proximas 2h)    |
-| 3 empresas       |  | 14 (51%)         |  | 2 chamados       |
-+------------------+  +------------------+  +------------------+
-```
-
-### 1.3 Alerta de Clientes Negligenciados
-
-Com base nos dados, identificamos empresas que nunca receberam visita:
-- CENTER MALHAS
-- LOJA ANDREIA DIGITAL
-- R E ESTAMPARIA
-- ROMA DISTRIBUICAO
-- E outras...
-
-Sistema mostrara:
-- Lista de empresas sem atendimento ha X dias
-- Configuracao de limite (ex: alerta apos 30 dias sem visita)
-- Botao para criar OS de manutencao preventiva
+Criar uma IA que analise seus clientes e gere automaticamente um **mapa de visitas preventivas**, considerando:
+- Empresas negligenciadas (sem visita ha muito tempo)
+- Historico de chamados e atendimentos
+- Frequencia ideal de visitas por empresa
+- Cobranca automatica via notificacoes push
 
 ---
 
-## Fase 2: Inteligencia Artificial Integrada
-
-### 2.1 Assistente para Abertura de Chamados
-
-**Edge Function: `ai-ticket-assistant`**
-
-Quando um cliente descreve um problema, a IA:
-1. Sugere categoria e subcategoria automaticamente
-2. Estima prioridade baseada no contexto
-3. Identifica se ja existe chamado similar aberto
-4. Sugere solucoes conhecidas de chamados anteriores
-
-Exemplo de fluxo:
-```text
-Cliente: "Computador nao liga depois que faltou energia"
-
-IA analisa e sugere:
-- Categoria: Hardware
-- Subcategoria: Desktop/Fonte
-- Prioridade: Alta (equipamento inoperante)
-- Chamados similares: 2 nos ultimos 6 meses
-- Sugestao: Verificar fonte de alimentacao e estabilizador
-```
-
-### 2.2 Gerador de Plano de Manutencao
-
-**Edge Function: `ai-maintenance-planner`**
-
-A IA analisa o historico de cada empresa e cria plano personalizado:
+## Arquitetura da Solucao
 
 ```text
-Entrada: Historico de chamados + ativos da empresa
-
-Saida:
-- Frequencia ideal de visitas preventivas
-- Equipamentos com maior probabilidade de falha
-- Cronograma sugerido para os proximos 3 meses
-- Estimativa de reducao de chamados reativos
++------------------+     +-------------------------+     +------------------+
+|  Pagina Analytics|---->|  Edge Function          |---->|  Lovable AI      |
+|  (Botao Gerar)   |     |  ai-visit-planner       |     |  (Gemini Flash)  |
++------------------+     +-------------------------+     +------------------+
+                                    |
+                                    v
+                         +------------------+
+                         |  Mapa de Visitas |
+                         |  + Alertas CRON  |
+                         +------------------+
 ```
-
-### 2.3 Chatbot de Suporte Interno
-
-Interface de chat onde voce pode perguntar:
-- "Quais empresas estao com mais problemas este mes?"
-- "Qual tecnico tem melhor tempo de resolucao?"
-- "Quais tipos de problemas aumentaram?"
-- "Sugestoes para reduzir chamados de hardware?"
 
 ---
 
-## Fase 3: Sistema de Manutencao Preventiva
+## Componentes a Implementar
 
-### 3.1 Nova Tabela: `maintenance_schedules`
+### 1. Nova Tabela: `visit_schedules` (Agendamentos de Visita)
 
 Campos:
-- company_id (empresa)
-- asset_id (opcional, ativo especifico)
-- frequencia (semanal/quinzenal/mensal/trimestral)
-- proxima_visita (data)
-- ultima_visita (data)
-- tipo (preventiva/corretiva programada)
-- descricao
-- status (ativo/pausado)
+- `id` - UUID
+- `company_id` - Empresa
+- `frequencia` - semanal/quinzenal/mensal/trimestral
+- `proxima_visita` - Data da proxima visita sugerida
+- `ultima_visita` - Data da ultima visita realizada
+- `motivo` - Preventiva/Corretiva/Acompanhamento
+- `prioridade` - alta/media/baixa
+- `status` - pendente/agendada/concluida/cancelada
+- `ai_justificativa` - Justificativa da IA para a sugestao
+- `created_at`, `updated_at`
 
-### 3.2 Alertas Automaticos
+---
 
-**Edge Function com CRON: `check-maintenance-due`**
+### 2. Edge Function: `ai-visit-planner`
+
+Funcionalidades:
+- Recebe dados das empresas negligenciadas
+- Analisa historico de chamados e atendimentos
+- Gera plano de visitas inteligente com:
+  - Prioridade baseada em criticidade
+  - Sugestao de frequencia ideal
+  - Justificativa para cada visita
+  - Distribuicao equilibrada ao longo das semanas
+
+**Exemplo de Prompt para IA:**
+```text
+Voce e um assistente de gestao de TI. Analise os dados das empresas abaixo
+e crie um plano de visitas preventivas considerando:
+
+1. Empresas que nunca receberam visita devem ter prioridade ALTA
+2. Empresas com muitos chamados precisam de visitas mais frequentes
+3. Distribua as visitas ao longo das semanas para evitar sobrecarga
+4. Considere a saude geral de cada empresa (health_score)
+
+Dados das empresas:
+[JSON com dados de empresas, chamados, ultimo atendimento, health_score]
+
+Retorne um plano estruturado com:
+- company_id, proxima_visita, frequencia, prioridade, justificativa
+```
+
+---
+
+### 3. Edge Function CRON: `check-visit-schedule`
 
 Executa diariamente e:
-1. Verifica manutencoes proximas de vencer
-2. Envia notificacao push para tecnicos
-3. Cria OS automaticamente se configurado
-4. Alerta sobre empresas sem visita ha muito tempo
+1. Verifica visitas pendentes para hoje/amanha
+2. Envia notificacao push para administradores
+3. Cria alertas no dashboard
+4. Atualiza status de visitas atrasadas
 
-### 3.3 Configuracao por Empresa
-
-Na pagina de cada empresa, nova aba "Plano de Manutencao":
-- Frequencia de visitas preventivas
-- Equipamentos prioritarios
-- Contato para agendamento
-- Historico de manutencoes
+**Notificacoes:**
+- "Lembrete: Visita preventiva em CENTER MALHAS agendada para hoje"
+- "Alerta: 3 visitas atrasadas esta semana"
+- "Sugestao: ROMA DISTRIBUICAO precisa de atencao (90 dias sem visita)"
 
 ---
 
-## Fase 4: Melhorias na Gestao de Chamados
+### 4. Novos Componentes UI
 
-### 4.1 Categorizacao Automatica
+**4.1 VisitPlannerCard (no Dashboard Analytics)**
+- Botao "Gerar Mapa de Visitas com IA"
+- Mostra resumo do plano atual
+- Link para calendario de visitas
 
-Quando 51% dos chamados nao tem categoria, a IA pode:
-- Sugerir categoria baseada no titulo/descricao
-- Auto-categorizar com 1 clique de confirmacao
-- Aprender com categorizacoes manuais
+**4.2 VisitScheduleCalendar**
+- Calendario visual com visitas agendadas
+- Codigo de cores por prioridade
+- Drag-and-drop para reagendar
 
-### 4.2 Deteccao de Padroes
+**4.3 VisitPlanModal**
+- Exibe sugestoes da IA
+- Permite aprovar/rejeitar cada visita
+- Botao para aprovar todas
 
-A IA identifica:
-- Problemas recorrentes na mesma empresa
-- Equipamentos que dao mais problema
-- Horarios de pico de chamados
-- Correlacao entre tipos de problema
-
-### 4.3 Priorizacao Inteligente
-
-Fatores considerados:
-- SLA da empresa
-- Impacto no negocio
-- Quantidade de usuarios afetados
-- Historico de problemas similares
-- Urgencia declarada
+**4.4 VisitAlertsBanner**
+- Barra de alertas no topo do dashboard
+- "Voce tem 3 visitas atrasadas"
+- "5 empresas sem visita ha mais de 30 dias"
 
 ---
 
-## Arquitetura Tecnica
+## Fluxo de Usuario
 
-### Novas Edge Functions
-
-1. **`ai-ticket-assistant`** - Assistente para abertura de chamados
-2. **`ai-maintenance-planner`** - Gerador de plano de manutencao
-3. **`ai-analytics-chat`** - Chatbot de analise de dados
-4. **`check-maintenance-due`** - Verificador de manutencoes (CRON)
-
-### Novas Tabelas
-
-1. **`maintenance_schedules`** - Agendamentos de manutencao
-2. **`ai_suggestions_log`** - Historico de sugestoes da IA
-3. **`company_health_scores`** - Pontuacao de saude por empresa
-
-### Novos Componentes React
-
-1. **`src/pages/Analytics.tsx`** - Pagina principal de analise
-2. **`src/components/analytics/HealthDashboard.tsx`** - Painel de saude
-3. **`src/components/analytics/ProblemHeatmap.tsx`** - Mapa de problemas
-4. **`src/components/analytics/TrendCharts.tsx`** - Graficos de tendencia
-5. **`src/components/analytics/AIAssistant.tsx`** - Interface do assistente IA
-6. **`src/components/maintenance/MaintenancePlanner.tsx`** - Planejador
-7. **`src/components/maintenance/AlertsPanel.tsx`** - Painel de alertas
+```text
+1. Admin acessa /analytics
+          |
+          v
+2. Ve card "Clientes Negligenciados" (ja existe)
+          |
+          v
+3. Clica em "Gerar Mapa de Visitas com IA"
+          |
+          v
+4. Sistema envia dados para edge function
+          |
+          v
+5. IA analisa e retorna plano de visitas
+          |
+          v
+6. Modal exibe sugestoes com:
+   - Empresa | Proxima Visita | Frequencia | Prioridade | Justificativa IA
+          |
+          v
+7. Admin aprova/ajusta visitas
+          |
+          v
+8. Visitas sao salvas no banco
+          |
+          v
+9. CRON diario envia lembretes automaticos
+          |
+          v
+10. Apos visita, tecnico registra atendimento
+           |
+           v
+11. Sistema atualiza automaticamente proxima visita
+```
 
 ---
 
-## Cronograma de Implementacao
+## Detalhes Tecnicos
 
-### Semana 1-2: Dashboard Analitico
-- Pagina de Analytics
-- Cards de metricas
-- Graficos de tendencia
-- Lista de empresas negligenciadas
+### Edge Function `ai-visit-planner`
 
-### Semana 3-4: Sistema de Manutencao
-- Tabela maintenance_schedules
-- Interface de configuracao
-- Edge function de verificacao
-- Alertas automaticos
+```typescript
+// Estrutura basica da edge function
+// 1. Buscar empresas negligenciadas e seus dados
+// 2. Montar prompt para Lovable AI (Gemini Flash)
+// 3. Usar tool calling para extrair dados estruturados
+// 4. Retornar plano de visitas em JSON
+```
 
-### Semana 5-6: Integracao IA
-- Edge function ai-ticket-assistant
-- Edge function ai-maintenance-planner
-- Interface de sugestoes
-- Categorizacao automatica
+**Tool Calling para Saida Estruturada:**
+```json
+{
+  "type": "function",
+  "function": {
+    "name": "create_visit_plan",
+    "parameters": {
+      "visits": [
+        {
+          "company_id": "uuid",
+          "proxima_visita": "2026-02-01",
+          "frequencia": "mensal",
+          "prioridade": "alta",
+          "motivo": "Empresa nunca recebeu visita preventiva",
+          "justificativa_ia": "Esta empresa tem 5 chamados abertos..."
+        }
+      ]
+    }
+  }
+}
+```
 
-### Semana 7-8: Chatbot e Refinamentos
-- Edge function ai-analytics-chat
-- Interface de chat
-- Testes e ajustes
-- Documentacao
+### CRON para Lembretes
+
+Sera configurado para executar diariamente as 7h:
+- Verificar visitas do dia
+- Verificar visitas atrasadas
+- Enviar notificacoes push
+
+---
+
+## Arquivos a Criar/Modificar
+
+### Novos Arquivos
+
+1. `supabase/functions/ai-visit-planner/index.ts`
+   - Edge function que chama Lovable AI
+   - Analisa empresas e gera plano
+
+2. `supabase/functions/check-visit-schedule/index.ts`
+   - CRON para verificar visitas pendentes
+   - Envia alertas e notificacoes
+
+3. `src/components/analytics/VisitPlannerCard.tsx`
+   - Card com botao para gerar mapa de visitas
+   - Exibe resumo do plano atual
+
+4. `src/components/analytics/VisitPlanModal.tsx`
+   - Modal para exibir sugestoes da IA
+   - Aprovar/rejeitar visitas
+
+5. `src/components/analytics/VisitCalendar.tsx`
+   - Calendario visual de visitas
+   - Codigo de cores por prioridade
+
+6. `src/hooks/useVisitSchedule.ts`
+   - Hook para gerenciar agendamentos de visita
+   - CRUD no banco de dados
+
+### Arquivos a Modificar
+
+1. `src/pages/Analytics.tsx`
+   - Adicionar VisitPlannerCard
+   - Adicionar VisitAlertsBanner
+
+2. `src/components/analytics/NeglectedCompaniesAlert.tsx`
+   - Adicionar botao "Gerar Plano de Visitas"
+   - Integrar com modal de planejamento
+
+3. `supabase/config.toml`
+   - Adicionar configuracao das novas edge functions
+
+---
+
+## Ordem de Implementacao
+
+### Etapa 1: Infraestrutura (Banco + Edge Function)
+1. Criar tabela `visit_schedules`
+2. Criar edge function `ai-visit-planner`
+3. Testar geracao de plano com IA
+
+### Etapa 2: Interface de Planejamento
+4. Criar `VisitPlannerCard`
+5. Criar `VisitPlanModal`
+6. Integrar com NeglectedCompaniesAlert
+
+### Etapa 3: Visualizacao
+7. Criar `VisitCalendar`
+8. Adicionar calendario na pagina Analytics
+
+### Etapa 4: Automacao
+9. Criar edge function CRON `check-visit-schedule`
+10. Configurar alertas e notificacoes push
 
 ---
 
 ## Beneficios Esperados
 
-1. **Visibilidade Total**: Saber exatamente onde estao os problemas
-2. **Decisoes Baseadas em Dados**: Informacoes claras para tomada de decisao
-3. **Prevencao de Problemas**: Manutencao preventiva reduz chamados reativos
-4. **Nenhum Cliente Esquecido**: Sistema cobra visitas atrasadas
-5. **Abertura Inteligente**: IA ajuda a classificar e priorizar chamados
-6. **Eficiencia Operacional**: Menos tempo categorizando, mais tempo resolvendo
+1. **Planejamento Inteligente**: IA considera historico e criticidade
+2. **Nenhum Cliente Esquecido**: Sistema cobra visitas atrasadas
+3. **Visibilidade Total**: Calendario mostra todas as visitas planejadas
+4. **Automacao**: Lembretes automaticos via push
+5. **Tomada de Decisao**: Justificativas da IA ajudam a priorizar
+6. **Reducao de Problemas**: Visitas preventivas evitam chamados reativos
 
----
-
-## Proximos Passos Sugeridos
-
-Posso comecar pela implementacao em qualquer ordem, mas recomendo:
-
-1. **Primeiro**: Dashboard Analitico (visibilidade imediata)
-2. **Segundo**: Sistema de Alertas de Clientes Negligenciados
-3. **Terceiro**: IA para categorização de chamados
-4. **Quarto**: Plano de Manutencao Preventiva
-5. **Quinto**: Chatbot de analise
-
-Qual parte gostaria de comecar primeiro?
