@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Label } from '@/components/ui/label';
 import { VisitPlan } from '@/hooks/useVisitSchedule';
 import { formatDateBR } from '@/lib/formatters';
 import { 
@@ -20,7 +21,8 @@ import {
   CheckCircle2, 
   Clock,
   Sparkles,
-  Save
+  Save,
+  FileText
 } from 'lucide-react';
 
 interface VisitPlanModalProps {
@@ -28,7 +30,7 @@ interface VisitPlanModalProps {
   onOpenChange: (open: boolean) => void;
   plan: VisitPlan[];
   summary: string | null;
-  onSave: (selectedVisits: VisitPlan[]) => Promise<boolean>;
+  onSave: (selectedVisits: VisitPlan[], options?: { createServiceOrders?: boolean }) => Promise<{ success: boolean; osCount?: number }>;
   loading: boolean;
 }
 
@@ -43,6 +45,7 @@ export function VisitPlanModal({
   const [selectedVisits, setSelectedVisits] = useState<Set<string>>(
     new Set(plan.map((v) => v.company_id))
   );
+  const [createServiceOrders, setCreateServiceOrders] = useState(true);
 
   const toggleVisit = (companyId: string) => {
     const newSelected = new Set(selectedVisits);
@@ -64,8 +67,8 @@ export function VisitPlanModal({
 
   const handleSave = async () => {
     const visitsToSave = plan.filter((v) => selectedVisits.has(v.company_id));
-    const success = await onSave(visitsToSave);
-    if (success) {
+    const result = await onSave(visitsToSave, { createServiceOrders });
+    if (result.success) {
       onOpenChange(false);
     }
   };
@@ -130,6 +133,29 @@ export function VisitPlanModal({
             {summary}
           </div>
         )}
+
+        {/* Checkbox para criar OSs automaticamente */}
+        <div className="flex items-start space-x-3 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+          <Checkbox
+            id="create-service-orders"
+            checked={createServiceOrders}
+            onCheckedChange={(checked) => setCreateServiceOrders(checked === true)}
+            className="mt-0.5"
+          />
+          <div className="flex-1">
+            <Label 
+              htmlFor="create-service-orders" 
+              className="font-medium cursor-pointer flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4 text-primary" />
+              Criar Ordens de Serviço automaticamente
+            </Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              Para cada visita selecionada, uma OS será criada e agendada no calendário. 
+              As OSs aparecerão como preventivas com status "Agendada".
+            </p>
+          </div>
+        </div>
 
         <div className="flex items-center justify-between py-2">
           <span className="text-sm text-muted-foreground">

@@ -39,9 +39,9 @@ export function VisitPlannerCard({ neglectedCompanies }: VisitPlannerCardProps) 
     }
   };
 
-  const handleSave = async (visits: typeof generatedPlan) => {
-    if (!visits) return false;
-    return await saveVisitPlan(visits);
+  const handleSave = async (visits: typeof generatedPlan, options?: { createServiceOrders?: boolean }) => {
+    if (!visits) return { success: false };
+    return await saveVisitPlan(visits, options);
   };
 
   const handleModalClose = (open: boolean) => {
