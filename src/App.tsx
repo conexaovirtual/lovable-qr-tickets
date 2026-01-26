@@ -23,6 +23,7 @@ const ProfileSettings = lazy(() => import("./pages/ProfileSettings"));
 const ServiceOrderPage = lazy(() => import("./pages/ServiceOrderPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PublicTicket = lazy(() => import("./pages/PublicTicket"));
+const Analytics = lazy(() => import("./pages/Analytics"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,6 +65,7 @@ const App = () => (
             <Route path="/daily-services" element={<DailyServices />} />
             <Route path="/service-orders/new" element={<ServiceOrderPage />} />
             <Route path="/profile/settings" element={<ProfileSettings />} />
+            <Route path="/analytics" element={<Analytics />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
