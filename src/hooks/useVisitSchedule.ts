@@ -105,7 +105,7 @@ export function useVisitSchedule() {
 
   const mapPrioridade = (visitPriority: string): string => {
     switch (visitPriority) {
-      case 'alta': return 'urgente';
+      case 'alta': return 'alta';
       case 'media': return 'media';
       case 'baixa': return 'baixa';
       default: return 'media';
