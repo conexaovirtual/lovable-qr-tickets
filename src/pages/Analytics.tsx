@@ -10,6 +10,7 @@ import { CompanyHealthTable } from '@/components/analytics/CompanyHealthTable';
 import { NeglectedCompaniesAlert } from '@/components/analytics/NeglectedCompaniesAlert';
 import { HealthScoreIndicator } from '@/components/analytics/HealthScoreIndicator';
 import { VisitPlannerCard } from '@/components/analytics/VisitPlannerCard';
+import { PredictiveMaintenanceCard } from '@/components/ai/PredictiveMaintenanceCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -103,6 +104,9 @@ export default function Analytics() {
           </div>
         ) : stats ? (
           <div className="space-y-6">
+            {/* AI Predictive Maintenance */}
+            <PredictiveMaintenanceCard />
+
             {/* AI Visit Planner + Neglected Companies Alert */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <VisitPlannerCard neglectedCompanies={neglectedCompanies} />

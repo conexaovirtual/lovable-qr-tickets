@@ -303,6 +303,24 @@ export default function TicketDetail() {
             </div>
 
             <div className="space-y-4">
+              {/* AI Triage Card for new tickets */}
+              {canManage && ['novo', 'triagem'].includes(ticket?.status) && (
+                <AITriageCard ticket={ticket} onApplySuggestion={loadTicket} />
+              )}
+
+              {/* AI Diagnostic Button for tickets in progress */}
+              {canManage && ticket?.status === 'em_atendimento' && (
+                <AIDiagnosticButton 
+                  contexto={{
+                    ticket_id: ticket.id,
+                    asset_id: ticket.asset_id,
+                    descricao_problema: ticket.descricao
+                  }}
+                  variant="outline"
+                  className="w-full"
+                />
+              )}
+
               {canManage && (
                 <>
                   {/* Card para abrir atendimento ou OS quando ticket está novo/triagem */}

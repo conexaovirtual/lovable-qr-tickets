@@ -11,6 +11,7 @@ import { ServiceOrderDetailDialog } from '@/components/service-orders/ServiceOrd
 import { NotificationPermissionPrompt } from '@/components/notifications/NotificationPermissionPrompt';
 import { QuickRemoteServiceCard } from '@/components/dashboard/QuickRemoteServiceCard';
 import { RemoteServiceQuickDialog } from '@/components/dashboard/RemoteServiceQuickDialog';
+import { SmartAlertsPanel } from '@/components/ai/SmartAlertsPanel';
 import { formatDateBR } from '@/lib/formatters';
 import { 
   Clock, 
@@ -170,6 +171,11 @@ export default function Dashboard() {
         ) : (
           <>
             <NotificationPermissionPrompt />
+
+            {/* Smart Alerts Panel for admins */}
+            {profile?.roles?.includes('admin_provedor') && (
+              <SmartAlertsPanel />
+            )}
 
             {(profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico')) && (
               <QuickRemoteServiceCard
