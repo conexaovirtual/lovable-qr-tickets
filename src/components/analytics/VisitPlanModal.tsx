@@ -116,8 +116,8 @@ export function VisitPlanModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             Plano de Visitas Gerado pela IA
@@ -127,51 +127,51 @@ export function VisitPlanModal({
           </DialogDescription>
         </DialogHeader>
 
-        {summary && (
-          <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">Resumo da IA:</p>
-            {summary}
-          </div>
-        )}
+        <div className="flex-1 overflow-y-auto space-y-4 min-h-0">
+          {summary && (
+            <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Resumo da IA:</p>
+              {summary}
+            </div>
+          )}
 
-        {/* Checkbox para criar OSs automaticamente */}
-        <div className="flex items-start space-x-3 p-4 bg-primary/5 border border-primary/20 rounded-lg">
-          <Checkbox
-            id="create-service-orders"
-            checked={createServiceOrders}
-            onCheckedChange={(checked) => setCreateServiceOrders(checked === true)}
-            className="mt-0.5"
-          />
-          <div className="flex-1">
-            <Label 
-              htmlFor="create-service-orders" 
-              className="font-medium cursor-pointer flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4 text-primary" />
-              Criar Ordens de Serviço automaticamente
-            </Label>
-            <p className="text-sm text-muted-foreground mt-1">
-              Para cada visita selecionada, uma OS será criada e agendada no calendário. 
-              As OSs aparecerão como preventivas com status "Agendada".
-            </p>
+          {/* Checkbox para criar OSs automaticamente */}
+          <div className="flex items-start space-x-3 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+            <Checkbox
+              id="create-service-orders"
+              checked={createServiceOrders}
+              onCheckedChange={(checked) => setCreateServiceOrders(checked === true)}
+              className="mt-0.5"
+            />
+            <div className="flex-1">
+              <Label 
+                htmlFor="create-service-orders" 
+                className="font-medium cursor-pointer flex items-center gap-2"
+              >
+                <FileText className="h-4 w-4 text-primary" />
+                Criar Ordens de Serviço automaticamente
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Para cada visita selecionada, uma OS será criada e agendada no calendário. 
+                As OSs aparecerão como preventivas com status "Agendada".
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center justify-between py-2">
-          <span className="text-sm text-muted-foreground">
-            {selectedVisits.size} de {plan.length} visitas selecionadas
-          </span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={selectAll}>
-              Selecionar Todas
-            </Button>
-            <Button variant="outline" size="sm" onClick={deselectAll}>
-              Limpar Seleção
-            </Button>
+          <div className="flex items-center justify-between py-2 sticky top-0 bg-background z-10">
+            <span className="text-sm text-muted-foreground">
+              {selectedVisits.size} de {plan.length} visitas selecionadas
+            </span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={selectAll}>
+                Selecionar Todas
+              </Button>
+              <Button variant="outline" size="sm" onClick={deselectAll}>
+                Limpar Seleção
+              </Button>
+            </div>
           </div>
-        </div>
 
-        <ScrollArea className="h-[400px] pr-4">
           <div className="space-y-3">
             {plan.map((visit) => (
               <div
@@ -221,9 +221,9 @@ export function VisitPlanModal({
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0 pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
