@@ -1,119 +1,79 @@
 
-# Integração Final: AISummaryCard
 
-## Objetivo
-Adicionar o componente de resumo automático IA nos dois locais de fechamento de atendimentos:
-1. **DailyServiceRecordDialog** - Para atendimentos diários concluídos
-2. **TicketStatusUpdate** - Para tickets resolvidos/fechados
+# Correção: Planejador de Visitas IA - Erro ao Salvar
+
+## Problema Identificado
+
+O sistema não consegue finalizar o mapa de visitas porque a função `mapPrioridade` no hook `useVisitSchedule.ts` está mapeando incorretamente os valores de prioridade:
+
+| Prioridade da Visita | Valor Enviado | Valores Aceitos na Tabela |
+|---------------------|---------------|---------------------------|
+| alta | **urgente** ❌ | alta, media, baixa |
+| media | media ✓ | alta, media, baixa |
+| baixa | baixa ✓ | alta, media, baixa |
+
+O valor "urgente" **não existe** na tabela `service_orders`, causando erro ao tentar criar as ordens de serviço automaticamente.
 
 ---
 
-## Mudanças Necessárias
+## Solução
 
-### 1. DailyServiceRecordDialog.tsx
+Corrigir a função `mapPrioridade` para mapear corretamente os valores:
 
-**Localização**: Após o campo de observações, antes do DialogFooter
+### Arquivo: `src/hooks/useVisitSchedule.ts`
 
-**Alterações**:
-- Adicionar import do `AISummaryCard`
-- Inserir o componente quando `status === "concluido"` e `recordId` existe (edição)
-- O card aparece apenas ao editar um registro já concluído
+**Antes:**
+```typescript
+const mapPrioridade = (visitPriority: string): string => {
+  switch (visitPriority) {
+    case 'alta': return 'urgente';  // ❌ ERRO - valor inválido
+    case 'media': return 'media';
+    case 'baixa': return 'baixa';
+    default: return 'media';
+  }
+};
+```
+
+**Depois:**
+```typescript
+const mapPrioridade = (visitPriority: string): string => {
+  switch (visitPriority) {
+    case 'alta': return 'alta';     // ✓ Corrigido
+    case 'media': return 'media';
+    case 'baixa': return 'baixa';
+    default: return 'media';
+  }
+};
+```
+
+---
+
+## Fluxo Corrigido
 
 ```text
-Posição no formulário:
-  ...
-  [Campo Observações]
-  [Upload de Fotos]
-  
-  [NOVO: AISummaryCard] ← Aparece quando concluído
-  
-  [Botões: Exportar PDF | Cancelar | Salvar]
+1. Usuário gera mapa de visitas via IA
+2. Modal abre com lista de empresas sugeridas
+3. Usuário seleciona visitas e marca "Criar OSs automaticamente"
+4. Ao clicar "Salvar":
+   a. Sistema cria service_orders com prioridade correta (alta/media/baixa)
+   b. Sistema cria visit_schedules vinculadas às OSs
+5. Toast de sucesso: "X visitas agendadas e Y ordens de serviço criadas"
 ```
 
 ---
 
-### 2. TicketStatusUpdate.tsx
-
-**Localização**: Após o campo de solução, antes do botão de atualizar
-
-**Alterações**:
-- Adicionar import do `AISummaryCard`
-- Inserir o componente quando ticket está com status `resolvido` ou `fechado`
-- Passa o ticket.id e status atual
-
-```text
-Estrutura do card:
-  [Select Status]
-  [Textarea Solução] (quando resolvido)
-  
-  [NOVO: AISummaryCard] ← Aparece quando resolvido/fechado
-  
-  [Botão Atualizar]
-```
-
----
-
-## Detalhes Técnicos
-
-### DailyServiceRecordDialog
-```typescript
-// Import adicional
-import { AISummaryCard } from '@/components/ai/AISummaryCard';
-
-// Dentro do form, após as fotos:
-{recordId && form.watch('status') === 'concluido' && (
-  <AISummaryCard 
-    serviceType="daily_service"
-    serviceId={recordId}
-    status={form.watch('status')}
-  />
-)}
-```
-
-### TicketStatusUpdate
-```typescript
-// Import adicional
-import { AISummaryCard } from '@/components/ai/AISummaryCard';
-
-// Após o campo de solução:
-<AISummaryCard 
-  serviceType="ticket"
-  serviceId={ticket.id}
-  status={status}
-/>
-```
-
----
-
-## Fluxo do Usuário
-
-1. Técnico conclui um atendimento diário ou resolve um ticket
-2. O card "Resumo IA" aparece automaticamente
-3. Clica em "Gerar Resumo IA"
-4. IA analisa o atendimento e gera:
-   - Resumo executivo
-   - Problema identificado
-   - Solução aplicada
-   - Padrões detectados
-   - Recomendações preventivas
-5. Técnico pode editar e salvar o resumo
-
----
-
-## Arquivos Modificados
+## Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| src/components/daily-records/DailyServiceRecordDialog.tsx | + import + AISummaryCard |
-| src/components/tickets/TicketStatusUpdate.tsx | + import + AISummaryCard |
+| `src/hooks/useVisitSchedule.ts` | Linha 108: mudar `'urgente'` para `'alta'` |
 
 ---
 
-## Resultado Final
+## Validação
 
-Com esta integração, o plano estará **100% completo**:
+Após a correção, ao salvar o plano de visitas:
+- As ordens de serviço serão criadas com status "agendada"
+- A prioridade será mapeada corretamente (alta → alta, media → media, baixa → baixa)
+- As visitas aparecerão no calendário de OSs
 
-- 5 Edge Functions criadas e funcionando
-- 3 Tabelas de IA no banco de dados
-- 6 Componentes React integrados
-- Todas as integrações de UI finalizadas
