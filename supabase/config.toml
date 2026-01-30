@@ -26,3 +26,18 @@ verify_jwt = false
 
 [functions.ai-ticket-categorizer]
 verify_jwt = false
+
+[functions.ai-ticket-triage]
+verify_jwt = false
+
+[functions.ai-service-summary]
+verify_jwt = false
+
+[functions.ai-diagnostic-assistant]
+verify_jwt = false
+
+[functions.ai-smart-alerts]
+verify_jwt = false
+
+[functions.ai-predictive-maintenance]
+verify_jwt = false

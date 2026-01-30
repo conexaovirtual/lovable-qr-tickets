@@ -14,6 +14,137 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_alerts: {
+        Row: {
+          acao_sugerida: string | null
+          created_at: string | null
+          dados: Json | null
+          descricao: string | null
+          id: string
+          lido: boolean | null
+          resolvido: boolean | null
+          severidade: string
+          tipo: string
+          titulo: string
+        }
+        Insert: {
+          acao_sugerida?: string | null
+          created_at?: string | null
+          dados?: Json | null
+          descricao?: string | null
+          id?: string
+          lido?: boolean | null
+          resolvido?: boolean | null
+          severidade: string
+          tipo: string
+          titulo: string
+        }
+        Update: {
+          acao_sugerida?: string | null
+          created_at?: string | null
+          dados?: Json | null
+          descricao?: string | null
+          id?: string
+          lido?: boolean | null
+          resolvido?: boolean | null
+          severidade?: string
+          tipo?: string
+          titulo?: string
+        }
+        Relationships: []
+      }
+      ai_predictions: {
+        Row: {
+          asset_id: string | null
+          created_at: string | null
+          dias_estimados: number | null
+          historico_resumo: string | null
+          id: string
+          probabilidade_falha: number | null
+          recomendacao: string | null
+          tipo_falha_prevista: string | null
+          valido_ate: string | null
+        }
+        Insert: {
+          asset_id?: string | null
+          created_at?: string | null
+          dias_estimados?: number | null
+          historico_resumo?: string | null
+          id?: string
+          probabilidade_falha?: number | null
+          recomendacao?: string | null
+          tipo_falha_prevista?: string | null
+          valido_ate?: string | null
+        }
+        Update: {
+          asset_id?: string | null
+          created_at?: string | null
+          dias_estimados?: number | null
+          historico_resumo?: string | null
+          id?: string
+          probabilidade_falha?: number | null
+          recomendacao?: string | null
+          tipo_falha_prevista?: string | null
+          valido_ate?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_predictions_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_summaries: {
+        Row: {
+          created_at: string | null
+          id: string
+          padrao_detectado: boolean | null
+          padroes: Json | null
+          problema_identificado: string | null
+          recomendacao_preventiva: string | null
+          recomendacoes: string | null
+          resumo: string
+          solucao_aplicada: string | null
+          source_id: string
+          source_type: string
+          tags_sugeridas: string[] | null
+          tempo_estimado_futuro: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          padrao_detectado?: boolean | null
+          padroes?: Json | null
+          problema_identificado?: string | null
+          recomendacao_preventiva?: string | null
+          recomendacoes?: string | null
+          resumo: string
+          solucao_aplicada?: string | null
+          source_id: string
+          source_type: string
+          tags_sugeridas?: string[] | null
+          tempo_estimado_futuro?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          padrao_detectado?: boolean | null
+          padroes?: Json | null
+          problema_identificado?: string | null
+          recomendacao_preventiva?: string | null
+          recomendacoes?: string | null
+          resumo?: string
+          solucao_aplicada?: string | null
+          source_id?: string
+          source_type?: string
+          tags_sugeridas?: string[] | null
+          tempo_estimado_futuro?: string | null
+        }
+        Relationships: []
+      }
       asset_categories: {
         Row: {
           cor: string | null

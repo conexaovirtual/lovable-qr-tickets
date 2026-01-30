@@ -22,6 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
+import { AITriageCard } from '@/components/ai/AITriageCard';
+import { AIDiagnosticButton } from '@/components/ai/AIDiagnosticButton';
 
 export default function TicketDetail() {
   const { id } = useParams();
