@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { AISummaryCard } from '@/components/ai/AISummaryCard';
 
 interface TicketStatusUpdateProps {
   ticket: any;
@@ -97,6 +98,13 @@ export function TicketStatusUpdate({ ticket, onUpdate }: TicketStatusUpdateProps
             />
           </div>
         )}
+
+        {/* Card de Resumo IA - aparece quando resolvido ou fechado */}
+        <AISummaryCard 
+          serviceType="ticket"
+          serviceId={ticket.id}
+          status={status}
+        />
 
         <Button
           onClick={handleUpdate}

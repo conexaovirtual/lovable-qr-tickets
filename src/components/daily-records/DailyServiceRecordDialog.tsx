@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { VoiceInputButton } from "@/components/ui/VoiceInputButton";
+import { AISummaryCard } from "@/components/ai/AISummaryCard";
 import { UploadedImage } from "@/lib/imageUtils";
 import { toast } from "sonner";
 import { Loader2, MessageCircle, Phone, MapPin, FileDown, Monitor } from "lucide-react";
@@ -559,6 +560,15 @@ export function DailyServiceRecordDialog({
                 </FormItem>
               )}
             />
+
+            {/* Card de Resumo IA - aparece quando concluído */}
+            {recordId && form.watch('status') === 'concluido' && (
+              <AISummaryCard 
+                serviceType="daily_service"
+                serviceId={recordId}
+                status={form.watch('status')}
+              />
+            )}
 
             <DialogFooter>
               {recordId && form.watch('status') === 'concluido' && (
