@@ -205,6 +205,11 @@ export type Database = {
           configuracoes: Json | null
           created_at: string | null
           data_compra: string | null
+          datto_device_id: string | null
+          datto_device_uid: string | null
+          datto_last_sync: string | null
+          datto_site_id: string | null
+          datto_status: string | null
           estado: Database["public"]["Enums"]["asset_status"] | null
           fabricante: string | null
           garantia_fim: string | null
@@ -228,6 +233,11 @@ export type Database = {
           configuracoes?: Json | null
           created_at?: string | null
           data_compra?: string | null
+          datto_device_id?: string | null
+          datto_device_uid?: string | null
+          datto_last_sync?: string | null
+          datto_site_id?: string | null
+          datto_status?: string | null
           estado?: Database["public"]["Enums"]["asset_status"] | null
           fabricante?: string | null
           garantia_fim?: string | null
@@ -251,6 +261,11 @@ export type Database = {
           configuracoes?: Json | null
           created_at?: string | null
           data_compra?: string | null
+          datto_device_id?: string | null
+          datto_device_uid?: string | null
+          datto_last_sync?: string | null
+          datto_site_id?: string | null
+          datto_status?: string | null
           estado?: Database["public"]["Enums"]["asset_status"] | null
           fabricante?: string | null
           garantia_fim?: string | null
@@ -533,6 +548,75 @@ export type Database = {
           },
           {
             foreignKeyName: "daily_service_records_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      datto_alerts_log: {
+        Row: {
+          alert_category: string | null
+          alert_message: string | null
+          alert_priority: string | null
+          alert_type: string | null
+          alert_uid: string | null
+          asset_id: string | null
+          created_at: string | null
+          device_hostname: string | null
+          device_id: string | null
+          device_ip: string | null
+          id: string
+          processed: boolean | null
+          raw_payload: Json | null
+          site_name: string | null
+          ticket_id: string | null
+        }
+        Insert: {
+          alert_category?: string | null
+          alert_message?: string | null
+          alert_priority?: string | null
+          alert_type?: string | null
+          alert_uid?: string | null
+          asset_id?: string | null
+          created_at?: string | null
+          device_hostname?: string | null
+          device_id?: string | null
+          device_ip?: string | null
+          id?: string
+          processed?: boolean | null
+          raw_payload?: Json | null
+          site_name?: string | null
+          ticket_id?: string | null
+        }
+        Update: {
+          alert_category?: string | null
+          alert_message?: string | null
+          alert_priority?: string | null
+          alert_type?: string | null
+          alert_uid?: string | null
+          asset_id?: string | null
+          created_at?: string | null
+          device_hostname?: string | null
+          device_id?: string | null
+          device_ip?: string | null
+          id?: string
+          processed?: boolean | null
+          raw_payload?: Json | null
+          site_name?: string | null
+          ticket_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "datto_alerts_log_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "datto_alerts_log_ticket_id_fkey"
             columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "tickets"
