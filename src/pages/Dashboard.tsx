@@ -12,6 +12,7 @@ import { NotificationPermissionPrompt } from '@/components/notifications/Notific
 import { QuickRemoteServiceCard } from '@/components/dashboard/QuickRemoteServiceCard';
 import { RemoteServiceQuickDialog } from '@/components/dashboard/RemoteServiceQuickDialog';
 import { SmartAlertsPanel } from '@/components/ai/SmartAlertsPanel';
+import { DattoMonitoringPanel } from '@/components/dashboard/DattoMonitoringPanel';
 import { formatDateBR } from '@/lib/formatters';
 import { 
   Clock, 
@@ -175,6 +176,11 @@ export default function Dashboard() {
             {/* Smart Alerts Panel for admins */}
             {profile?.roles?.includes('admin_provedor') && (
               <SmartAlertsPanel />
+            )}
+
+            {/* Datto RMM Monitoring Panel */}
+            {(profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico')) && (
+              <DattoMonitoringPanel />
             )}
 
             {(profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico')) && (

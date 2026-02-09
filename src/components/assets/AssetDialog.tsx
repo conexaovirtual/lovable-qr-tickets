@@ -22,8 +22,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Cpu, MemoryStick, HardDrive, Monitor } from 'lucide-react';
+import { Cpu, MemoryStick, HardDrive, Monitor, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 // Tipos de ativos que requerem configurações de hardware
 const TIPOS_COM_HARDWARE = ['desktop', 'notebook', 'servidor'];
@@ -60,6 +63,8 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
     data_compra: '',
     garantia_fim: '',
     observacoes: '',
+    datto_device_id: '',
+    datto_site_id: '',
   });
 
   const [configs, setConfigs] = useState<any>({
@@ -129,6 +134,8 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
         data_compra: asset.data_compra || '',
         garantia_fim: asset.garantia_fim || '',
         observacoes: asset.observacoes || '',
+        datto_device_id: asset.datto_device_id || '',
+        datto_site_id: asset.datto_site_id || '',
       });
       setConfigs(asset.configuracoes || {});
     } else {
@@ -149,6 +156,8 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
         data_compra: '',
         garantia_fim: '',
         observacoes: '',
+        datto_device_id: '',
+        datto_site_id: '',
       });
       setConfigs({});
     }
@@ -203,6 +212,9 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
       // Converter strings vazias em null para campos de data
       data_compra: formData.data_compra || null,
       garantia_fim: formData.garantia_fim || null,
+      // Datto fields - convert empty to null
+      datto_device_id: formData.datto_device_id || null,
+      datto_site_id: formData.datto_site_id || null,
       // Só salvar configurações se o tipo requer hardware
       configuracoes: TIPOS_COM_HARDWARE.includes(formData.tipo) ? configs : null,
     };
@@ -264,11 +276,15 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className={cn(
               "grid w-full",
-              requiredHardwareTab ? "grid-cols-3" : "grid-cols-2"
+              requiredHardwareTab ? "grid-cols-4" : "grid-cols-3"
             )}>
               <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
               {requiredHardwareTab && <TabsTrigger value="hardware">Hardware</TabsTrigger>}
               <TabsTrigger value="additional">Adicionais</TabsTrigger>
+              <TabsTrigger value="datto">
+                <Link2 className="h-3 w-3 mr-1" />
+                Datto
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic" className="space-y-4">
@@ -623,6 +639,52 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                   onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
                   rows={3}
                 />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="datto" className="space-y-4">
+              <div className="p-4 border rounded-lg space-y-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Link2 className="h-4 w-4" />
+                  Integração Datto RMM
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Vincule este ativo a um dispositivo monitorado pelo Datto RMM para receber alertas automáticos.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Device ID</Label>
+                    <Input
+                      value={formData.datto_device_id}
+                      onChange={(e) => setFormData({ ...formData, datto_device_id: e.target.value })}
+                      placeholder="ID do dispositivo no Datto"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Site ID</Label>
+                    <Input
+                      value={formData.datto_site_id}
+                      onChange={(e) => setFormData({ ...formData, datto_site_id: e.target.value })}
+                      placeholder="ID do site/cliente no Datto"
+                    />
+                  </div>
+                </div>
+                {asset?.datto_status && (
+                  <div className="flex items-center gap-3 pt-2">
+                    <Badge variant={
+                      asset.datto_status === 'online' ? 'default' :
+                      asset.datto_status === 'alert' ? 'destructive' : 'secondary'
+                    }>
+                      {asset.datto_status === 'online' ? '🟢 Online' :
+                       asset.datto_status === 'alert' ? '🔴 Alerta' : '⚫ Offline'}
+                    </Badge>
+                    {asset.datto_last_sync && (
+                      <span className="text-xs text-muted-foreground">
+                        Última sync: {formatDistanceToNow(new Date(asset.datto_last_sync), { addSuffix: true, locale: ptBR })}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
