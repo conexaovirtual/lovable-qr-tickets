@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.ai-predictive-maintenance]
 verify_jwt = false
+
+[functions.datto-rmm-webhook]
+verify_jwt = false
