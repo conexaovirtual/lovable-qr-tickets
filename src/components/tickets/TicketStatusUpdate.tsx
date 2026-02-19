@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { AISummaryCard } from '@/components/ai/AISummaryCard';
+import { AISolutionSuggester } from '@/components/ai/AISolutionSuggester';
 
 interface TicketStatusUpdateProps {
   ticket: any;
@@ -89,6 +90,10 @@ export function TicketStatusUpdate({ ticket, onUpdate }: TicketStatusUpdateProps
         {status === 'resolvido' && (
           <div className="space-y-2">
             <Label htmlFor="solucao">Solução</Label>
+            <AISolutionSuggester
+              ticketId={ticket.id}
+              onApply={(text) => setSolucao(text)}
+            />
             <Textarea
               id="solucao"
               value={solucao}

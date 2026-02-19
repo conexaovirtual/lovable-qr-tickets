@@ -51,7 +51,7 @@ export const usePushNotifications = () => {
       const registration = await navigator.serviceWorker.ready;
       
       // Verificar se já existe uma subscription
-      let existingSub = await registration.pushManager.getSubscription();
+      let existingSub = await (registration as any).pushManager.getSubscription();
       
       if (existingSub) {
         console.log('Already subscribed to push notifications');
@@ -67,7 +67,7 @@ export const usePushNotifications = () => {
         throw new Error('VAPID public key not configured');
       }
 
-      const sub = await registration.pushManager.subscribe({
+      const sub = await (registration as any).pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource
       });
