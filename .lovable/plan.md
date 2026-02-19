@@ -1,248 +1,103 @@
 
 
-# Integração Datto RMM - Monitoramento e Tickets Automáticos
+# Analise do Sistema e Plano de Expansao da IA
 
-## Objetivo
-Criar uma integração completa com o Datto RMM que permite:
-1. Receber alertas de monitoramento via Webhook
-2. Vincular dispositivos do Datto aos ativos cadastrados
-3. Criar tickets automaticamente baseados nos alertas
-4. Atualizar status dos ativos em tempo real
+## Estado Atual da IA no Sistema
 
----
+O sistema ja possui 7 modulos de IA integrados:
 
-## Arquitetura da Integração
+| Modulo | Onde atua | Funcao |
+|--------|-----------|--------|
+| Categorizador por Voz | Abertura de chamado | Preenche titulo, categoria, impacto e urgencia |
+| Triagem IA | Detalhe do chamado (novo/triagem) | Sugere prioridade, tecnico e tickets similares |
+| Resumo Automatico | Fechamento de ticket/atendimento | Gera analise executiva |
+| Assistente Diagnostico | Ticket em atendimento | Chat com passos de troubleshooting |
+| Alertas Inteligentes | Dashboard | Notificacoes proativas de risco |
+| Previsao de Manutencao | Dashboard | Prediz falhas em ativos |
+| Planejador de Visitas | Analytics | Sugere agendamento de visitas |
 
-```text
-┌─────────────────┐         ┌──────────────────────┐         ┌─────────────────┐
-│   Datto RMM     │────────▶│  Edge Function       │────────▶│   Helpdesk      │
-│   (Alertas)     │ Webhook │  datto-rmm-webhook   │         │   (Tickets)     │
-└─────────────────┘         └──────────────────────┘         └─────────────────┘
-                                      │
-                                      ▼
-                            ┌──────────────────────┐
-                            │   Tabela assets      │
-                            │   (datto_device_id)  │
-                            └──────────────────────┘
-```
+## Lacunas Identificadas
+
+Apos analise detalhada do fluxo de abertura e atendimento, identifiquei **5 oportunidades** de alto impacto:
 
 ---
 
-## 1. Modificações no Banco de Dados
+### 1. Sugestao de Solucao por IA (ao resolver chamado)
 
-### Tabela `assets` - Novos Campos
+**Problema:** Quando o tecnico muda o status para "Resolvido", o campo de solucao e em branco. O tecnico precisa digitar tudo manualmente.
 
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| `datto_device_id` | text | ID do dispositivo no Datto RMM |
-| `datto_device_uid` | text | UID único do dispositivo |
-| `datto_site_id` | text | ID do site/cliente no Datto |
-| `datto_last_sync` | timestamp | Última sincronização |
-| `datto_status` | text | Status atual do dispositivo (online/offline/alert) |
+**Solucao:** Criar uma funcao backend `ai-solution-suggester` que analisa a descricao do chamado, historico de tickets similares resolvidos e dados do ativo para sugerir um texto de solucao pre-preenchido. Um botao "Sugerir Solucao com IA" aparecera ao lado do campo solucao no componente `TicketStatusUpdate`.
 
-### Nova Tabela `datto_alerts_log`
-
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| `id` | uuid | ID único |
-| `alert_uid` | text | UID do alerta no Datto |
-| `device_id` | text | ID do dispositivo |
-| `asset_id` | uuid | FK para assets (se vinculado) |
-| `ticket_id` | uuid | FK para tickets (se criado) |
-| `alert_type` | text | Tipo do alerta (Performance, Hardware, etc.) |
-| `alert_category` | text | Categoria |
-| `alert_message` | text | Mensagem do alerta |
-| `alert_priority` | text | Prioridade |
-| `device_hostname` | text | Nome do dispositivo |
-| `device_ip` | text | IP do dispositivo |
-| `site_name` | text | Nome do site |
-| `raw_payload` | jsonb | Payload completo recebido |
-| `processed` | boolean | Se já foi processado |
-| `created_at` | timestamp | Data de criação |
+**Impacto:** Reduz tempo de documentacao em ~60%, melhora a qualidade dos registros.
 
 ---
 
-## 2. Edge Function: `datto-rmm-webhook`
+### 2. Base de Conhecimento Automatica (Knowledge Base)
 
-### Funcionalidades
-- Recebe webhooks do Datto RMM
-- Valida token de segurança
-- Identifica o ativo correspondente (por `datto_device_id` ou hostname)
-- Cria ticket automaticamente se o alerta for crítico
-- Atualiza status do ativo
-- Envia notificação push para técnicos
-- Registra log do alerta
+**Problema:** Tickets resolvidos ficam "enterrados" no historico. Quando um problema semelhante aparece, o tecnico precisa buscar manualmente.
 
-### Payload Esperado (Datto Webhook)
-```json
-{
-  "alertlevel": "triggered",
-  "device_id": "123456",
-  "device_uid": "abc-123-xyz",
-  "device_hostname": "DESKTOP-RECEPCAO",
-  "device_ip": "192.168.1.50",
-  "device_os": "Windows 10 Pro",
-  "device_description": "Desktop Recepção",
-  "site_id": "789",
-  "site_uid": "site-uid-123",
-  "site_name": "Empresa Cliente LTDA",
-  "alert_uid": "alert-123",
-  "alert_type": "Performance",
-  "alert_category": "CPU Usage",
-  "alert_message": "CPU usage exceeded 90% for 15 minutes",
-  "alert_priority": "critical",
-  "platform": "pinotage"
-}
-```
+**Solucao:** Criar uma nova pagina `/knowledge-base` com tabela `knowledge_articles` que armazena artigos gerados automaticamente pela IA ao fechar tickets. Uma funcao backend `ai-knowledge-generator` extrai o problema, a solucao e tags do ticket resolvido e cria um artigo pesquisavel. Na abertura de novos chamados, o sistema exibira automaticamente artigos relevantes.
 
-### Lógica de Criação de Ticket
-```text
-SE alert_priority = "critical" OU "warning":
-  1. Buscar asset por datto_device_id OU hostname
-  2. SE asset encontrado:
-     a. Obter company_id do asset
-     b. Criar ticket com:
-        - titulo: "[DATTO] {alert_type}: {device_hostname}"
-        - descricao: alert_message + detalhes do dispositivo
-        - prioridade: critical→critica, warning→alta, info→media
-        - canal: "monitoramento"
-        - asset_id: asset vinculado
-        - status: "novo"
-     c. Atualizar asset.estado para "manutencao" se crítico
-     d. Enviar push notification
-  3. SE asset NÃO encontrado:
-     a. Registrar log para vinculação manual
-     b. Criar ai_alert informando dispositivo não cadastrado
-```
+**Impacto:** Acelera resolucao de problemas recorrentes, permite autoatendimento.
 
 ---
 
-## 3. Componente UI: Vinculação Datto
+### 3. IA no Fechamento de Atendimento Diario
 
-### AssetDialog.tsx - Nova Seção
-Adicionar campos para vincular ativo ao Datto RMM:
+**Problema:** O `ServiceOrderExecutionDialog` e os atendimentos diarios nao tem nenhuma assistencia de IA ao documentar a execucao.
 
-```text
-┌─────────────────────────────────────────────────────┐
-│ 🔗 Integração Datto RMM                             │
-├─────────────────────────────────────────────────────┤
-│ Device ID: [________________]                        │
-│ Site ID:   [________________]                        │
-│                                                      │
-│ Status: 🟢 Online | Última sync: 15/01/2026 14:30   │
-└─────────────────────────────────────────────────────┘
-```
+**Solucao:** Adicionar botao "Gerar Relatorio com IA" no dialog de execucao de OS e no fechamento de atendimentos diarios. A IA analisa o titulo, descricao, tempo gasto e fotos anexadas para gerar uma descricao profissional da execucao.
+
+**Impacto:** Documentacao padronizada e completa em todos os atendimentos.
 
 ---
 
-## 4. Dashboard de Monitoramento (Novo Componente)
+### 4. Enriquecimento Inteligente de Alertas Datto
 
-### DattoMonitoringPanel.tsx
-Exibe status em tempo real dos dispositivos monitorados:
+**Problema:** Alertas do Datto RMM chegam com mensagens tecnicas brutas (ex: "Security Threat detected") sem contexto util para o tecnico.
 
-```text
-┌─────────────────────────────────────────────────────┐
-│ 📊 Monitoramento Datto RMM                          │
-├─────────────────────────────────────────────────────┤
-│ ✅ 45 Dispositivos Online                           │
-│ ⚠️ 3 Alertas Ativos                                 │
-│ 🔴 1 Dispositivo Offline                            │
-├─────────────────────────────────────────────────────┤
-│ Alertas Recentes:                                   │
-│ • DESKTOP-01 - CPU 95% (há 5 min) [Ver Ticket]     │
-│ • SERVER-DB - Disco 85% (há 15 min) [Ver Ticket]   │
-└─────────────────────────────────────────────────────┘
-```
+**Solucao:** Modificar a funcao `datto-rmm-webhook` para chamar a IA e enriquecer o alerta antes de criar o ticket. A IA traduzira a mensagem tecnica em descricao clara, sugerira acoes imediatas e classificara a severidade real baseada no contexto do ativo e historico.
+
+**Impacto:** Tickets do Datto ja nascem com informacoes uteis, reduzindo tempo de triagem.
 
 ---
 
-## 5. Configuração no Datto RMM
+### 5. Resposta Automatica Inteligente para Chamados via QR Code
 
-### URL do Webhook
-```
-https://plyzicpwvcqheubiidvn.supabase.co/functions/v1/datto-rmm-webhook
-```
+**Problema:** Quando um usuario externo abre um chamado via QR Code, ele so recebe confirmacao generica. Nao ha orientacao imediata.
 
-### Headers Obrigatórios
-```
-Authorization: Bearer {DATTO_WEBHOOK_SECRET}
-Content-Type: application/json
-```
+**Solucao:** Apos criar o ticket publico, a IA analisa a descricao e gera uma resposta automatica com passos preliminares que o usuario pode tentar (ex: "Enquanto aguarda o tecnico, tente reiniciar o equipamento"). Essa resposta e salva como comentario automatico no ticket.
 
-### Payload Template (para configurar no Datto)
-```json
-{
-  "alertlevel": "[alertlevel]",
-  "device_id": "[device_id]",
-  "device_uid": "[device_uid]",
-  "device_hostname": "[device_hostname]",
-  "device_ip": "[device_ip]",
-  "device_os": "[device_os]",
-  "device_description": "[device_description]",
-  "site_id": "[site_id]",
-  "site_uid": "[site_uid]",
-  "site_name": "[site_name]",
-  "alert_uid": "[alert_uid]",
-  "alert_type": "[alert_type]",
-  "alert_category": "[alert_category]",
-  "alert_message": "[alert_message]",
-  "alert_priority": "[alert_priority]",
-  "platform": "[platform]",
-  "last_user": "[lastuser]"
-}
-```
+**Impacto:** Melhora a experiencia do usuario final e pode resolver problemas simples antes do tecnico chegar.
 
 ---
 
-## Arquivos a Criar/Modificar
+## Detalhes Tecnicos
 
-| Arquivo | Ação | Descrição |
-|---------|------|-----------|
-| `supabase/functions/datto-rmm-webhook/index.ts` | Criar | Endpoint para receber webhooks |
-| `src/components/dashboard/DattoMonitoringPanel.tsx` | Criar | Painel de monitoramento |
-| `src/components/assets/AssetDialog.tsx` | Modificar | Campos de integração Datto |
-| `supabase/config.toml` | Modificar | Registrar nova função |
-| Migração SQL | Criar | Novos campos e tabela |
+### Novas funcoes backend
+- `ai-solution-suggester` - Sugere texto de solucao baseado no contexto do chamado
+- `ai-knowledge-generator` - Gera artigos de conhecimento a partir de tickets resolvidos
+- `ai-execution-report` - Gera relatorio de execucao para OS e atendimentos
+- `ai-auto-response` - Gera resposta automatica para chamados publicos
 
----
+### Nova tabela
+- `knowledge_articles` (id, ticket_id, titulo, problema, solucao, tags, categoria, created_at) com RLS para admins e tecnicos
 
-## Fluxo Completo
+### Componentes novos/modificados
+- `AISolutionSuggester` - Botao + card de sugestao no TicketStatusUpdate
+- `KnowledgeBase` - Nova pagina com busca e listagem de artigos
+- `KnowledgeArticleCard` - Card de artigo na base de conhecimento
+- `AIExecutionReport` - Botao no ServiceOrderExecutionDialog
+- Modificacao do `datto-rmm-webhook` para enriquecimento
+- Modificacao do fluxo de ticket publico para auto-resposta
 
-1. **Configuração Inicial**
-   - Administrador cadastra ativos com `datto_device_id`
-   - Configura webhook no Datto RMM apontando para o endpoint
+### Modelo de IA
+Todas as funcoes usarao `google/gemini-3-flash-preview` via Lovable AI Gateway (sem necessidade de chave adicional).
 
-2. **Alerta Dispara no Datto**
-   - Monitor detecta problema (CPU alta, disco cheio, offline)
-   - Webhook envia payload para Edge Function
-
-3. **Processamento Automático**
-   - Edge Function recebe e valida o alerta
-   - Busca ativo correspondente pelo device_id
-   - Cria ticket automaticamente se crítico
-   - Atualiza status do ativo
-   - Envia push notification
-
-4. **Técnico Visualiza**
-   - Dashboard mostra painel de monitoramento
-   - Ticket aparece na lista com tag "DATTO"
-   - Técnico pode resolver remotamente via link do Datto
-
----
-
-## Segurança
-
-- Token de autenticação (`DATTO_WEBHOOK_SECRET`) obrigatório
-- Rate limiting: máximo 100 webhooks/minuto por IP
-- Validação do payload antes de processar
-- Log de todos os alertas recebidos para auditoria
-- RLS nas tabelas para proteger dados
-
----
-
-## Secret Necessário
-
-| Nome | Descrição |
-|------|-----------|
-| `DATTO_WEBHOOK_SECRET` | Token para autenticar webhooks do Datto |
+### Ordem de implementacao sugerida
+1. Sugestao de Solucao (maior impacto imediato no dia a dia)
+2. Base de Conhecimento (valor acumulativo ao longo do tempo)
+3. IA na Execucao de OS (padronizacao)
+4. Enriquecimento Datto (melhoria da integracao existente)
+5. Auto-resposta QR Code (experiencia do usuario final)
 
