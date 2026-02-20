@@ -12,8 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { ticket_id } = await req.json();
-    if (!ticket_id) throw new Error('ticket_id is required');
+    const { ticket_id, daily_record_id } = await req.json();
+    if (!ticket_id && !daily_record_id) throw new Error('ticket_id or daily_record_id is required');
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -21,21 +21,50 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Buscar dados do ticket
-    const { data: ticket, error } = await supabase
-      .from('tickets')
-      .select(`*, companies(nome_fantasia), assets(tipo, nome, fabricante, modelo)`)
-      .eq('id', ticket_id)
-      .single();
+    let titulo = '';
+    let descricao = '';
+    let solucao = '';
+    let empresaNome = 'N/A';
+    let ativoInfo = 'N/A';
+    const sourceId = ticket_id || daily_record_id;
 
-    if (error || !ticket) throw new Error('Ticket não encontrado');
-    if (!ticket.solucao) throw new Error('Ticket sem solução documentada');
+    if (daily_record_id) {
+      const { data: record, error } = await supabase
+        .from('daily_service_records')
+        .select(`*, companies(nome_fantasia), assets(tipo, nome, fabricante, modelo)`)
+        .eq('id', daily_record_id)
+        .single();
 
-    // Verificar se já existe artigo para este ticket
+      if (error || !record) throw new Error('Atendimento não encontrado');
+      if (!record.solucao) throw new Error('Atendimento sem solução documentada');
+
+      titulo = record.titulo;
+      descricao = record.descricao;
+      solucao = record.solucao;
+      empresaNome = record.companies?.nome_fantasia || 'N/A';
+      if (record.assets) ativoInfo = `${record.assets.tipo} - ${record.assets.nome}`;
+    } else {
+      const { data: ticket, error } = await supabase
+        .from('tickets')
+        .select(`*, companies(nome_fantasia), assets(tipo, nome, fabricante, modelo)`)
+        .eq('id', ticket_id)
+        .single();
+
+      if (error || !ticket) throw new Error('Ticket não encontrado');
+      if (!ticket.solucao) throw new Error('Ticket sem solução documentada');
+
+      titulo = ticket.titulo;
+      descricao = ticket.descricao;
+      solucao = ticket.solucao;
+      empresaNome = ticket.companies?.nome_fantasia || 'N/A';
+      if (ticket.assets) ativoInfo = `${ticket.assets.tipo} - ${ticket.assets.nome}`;
+    }
+
+    // Verificar se já existe artigo para esta fonte
     const { data: existing } = await supabase
       .from('knowledge_articles')
       .select('id')
-      .eq('ticket_id', ticket_id)
+      .eq('ticket_id', sourceId)
       .maybeSingle();
 
     if (existing) {
@@ -69,12 +98,12 @@ As tags devem ser palavras-chave úteis para busca. A categoria deve ser uma das
           },
           {
             role: "user",
-            content: `Transforme este ticket resolvido em artigo:
-Título: ${ticket.titulo}
-Descrição: ${ticket.descricao}
-Solução: ${ticket.solucao}
-Empresa: ${ticket.companies?.nome_fantasia || 'N/A'}
-Ativo: ${ticket.assets ? `${ticket.assets.tipo} - ${ticket.assets.nome}` : 'N/A'}`
+            content: `Transforme este atendimento resolvido em artigo:
+Título: ${titulo}
+Descrição: ${descricao}
+Solução: ${solucao}
+Empresa: ${empresaNome}
+Ativo: ${ativoInfo}`
           }
         ],
         temperature: 0.3,
@@ -99,9 +128,9 @@ Ativo: ${ticket.assets ? `${ticket.assets.tipo} - ${ticket.assets.nome}` : 'N/A'
       article = JSON.parse(jsonMatch![0]);
     } catch {
       article = {
-        titulo: ticket.titulo,
-        problema: ticket.descricao.substring(0, 500),
-        solucao: ticket.solucao,
+        titulo: titulo,
+        problema: descricao.substring(0, 500),
+        solucao: solucao,
         tags: [],
         categoria: 'Outros'
       };
@@ -111,7 +140,7 @@ Ativo: ${ticket.assets ? `${ticket.assets.tipo} - ${ticket.assets.nome}` : 'N/A'
     const { data: newArticle, error: insertError } = await supabase
       .from('knowledge_articles')
       .insert({
-        ticket_id,
+        ticket_id: sourceId,
         titulo: article.titulo,
         problema: article.problema,
         solucao: article.solucao,

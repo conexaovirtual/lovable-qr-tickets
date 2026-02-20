@@ -6,11 +6,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface AISolutionSuggesterProps {
-  ticketId: string;
+  ticketId?: string;
+  dailyRecordId?: string;
   onApply: (text: string) => void;
 }
 
-export function AISolutionSuggester({ ticketId, onApply }: AISolutionSuggesterProps) {
+export function AISolutionSuggester({ ticketId, dailyRecordId, onApply }: AISolutionSuggesterProps) {
   const [loading, setLoading] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
@@ -23,7 +24,7 @@ export function AISolutionSuggester({ ticketId, onApply }: AISolutionSuggesterPr
 
     try {
       const { data, error } = await supabase.functions.invoke('ai-solution-suggester', {
-        body: { ticket_id: ticketId },
+        body: { ticket_id: ticketId, daily_record_id: dailyRecordId },
       });
 
       if (error) throw error;
