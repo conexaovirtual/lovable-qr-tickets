@@ -12,10 +12,10 @@ serve(async (req) => {
   }
 
   try {
-    const { ticket_id } = await req.json();
+    const { ticket_id, daily_record_id } = await req.json();
     
-    if (!ticket_id) {
-      throw new Error('ticket_id is required');
+    if (!ticket_id && !daily_record_id) {
+      throw new Error('ticket_id or daily_record_id is required');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -24,59 +24,113 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Buscar dados do ticket
-    const { data: ticket, error: ticketError } = await supabase
-      .from('tickets')
-      .select(`
-        *,
-        companies(nome_fantasia),
-        assets(tipo, nome, fabricante, modelo, sistema_operacional),
-        ticket_comments(comentario, created_at, is_internal)
-      `)
-      .eq('id', ticket_id)
-      .single();
+    let titulo = '';
+    let descricao = '';
+    let empresaNome = 'N/A';
+    let ativoInfo = 'Não especificado';
+    let comments = '';
+    let companyId = '';
+    let assetId: string | null = null;
 
-    if (ticketError || !ticket) throw new Error('Ticket não encontrado');
+    if (daily_record_id) {
+      // Buscar dados do atendimento diário
+      const { data: record, error: recordError } = await supabase
+        .from('daily_service_records')
+        .select(`
+          *,
+          companies(nome_fantasia),
+          assets(tipo, nome, fabricante, modelo, sistema_operacional)
+        `)
+        .eq('id', daily_record_id)
+        .single();
 
-    // Buscar tickets similares resolvidos (mesma empresa ou mesmo ativo)
+      if (recordError || !record) throw new Error('Atendimento não encontrado');
+
+      titulo = record.titulo;
+      descricao = record.descricao;
+      empresaNome = record.companies?.nome_fantasia || 'N/A';
+      companyId = record.company_id;
+      assetId = record.asset_id;
+      if (record.assets) {
+        ativoInfo = `${record.assets.tipo} - ${record.assets.nome} (${record.assets.fabricante || ''} ${record.assets.modelo || ''}) - SO: ${record.assets.sistema_operacional || 'N/A'}`;
+      }
+      comments = record.observacoes || '';
+    } else {
+      // Buscar dados do ticket
+      const { data: ticket, error: ticketError } = await supabase
+        .from('tickets')
+        .select(`
+          *,
+          companies(nome_fantasia),
+          assets(tipo, nome, fabricante, modelo, sistema_operacional),
+          ticket_comments(comentario, created_at, is_internal)
+        `)
+        .eq('id', ticket_id)
+        .single();
+
+      if (ticketError || !ticket) throw new Error('Ticket não encontrado');
+
+      titulo = ticket.titulo;
+      descricao = ticket.descricao;
+      empresaNome = ticket.companies?.nome_fantasia || 'N/A';
+      companyId = ticket.company_id;
+      assetId = ticket.asset_id;
+      if (ticket.assets) {
+        ativoInfo = `${ticket.assets.tipo} - ${ticket.assets.nome} (${ticket.assets.fabricante || ''} ${ticket.assets.modelo || ''}) - SO: ${ticket.assets.sistema_operacional || 'N/A'}`;
+      }
+      comments = (ticket.ticket_comments || [])
+        .filter((c: any) => c.is_internal)
+        .map((c: any) => c.comentario)
+        .join('\n');
+    }
+
+    // Buscar tickets similares resolvidos
     let similarQuery = supabase
       .from('tickets')
       .select('titulo, descricao, solucao')
       .in('status', ['resolvido', 'fechado'])
       .not('solucao', 'is', null)
-      .neq('id', ticket_id)
       .order('created_at', { ascending: false })
       .limit(15);
 
-    if (ticket.asset_id) {
-      similarQuery = similarQuery.eq('asset_id', ticket.asset_id);
+    if (ticket_id) similarQuery = similarQuery.neq('id', ticket_id);
+
+    if (assetId) {
+      similarQuery = similarQuery.eq('asset_id', assetId);
     } else {
-      similarQuery = similarQuery.eq('company_id', ticket.company_id);
+      similarQuery = similarQuery.eq('company_id', companyId);
     }
 
     const { data: similarTickets } = await similarQuery;
 
-    // Se não encontrou tickets do mesmo ativo, buscar da empresa
     let fallbackTickets: any[] = [];
-    if ((!similarTickets || similarTickets.length < 3) && ticket.asset_id) {
+    if ((!similarTickets || similarTickets.length < 3) && assetId) {
       const { data: companyTickets } = await supabase
         .from('tickets')
         .select('titulo, descricao, solucao')
-        .eq('company_id', ticket.company_id)
+        .eq('company_id', companyId)
         .in('status', ['resolvido', 'fechado'])
         .not('solucao', 'is', null)
-        .neq('id', ticket_id)
         .order('created_at', { ascending: false })
         .limit(10);
       fallbackTickets = companyTickets || [];
     }
 
-    const allSimilar = [...(similarTickets || []), ...fallbackTickets].slice(0, 15);
+    // Also search daily_service_records for similar solutions
+    const { data: similarRecords } = await supabase
+      .from('daily_service_records')
+      .select('titulo, descricao, solucao')
+      .eq('company_id', companyId)
+      .eq('status', 'concluido')
+      .not('solucao', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(10);
 
-    const comments = (ticket.ticket_comments || [])
-      .filter((c: any) => c.is_internal)
-      .map((c: any) => c.comentario)
-      .join('\n');
+    const allSimilar = [
+      ...(similarTickets || []),
+      ...fallbackTickets,
+      ...(similarRecords || []),
+    ].slice(0, 20);
 
     // Chamar Lovable AI Gateway
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -90,7 +144,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `Você é um técnico de TI experiente. Com base na descrição do chamado, comentários internos e histórico de soluções anteriores, sugira uma solução detalhada e profissional.
+            content: `Você é um técnico de TI experiente. Com base na descrição do atendimento, observações e histórico de soluções anteriores, sugira uma solução detalhada e profissional.
 
 A solução deve:
 - Ser objetiva e técnica
@@ -104,16 +158,16 @@ Responda APENAS com o texto da solução, sem formatação JSON, sem títulos, s
           },
           {
             role: "user",
-            content: `CHAMADO:
-Título: ${ticket.titulo}
-Descrição: ${ticket.descricao}
-Empresa: ${ticket.companies?.nome_fantasia || 'N/A'}
-Ativo: ${ticket.assets ? `${ticket.assets.tipo} - ${ticket.assets.nome} (${ticket.assets.fabricante || ''} ${ticket.assets.modelo || ''}) - SO: ${ticket.assets.sistema_operacional || 'N/A'}` : 'Não especificado'}
+            content: `ATENDIMENTO:
+Título: ${titulo}
+Descrição: ${descricao}
+Empresa: ${empresaNome}
+Ativo: ${ativoInfo}
 
-COMENTÁRIOS INTERNOS DO TÉCNICO:
-${comments || 'Nenhum comentário interno'}
+OBSERVAÇÕES/COMENTÁRIOS:
+${comments || 'Nenhuma observação'}
 
-SOLUÇÕES DE CHAMADOS SIMILARES ANTERIORES:
+SOLUÇÕES DE ATENDIMENTOS SIMILARES ANTERIORES:
 ${allSimilar.map((t: any, i: number) => `${i + 1}. Problema: ${t.titulo}\n   Solução: ${t.solucao}`).join('\n\n') || 'Nenhum histórico encontrado'}`
           }
         ],
@@ -138,7 +192,7 @@ ${allSimilar.map((t: any, i: number) => `${i + 1}. Problema: ${t.titulo}\n   Sol
     const aiData = await aiResponse.json();
     const suggestion = aiData.choices?.[0]?.message?.content?.trim();
 
-    console.log('[ai-solution-suggester] Sugestão gerada para ticket:', ticket_id);
+    console.log('[ai-solution-suggester] Sugestão gerada para:', ticket_id || daily_record_id);
 
     return new Response(JSON.stringify({ suggestion }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

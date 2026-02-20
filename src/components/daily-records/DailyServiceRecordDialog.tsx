@@ -14,6 +14,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { VoiceInputButton } from "@/components/ui/VoiceInputButton";
 import { AISummaryCard } from "@/components/ai/AISummaryCard";
+import { AISolutionSuggester } from "@/components/ai/AISolutionSuggester";
+import { AIExecutionReport } from "@/components/ai/AIExecutionReport";
 import { UploadedImage } from "@/lib/imageUtils";
 import { toast } from "sonner";
 import { Loader2, MessageCircle, Phone, MapPin, FileDown, Monitor } from "lucide-react";
@@ -212,6 +214,13 @@ export function DailyServiceRecordDialog({
 
         if (error) throw error;
         toast.success("Atendimento atualizado com sucesso!");
+        
+        // Gerar artigo de conhecimento ao concluir com solução
+        if (data.status === 'concluido' && data.solucao?.trim()) {
+          supabase.functions.invoke('ai-knowledge-generator', {
+            body: { daily_record_id: recordId },
+          }).catch(err => console.error('Knowledge generation error:', err));
+        }
       } else {
         const { error } = await supabase
           .from("daily_service_records")
@@ -505,13 +514,27 @@ export function DailyServiceRecordDialog({
                 <FormItem>
                   <div className="flex items-center justify-between">
                     <FormLabel>Solução Aplicada</FormLabel>
-                    <VoiceInputButton
-                      onFinalResult={(transcript) => {
-                        const currentValue = form.getValues("solucao") || "";
-                        form.setValue("solucao", currentValue ? `${currentValue} ${transcript}` : transcript);
-                      }}
-                      size="sm"
-                    />
+                    <div className="flex items-center gap-1">
+                      {recordId && (
+                        <AISolutionSuggester
+                          dailyRecordId={recordId}
+                          onApply={(text) => form.setValue("solucao", text)}
+                        />
+                      )}
+                      <AIExecutionReport
+                        titulo={form.watch("titulo")}
+                        descricao={form.watch("descricao") || ""}
+                        observacoes={form.watch("observacoes")}
+                        onApply={(text) => form.setValue("solucao", text)}
+                      />
+                      <VoiceInputButton
+                        onFinalResult={(transcript) => {
+                          const currentValue = form.getValues("solucao") || "";
+                          form.setValue("solucao", currentValue ? `${currentValue} ${transcript}` : transcript);
+                        }}
+                        size="sm"
+                      />
+                    </div>
                   </div>
                   <FormControl>
                     <Textarea
