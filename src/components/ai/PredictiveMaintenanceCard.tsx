@@ -131,7 +131,7 @@ export function PredictiveMaintenanceCard({ companyId }: PredictiveMaintenanceCa
 
   const handleCreateOS = (prediction: Prediction) => {
     // Navegar para criar OS preventiva
-    navigate(`/service-orders?create=true&asset_id=${prediction.asset_id}&tipo=preventiva`);
+    navigate(`/service-orders/new?asset_id=${prediction.asset_id}&tipo=preventiva`);
   };
 
   return (
