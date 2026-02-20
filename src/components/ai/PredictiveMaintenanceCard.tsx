@@ -130,8 +130,13 @@ export function PredictiveMaintenanceCard({ companyId }: PredictiveMaintenanceCa
   };
 
   const handleCreateOS = (prediction: Prediction) => {
-    // Navegar para criar OS preventiva
-    navigate(`/service-orders/new?asset_id=${prediction.asset_id}&tipo=preventiva`);
+    navigate(`/service-orders/new`, {
+      state: {
+        assetId: prediction.asset_id,
+        tipo: 'preventivo',
+        descricao: `[Manutenção Preventiva - IA]\n\nAtivo: ${prediction.asset_nome}\nEmpresa: ${prediction.company_nome}\nProbabilidade de falha: ${prediction.probabilidade_falha}%\nTipo de falha prevista: ${prediction.tipo_falha_prevista}\nEstimativa: ${prediction.dias_estimados} dias\n\nRecomendação: ${prediction.recomendacao || 'N/A'}\n\nResumo do histórico: ${prediction.historico_resumo || 'N/A'}`,
+      }
+    });
   };
 
   return (
