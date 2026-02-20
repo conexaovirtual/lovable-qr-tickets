@@ -45,5 +45,13 @@ verify_jwt = false
 [functions.datto-rmm-webhook]
 verify_jwt = false
 
+[functions.ai-knowledge-generator]
+verify_jwt = false
+
+[functions.ai-execution-report]
+verify_jwt = false
+
+[functions.ai-auto-response]
+verify_jwt = false
 [functions.ai-solution-suggester]
 verify_jwt = false

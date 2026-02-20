@@ -153,21 +153,87 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (existing) {
           console.log('Duplicate alert within 1 hour, skipping ticket creation');
         } else {
-          // Create ticket
-          const descricao = [
-            `🔔 Alerta automático do Datto RMM`,
-            ``,
-            `**Dispositivo:** ${payload.device_hostname || 'N/A'}`,
-            `**IP:** ${payload.device_ip || 'N/A'}`,
-            `**SO:** ${payload.device_os || 'N/A'}`,
-            `**Site:** ${payload.site_name || 'N/A'}`,
-            `**Tipo de Alerta:** ${payload.alert_type || 'N/A'}`,
-            `**Categoria:** ${payload.alert_category || 'N/A'}`,
-            ``,
-            `**Mensagem:** ${payload.alert_message || 'Sem detalhes'}`,
-            ``,
-            `_Último usuário logado: ${payload.last_user || 'N/A'}_`,
-          ].join('\n');
+          // Enrich alert with AI
+          let descricao = '';
+          try {
+            const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+            if (lovableApiKey) {
+              const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${lovableApiKey}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  model: "google/gemini-3-flash-preview",
+                  messages: [
+                    {
+                      role: "system",
+                      content: `Você é um especialista em TI. Recebeu um alerta de monitoramento Datto RMM. Traduza a mensagem técnica em uma descrição clara e útil em português brasileiro. Inclua:
+1. O que o alerta significa
+2. Possível impacto no usuário
+3. 2-3 ações imediatas recomendadas
+Seja conciso (máx 150 palavras). Responda apenas o texto.`
+                    },
+                    {
+                      role: "user",
+                      content: `Alerta: ${payload.alert_type || 'N/A'}
+Categoria: ${payload.alert_category || 'N/A'}
+Mensagem: ${payload.alert_message || 'N/A'}
+Dispositivo: ${payload.device_hostname || 'N/A'} (${payload.device_os || 'N/A'})
+Prioridade: ${payload.alert_priority || 'N/A'}`
+                    }
+                  ],
+                  temperature: 0.3,
+                }),
+              });
+
+              if (aiResponse.ok) {
+                const aiData = await aiResponse.json();
+                const aiText = aiData.choices?.[0]?.message?.content?.trim();
+                if (aiText) {
+                  descricao = [
+                    `🔔 Alerta automático do Datto RMM`,
+                    ``,
+                    `**Dispositivo:** ${payload.device_hostname || 'N/A'}`,
+                    `**IP:** ${payload.device_ip || 'N/A'}`,
+                    `**SO:** ${payload.device_os || 'N/A'}`,
+                    `**Site:** ${payload.site_name || 'N/A'}`,
+                    `**Tipo de Alerta:** ${payload.alert_type || 'N/A'}`,
+                    `**Categoria:** ${payload.alert_category || 'N/A'}`,
+                    ``,
+                    `**Mensagem Original:** ${payload.alert_message || 'Sem detalhes'}`,
+                    ``,
+                    `---`,
+                    `🤖 **Análise da IA:**`,
+                    aiText,
+                    ``,
+                    `_Último usuário logado: ${payload.last_user || 'N/A'}_`,
+                  ].join('\n');
+                }
+              }
+            }
+          } catch (aiErr) {
+            console.error('AI enrichment error (non-fatal):', aiErr);
+          }
+
+          // Fallback description without AI
+          if (!descricao) {
+            descricao = [
+              `🔔 Alerta automático do Datto RMM`,
+              ``,
+              `**Dispositivo:** ${payload.device_hostname || 'N/A'}`,
+              `**IP:** ${payload.device_ip || 'N/A'}`,
+              `**SO:** ${payload.device_os || 'N/A'}`,
+              `**Site:** ${payload.site_name || 'N/A'}`,
+              `**Tipo de Alerta:** ${payload.alert_type || 'N/A'}`,
+              `**Categoria:** ${payload.alert_category || 'N/A'}`,
+              ``,
+              `**Mensagem:** ${payload.alert_message || 'Sem detalhes'}`,
+              ``,
+              `_Último usuário logado: ${payload.last_user || 'N/A'}_`,
+            ].join('\n');
+          }
 
           const { data: ticket, error: ticketError } = await supabase
             .from('tickets')

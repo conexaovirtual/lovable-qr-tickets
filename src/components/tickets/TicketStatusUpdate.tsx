@@ -53,6 +53,14 @@ export function TicketStatusUpdate({ ticket, onUpdate }: TicketStatusUpdateProps
       toast({
         title: 'Chamado atualizado',
       });
+      
+      // Gerar artigo de conhecimento automaticamente ao resolver
+      if (status === 'resolvido' && solucao.trim()) {
+        supabase.functions.invoke('ai-knowledge-generator', {
+          body: { ticket_id: ticket.id },
+        }).catch(err => console.error('Knowledge generation error:', err));
+      }
+      
       onUpdate();
     }
     setLoading(false);

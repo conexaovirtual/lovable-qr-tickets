@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, User, LogOut, LayoutDashboard, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList, FileText, Ticket, BarChart3 } from 'lucide-react';
+import { Menu, User, LogOut, LayoutDashboard, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList, FileText, Ticket, BarChart3, BookOpen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -111,6 +111,12 @@ export function AppHeader() {
                   Inventário
                 </Button>
               </Link>
+              <Link to="/knowledge-base">
+                <Button variant="ghost" size="sm">
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Base de Conhecimento
+                </Button>
+              </Link>
               {profile.roles?.includes('admin_provedor') && (
                 <>
                   <Link to="/analytics">
@@ -186,6 +192,10 @@ export function AppHeader() {
                 <DropdownMenuItem onClick={() => navigate('/inventory')}>
                   <PackageSearch className="h-4 w-4 mr-2" />
                   Inventário
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/knowledge-base')}>
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Base de Conhecimento
                 </DropdownMenuItem>
                 {profile.roles?.includes('admin_provedor') && (
                   <>
