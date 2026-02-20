@@ -45,6 +45,8 @@ interface ServiceOrderCreateDialogProps {
   preSelectedCompanyId?: string;
   preSelectedTicketId?: string;
   preSelectedAssetId?: string;
+  preSelectedTipoServico?: string;
+  preSelectedDescricao?: string;
   onSuccess?: () => void;
 }
 
@@ -54,6 +56,8 @@ export function ServiceOrderCreateDialog({
   preSelectedCompanyId,
   preSelectedTicketId,
   preSelectedAssetId,
+  preSelectedTipoServico,
+  preSelectedDescricao,
   onSuccess,
 }: ServiceOrderCreateDialogProps) {
   const [step, setStep] = useState(1);
@@ -71,9 +75,9 @@ export function ServiceOrderCreateDialog({
     defaultValues: {
       company_id: preSelectedCompanyId || "",
       asset_id: preSelectedAssetId || "",
-      tipo_servico: "corretivo",
+      tipo_servico: (preSelectedTipoServico as any) || "corretivo",
       prioridade: "media",
-      descricao_servicos: "",
+      descricao_servicos: preSelectedDescricao || "",
       data_agendada: new Date(),
       hora_agendada: "09:00",
       equipamentos_necessarios: [],
@@ -89,6 +93,9 @@ export function ServiceOrderCreateDialog({
         form.setValue("company_id", preSelectedCompanyId);
         loadCompanyDetails(preSelectedCompanyId);
         loadAssets(preSelectedCompanyId);
+      } else if (preSelectedAssetId) {
+        // Load company from asset
+        loadCompanyFromAsset(preSelectedAssetId);
       }
       if (preSelectedAssetId) {
         form.setValue("asset_id", preSelectedAssetId);
@@ -219,6 +226,20 @@ export function ServiceOrderCreateDialog({
       if (data.telefone) {
         form.setValue("telefone_contato", data.telefone);
       }
+    }
+  };
+
+  const loadCompanyFromAsset = async (assetId: string) => {
+    const { data } = await supabase
+      .from("assets")
+      .select("company_id")
+      .eq("id", assetId)
+      .single();
+
+    if (data?.company_id) {
+      form.setValue("company_id", data.company_id);
+      loadCompanyDetails(data.company_id);
+      loadAssets(data.company_id);
     }
   };
 
