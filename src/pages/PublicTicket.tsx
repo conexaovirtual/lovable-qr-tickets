@@ -139,6 +139,11 @@ export default function PublicTicket() {
       setCreatedTicket(ticket);
       setSuccess(true);
       setShowActionsDialog(true);
+
+      // Chamar auto-resposta IA (fire and forget)
+      supabase.functions.invoke('ai-auto-response', {
+        body: { ticket_id: ticket.id, descricao: formData.descricao },
+      }).catch(err => console.error('AI auto-response error:', err));
       
       toast({
         title: "Chamado criado!",

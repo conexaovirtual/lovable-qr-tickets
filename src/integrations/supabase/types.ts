@@ -624,6 +624,56 @@ export type Database = {
           },
         ]
       }
+      knowledge_articles: {
+        Row: {
+          categoria: string | null
+          created_at: string
+          id: string
+          problema: string
+          solucao: string
+          tags: string[] | null
+          ticket_id: string | null
+          titulo: string
+          updated_at: string
+          util_count: number | null
+          visualizacoes: number | null
+        }
+        Insert: {
+          categoria?: string | null
+          created_at?: string
+          id?: string
+          problema: string
+          solucao: string
+          tags?: string[] | null
+          ticket_id?: string | null
+          titulo: string
+          updated_at?: string
+          util_count?: number | null
+          visualizacoes?: number | null
+        }
+        Update: {
+          categoria?: string | null
+          created_at?: string
+          id?: string
+          problema?: string
+          solucao?: string
+          tags?: string[] | null
+          ticket_id?: string | null
+          titulo?: string
+          updated_at?: string
+          util_count?: number | null
+          visualizacoes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_articles_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

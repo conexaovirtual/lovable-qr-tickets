@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { UploadedImage } from "@/lib/imageUtils";
 import { VoiceInputButton } from "@/components/ui/VoiceInputButton";
+import { AIExecutionReport } from "@/components/ai/AIExecutionReport";
 
 interface ServiceOrderExecutionDialogProps {
   open: boolean;
@@ -177,10 +178,20 @@ export function ServiceOrderExecutionDialog({
                 <FormItem>
                   <div className="flex items-center justify-between">
                     <FormLabel>Serviço Realizado *</FormLabel>
-                    <VoiceInputButton
-                      onFinalResult={(text) => field.onChange(field.value ? `${field.value} ${text}` : text)}
-                      size="sm"
-                    />
+                    <div className="flex gap-1">
+                      <AIExecutionReport
+                        titulo={serviceOrder?.descricao_servicos}
+                        descricao={field.value || ''}
+                        tempoGasto={form.watch('tempo_gasto_horas')}
+                        observacoes={form.watch('observacoes_execucao')}
+                        tipoServico={serviceOrder?.tipo_servico}
+                        onApply={(text) => field.onChange(text)}
+                      />
+                      <VoiceInputButton
+                        onFinalResult={(text) => field.onChange(field.value ? `${field.value} ${text}` : text)}
+                        size="sm"
+                      />
+                    </div>
                   </div>
                   <FormControl>
                     <Textarea 

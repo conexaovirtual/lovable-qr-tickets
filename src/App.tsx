@@ -24,7 +24,7 @@ const ServiceOrderPage = lazy(() => import("./pages/ServiceOrderPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PublicTicket = lazy(() => import("./pages/PublicTicket"));
 const Analytics = lazy(() => import("./pages/Analytics"));
-
+const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -66,6 +66,7 @@ const App = () => (
             <Route path="/service-orders/new" element={<ServiceOrderPage />} />
             <Route path="/profile/settings" element={<ProfileSettings />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/knowledge-base" element={<KnowledgeBase />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
