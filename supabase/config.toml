@@ -55,3 +55,9 @@ verify_jwt = false
 verify_jwt = false
 [functions.ai-solution-suggester]
 verify_jwt = false
+
+[functions.whatsapp-send]
+verify_jwt = false
+
+[functions.whatsapp-webhook]
+verify_jwt = false
