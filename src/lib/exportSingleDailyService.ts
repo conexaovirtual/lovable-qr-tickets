@@ -130,19 +130,19 @@ export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) 
   };
 
   const statusLabel: Record<string, string> = {
-    concluido: '✅ Concluído',
-    em_andamento: '🔄 Em Andamento',
-    pendente: '⏳ Pendente',
+    concluido: 'Concluido',
+    em_andamento: 'Em Andamento',
+    pendente: 'Pendente',
   };
 
   const duracao = calcularDuracao(record.hora_inicio, record.hora_fim);
 
   const infoRows: [string, string][] = [
-    ['📅 Data', formatDateBR(record.data_atendimento)],
-    ['⏰ Horário', `${record.hora_inicio} até ${record.hora_fim || 'em andamento'}`],
-    ['⏱️ Duração', duracao],
-    ['📡 Canal', canalLabel[record.canal] || record.canal],
-    ['📊 Status', statusLabel[record.status] || record.status],
+    ['Data', formatDateBR(record.data_atendimento)],
+    ['Horario', `${record.hora_inicio} ate ${record.hora_fim || 'em andamento'}`],
+    ['Duracao', duracao],
+    ['Canal', canalLabel[record.canal] || record.canal],
+    ['Status', statusLabel[record.status] || record.status],
   ];
 
   autoTable(doc, {
@@ -166,15 +166,15 @@ export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) 
   // ========== DADOS DA EMPRESA ==========
   checkPageBreak(40);
   const companyRows: [string, string][] = [
-    ['🏢 Empresa', record.companies.nome_fantasia],
+    ['Empresa', record.companies.nome_fantasia],
   ];
-  if (record.companies.cnpj) companyRows.push(['📄 CNPJ', record.companies.cnpj]);
-  if (record.companies.telefone) companyRows.push(['📞 Telefone', record.companies.telefone]);
-  if (record.companies.email) companyRows.push(['📧 Email', record.companies.email]);
+  if (record.companies.cnpj) companyRows.push(['CNPJ', record.companies.cnpj]);
+  if (record.companies.telefone) companyRows.push(['Telefone', record.companies.telefone]);
+  if (record.companies.email) companyRows.push(['Email', record.companies.email]);
   if (record.endereco_cliente) {
-    companyRows.push(['📍 Endereço do Atendimento', record.endereco_cliente]);
+    companyRows.push(['Endereco do Atendimento', record.endereco_cliente]);
   } else if (record.companies.endereco) {
-    companyRows.push(['📍 Endereço', record.companies.endereco]);
+    companyRows.push(['Endereco', record.companies.endereco]);
   }
 
   autoTable(doc, {
@@ -198,15 +198,15 @@ export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) 
   // ========== DADOS DO TÉCNICO ==========
   checkPageBreak(30);
   const techRows: [string, string][] = [
-    ['👤 Técnico', record.profiles.nome],
+    ['Tecnico', record.profiles.nome],
   ];
-  if (record.profiles.telefone) techRows.push(['📞 Contato', record.profiles.telefone]);
+  if (record.profiles.telefone) techRows.push(['Contato', record.profiles.telefone]);
 
   // GPS do técnico
   const gpsInicio = formatGPS(record.latitude_inicio, record.longitude_inicio);
   const gpsFim = formatGPS(record.latitude_fim, record.longitude_fim);
-  if (gpsInicio) techRows.push(['📍 GPS Check-in', gpsInicio]);
-  if (gpsFim) techRows.push(['📍 GPS Check-out', gpsFim]);
+  if (gpsInicio) techRows.push(['GPS Check-in', gpsInicio]);
+  if (gpsFim) techRows.push(['GPS Check-out', gpsFim]);
 
   autoTable(doc, {
     startY: currentY,
@@ -230,13 +230,13 @@ export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) 
   if (record.assets) {
     checkPageBreak(30);
     const assetRows: [string, string][] = [
-      ['💻 Nome', record.assets.nome || '-'],
-      ['📦 Tipo', record.assets.tipo],
+      ['Nome', record.assets.nome || '-'],
+      ['Tipo', record.assets.tipo],
     ];
-    if (record.assets.fabricante) assetRows.push(['🏭 Fabricante', record.assets.fabricante]);
-    if (record.assets.modelo) assetRows.push(['📋 Modelo', record.assets.modelo]);
-    if (record.assets.numero_serie) assetRows.push(['🔢 Nº Série', record.assets.numero_serie]);
-    if (record.assets.tag_patrimonial) assetRows.push(['🏷️ Patrimônio', record.assets.tag_patrimonial]);
+    if (record.assets.fabricante) assetRows.push(['Fabricante', record.assets.fabricante]);
+    if (record.assets.modelo) assetRows.push(['Modelo', record.assets.modelo]);
+    if (record.assets.numero_serie) assetRows.push(['No. Serie', record.assets.numero_serie]);
+    if (record.assets.tag_patrimonial) assetRows.push(['Patrimonio', record.assets.tag_patrimonial]);
 
     autoTable(doc, {
       startY: currentY,
@@ -263,7 +263,7 @@ export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) 
     autoTable(doc, {
       startY: currentY,
       head: [['Chamado Vinculado', '']],
-      body: [['🎫 Chamado', `#${record.tickets.numero} - ${record.tickets.titulo}`]],
+      body: [['Chamado', `#${record.tickets.numero} - ${record.tickets.titulo}`]],
       styles: { fontSize: 10, cellPadding: 3 },
       headStyles: {
         fillColor: [99, 102, 241],
@@ -284,7 +284,7 @@ export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(59, 130, 246);
-  doc.text('📝 Descrição do Atendimento', 14, currentY);
+  doc.text('Descricao do Atendimento', 14, currentY);
   doc.setTextColor(0, 0, 0);
   currentY += 6;
 
@@ -309,7 +309,7 @@ export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(16, 185, 129);
-    doc.text('✅ Solução Aplicada', 14, currentY);
+    doc.text('Solucao Aplicada', 14, currentY);
     doc.setTextColor(0, 0, 0);
     currentY += 6;
 
@@ -335,7 +335,7 @@ export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(245, 158, 11);
-    doc.text('📌 Observações', 14, currentY);
+    doc.text('Observacoes', 14, currentY);
     doc.setTextColor(0, 0, 0);
     currentY += 6;
 
@@ -362,7 +362,7 @@ export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(139, 92, 246);
-    doc.text(`📸 Fotos do Atendimento (${record.fotos.length})`, 14, currentY);
+    doc.text(`Fotos do Atendimento (${record.fotos.length})`, 14, currentY);
     doc.setTextColor(0, 0, 0);
     currentY += 10;
 
@@ -426,7 +426,7 @@ export const exportSingleDailyServiceToPDF = async (record: DailyServiceRecord) 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(120, 120, 120);
     doc.text(
-      `Conexão Virtual – Relatório de Atendimento | Página ${i} de ${pageCount}`,
+      `Conexao Virtual - Relatorio de Atendimento | Pagina ${i} de ${pageCount}`,
       pageWidth / 2,
       pageHeight - 10,
       { align: 'center' }
