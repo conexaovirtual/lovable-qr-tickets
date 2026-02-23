@@ -61,16 +61,19 @@ serve(async (req) => {
     }
 
     // Verificar se já existe artigo para esta fonte
-    const { data: existing } = await supabase
-      .from('knowledge_articles')
-      .select('id')
-      .eq('ticket_id', sourceId)
-      .maybeSingle();
+    // Only check by ticket_id if source is a ticket (daily_record_id is not a valid ticket FK)
+    if (ticket_id) {
+      const { data: existing } = await supabase
+        .from('knowledge_articles')
+        .select('id')
+        .eq('ticket_id', ticket_id)
+        .maybeSingle();
 
-    if (existing) {
-      return new Response(JSON.stringify({ message: 'Artigo já existe', article_id: existing.id }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (existing) {
+        return new Response(JSON.stringify({ message: 'Artigo já existe', article_id: existing.id }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Chamar IA para gerar artigo
@@ -136,11 +139,11 @@ Ativo: ${ativoInfo}`
       };
     }
 
-    // Salvar artigo
+    // Salvar artigo - only set ticket_id when source is actually a ticket
     const { data: newArticle, error: insertError } = await supabase
       .from('knowledge_articles')
       .insert({
-        ticket_id: sourceId,
+        ticket_id: ticket_id || null,
         titulo: article.titulo,
         problema: article.problema,
         solucao: article.solucao,
