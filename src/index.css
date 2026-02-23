@@ -19,7 +19,7 @@ All colors MUST be HSL.
     --popover-foreground: 220 15% 15%;
 
     /* Primary - Professional tech blue */
-    --primary: 217 91% 60%;
+    --primary: 217 91% 50%;
     --primary-foreground: 0 0% 100%;
     --primary-hover: 217 91% 55%;
 
@@ -29,7 +29,7 @@ All colors MUST be HSL.
 
     /* Muted */
     --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted-foreground: 220 9% 40%;
 
     /* Accent - Lighter blue */
     --accent: 210 100% 97%;
