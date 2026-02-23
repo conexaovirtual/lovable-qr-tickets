@@ -1518,6 +1518,162 @@ export type Database = {
           },
         ]
       }
+      whatsapp_config: {
+        Row: {
+          auto_create_ticket: boolean | null
+          auto_notify_updates: boolean | null
+          created_at: string | null
+          default_greeting: string | null
+          id: string
+          instance_id: string | null
+          instance_name: string
+          status: string | null
+          updated_at: string | null
+          webhook_configured: boolean | null
+        }
+        Insert: {
+          auto_create_ticket?: boolean | null
+          auto_notify_updates?: boolean | null
+          created_at?: string | null
+          default_greeting?: string | null
+          id?: string
+          instance_id?: string | null
+          instance_name: string
+          status?: string | null
+          updated_at?: string | null
+          webhook_configured?: boolean | null
+        }
+        Update: {
+          auto_create_ticket?: boolean | null
+          auto_notify_updates?: boolean | null
+          created_at?: string | null
+          default_greeting?: string | null
+          id?: string
+          instance_id?: string | null
+          instance_name?: string
+          status?: string | null
+          updated_at?: string | null
+          webhook_configured?: boolean | null
+        }
+        Relationships: []
+      }
+      whatsapp_contacts: {
+        Row: {
+          company_id: string | null
+          contact_name: string | null
+          created_at: string | null
+          id: string
+          last_message_at: string | null
+          phone_number: string
+        }
+        Insert: {
+          company_id?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          phone_number: string
+        }
+        Update: {
+          company_id?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          phone_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "asset_inventory_by_company"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_basic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_statistics"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          contact_id: string | null
+          content: string | null
+          created_at: string | null
+          from_me: boolean | null
+          id: string
+          message_id: string | null
+          message_type: string | null
+          raw_data: Json | null
+          remote_jid: string
+          ticket_id: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          from_me?: boolean | null
+          id?: string
+          message_id?: string | null
+          message_type?: string | null
+          raw_data?: Json | null
+          remote_jid: string
+          ticket_id?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          from_me?: boolean | null
+          id?: string
+          message_id?: string | null
+          message_type?: string | null
+          raw_data?: Json | null
+          remote_jid?: string
+          ticket_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       asset_inventory_by_company: {
