@@ -439,10 +439,15 @@ export type Database = {
           created_at: string | null
           data_atendimento: string
           descricao: string
+          endereco_cliente: string | null
           fotos: Json | null
           hora_fim: string | null
           hora_inicio: string
           id: string
+          latitude_fim: number | null
+          latitude_inicio: number | null
+          longitude_fim: number | null
+          longitude_inicio: number | null
           observacoes: string | null
           solucao: string | null
           status: string
@@ -458,10 +463,15 @@ export type Database = {
           created_at?: string | null
           data_atendimento?: string
           descricao: string
+          endereco_cliente?: string | null
           fotos?: Json | null
           hora_fim?: string | null
           hora_inicio: string
           id?: string
+          latitude_fim?: number | null
+          latitude_inicio?: number | null
+          longitude_fim?: number | null
+          longitude_inicio?: number | null
           observacoes?: string | null
           solucao?: string | null
           status?: string
@@ -477,10 +487,15 @@ export type Database = {
           created_at?: string | null
           data_atendimento?: string
           descricao?: string
+          endereco_cliente?: string | null
           fotos?: Json | null
           hora_fim?: string | null
           hora_inicio?: string
           id?: string
+          latitude_fim?: number | null
+          latitude_inicio?: number | null
+          longitude_fim?: number | null
+          longitude_inicio?: number | null
           observacoes?: string | null
           solucao?: string | null
           status?: string
@@ -905,6 +920,10 @@ export type Database = {
           fotos: Json | null
           hora_agendada: string | null
           id: string
+          latitude_fim: number | null
+          latitude_inicio: number | null
+          longitude_fim: number | null
+          longitude_inicio: number | null
           notified_at: string | null
           numero_os: number
           observacoes: string | null
@@ -935,6 +954,10 @@ export type Database = {
           fotos?: Json | null
           hora_agendada?: string | null
           id?: string
+          latitude_fim?: number | null
+          latitude_inicio?: number | null
+          longitude_fim?: number | null
+          longitude_inicio?: number | null
           notified_at?: string | null
           numero_os: number
           observacoes?: string | null
@@ -965,6 +988,10 @@ export type Database = {
           fotos?: Json | null
           hora_agendada?: string | null
           id?: string
+          latitude_fim?: number | null
+          latitude_inicio?: number | null
+          longitude_fim?: number | null
+          longitude_inicio?: number | null
           notified_at?: string | null
           numero_os?: number
           observacoes?: string | null

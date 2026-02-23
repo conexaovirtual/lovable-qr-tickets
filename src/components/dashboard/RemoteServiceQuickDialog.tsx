@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Monitor } from 'lucide-react';
+import { useGeolocation, GeoPosition } from '@/hooks/useGeolocation';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -30,7 +31,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-
+import { GeolocationCapture } from '@/components/ui/GeolocationCapture';
 const formSchema = z.object({
   company_id: z.string().min(1, 'Selecione uma empresa'),
   asset_id: z.string().optional(),
@@ -56,6 +57,8 @@ export function RemoteServiceQuickDialog({
   const [companies, setCompanies] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [gpsInicio, setGpsInicio] = useState<GeoPosition | null>(null);
+  const geoInicio = useGeolocation();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -73,6 +76,7 @@ export function RemoteServiceQuickDialog({
   useEffect(() => {
     if (open) {
       loadCompanies();
+      setGpsInicio(null);
       form.reset({
         company_id: '',
         asset_id: '',
@@ -117,7 +121,7 @@ export function RemoteServiceQuickDialog({
 
     setIsSubmitting(true);
     try {
-      const payload = {
+      const payload: any = {
         company_id: data.company_id,
         asset_id: data.asset_id || null,
         tecnico_id: user.id,
@@ -127,6 +131,8 @@ export function RemoteServiceQuickDialog({
         status: 'em_andamento',
         data_atendimento: new Date().toISOString().split('T')[0],
         hora_inicio: data.hora_inicio,
+        latitude_inicio: gpsInicio?.latitude || null,
+        longitude_inicio: gpsInicio?.longitude || null,
       };
 
       const { error } = await supabase
@@ -261,6 +267,18 @@ export function RemoteServiceQuickDialog({
                   <FormMessage />
                 </FormItem>
               )}
+            />
+
+            <GeolocationCapture
+              label="Localização (Início)"
+              position={gpsInicio}
+              loading={geoInicio.loading}
+              error={geoInicio.error}
+              onCapture={async () => {
+                const pos = await geoInicio.captureLocation();
+                if (pos) setGpsInicio(pos);
+              }}
+              disabled={isSubmitting}
             />
 
             <div className="flex items-center gap-2 p-3 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">

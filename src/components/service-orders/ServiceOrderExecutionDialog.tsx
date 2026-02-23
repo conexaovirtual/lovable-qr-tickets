@@ -14,6 +14,8 @@ import { ImageUpload } from "@/components/ui/ImageUpload";
 import { UploadedImage } from "@/lib/imageUtils";
 import { VoiceInputButton } from "@/components/ui/VoiceInputButton";
 import { AIExecutionReport } from "@/components/ai/AIExecutionReport";
+import { GeolocationCapture } from "@/components/ui/GeolocationCapture";
+import { useGeolocation, GeoPosition } from "@/hooks/useGeolocation";
 
 interface ServiceOrderExecutionDialogProps {
   open: boolean;
@@ -41,6 +43,10 @@ export function ServiceOrderExecutionDialog({
 }: ServiceOrderExecutionDialogProps) {
   const [loading, setLoading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
+  const [gpsInicio, setGpsInicio] = useState<GeoPosition | null>(null);
+  const [gpsFim, setGpsFim] = useState<GeoPosition | null>(null);
+  const geoInicio = useGeolocation();
+  const geoFim = useGeolocation();
   const { toast } = useToast();
 
   const form = useForm<ExecutionFormData>({
@@ -82,6 +88,10 @@ export function ServiceOrderExecutionDialog({
         status: novoStatus,
         fotos: uploadedImages,
         updated_at: new Date().toISOString(),
+        latitude_inicio: gpsInicio?.latitude || null,
+        longitude_inicio: gpsInicio?.longitude || null,
+        latitude_fim: gpsFim?.latitude || null,
+        longitude_fim: gpsFim?.longitude || null,
       };
 
       // Se há observações de execução, adiciona ao campo observacoes
@@ -251,6 +261,34 @@ export function ServiceOrderExecutionDialog({
                 </FormItem>
               )}
             />
+
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Localização do Técnico</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <GeolocationCapture
+                  label="Check-in (Início)"
+                  position={gpsInicio}
+                  loading={geoInicio.loading}
+                  error={geoInicio.error}
+                  onCapture={async () => {
+                    const pos = await geoInicio.captureLocation();
+                    if (pos) setGpsInicio(pos);
+                  }}
+                  disabled={loading}
+                />
+                <GeolocationCapture
+                  label="Check-out (Fim)"
+                  position={gpsFim}
+                  loading={geoFim.loading}
+                  error={geoFim.error}
+                  onCapture={async () => {
+                    const pos = await geoFim.captureLocation();
+                    if (pos) setGpsFim(pos);
+                  }}
+                  disabled={loading}
+                />
+              </div>
+            </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Fotos do Atendimento</label>
