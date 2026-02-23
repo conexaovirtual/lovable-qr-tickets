@@ -80,7 +80,8 @@ export function DailyServiceRecordList({ onUpdate }: DailyServiceRecordListProps
         .select(`
           *,
           companies (nome_fantasia),
-          profiles (nome)
+          profiles (nome),
+          assets (nome, tipo, tag_patrimonial)
         `)
         .order("data_atendimento", { ascending: false })
         .order("hora_inicio", { ascending: false });

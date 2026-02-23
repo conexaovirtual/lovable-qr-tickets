@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PhotoGallery } from "@/components/ui/PhotoGallery";
 import { UploadedImage } from "@/lib/imageUtils";
-import { MessageCircle, Phone, MapPin, Clock, Building2, User, Edit, Eye, Camera, FileDown, Monitor } from "lucide-react";
+import { MessageCircle, Phone, MapPin, Clock, Building2, User, Edit, Eye, Camera, FileDown, Monitor, Package } from "lucide-react";
 import { formatDateBR } from "@/lib/formatters";
 import { exportSingleDailyServiceToPDF } from "@/lib/exportSingleDailyService";
 import { supabase } from "@/integrations/supabase/client";
@@ -162,6 +162,12 @@ export function DailyServiceRecordCard({ record, onEdit, onView }: DailyServiceR
               </div>
             )}
 
+            {record.assets && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Package className="h-4 w-4" />
+                <span>{record.assets.nome} - {record.assets.tipo}{record.assets.tag_patrimonial ? ` (${record.assets.tag_patrimonial})` : ''}</span>
+              </div>
+            )}
             {record.profiles && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <User className="h-4 w-4" />
