@@ -53,7 +53,7 @@ export function AppHeader() {
               </div>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-4">
+            <nav className="hidden md:flex items-center gap-2 overflow-x-auto max-w-[calc(100vw-320px)] scrollbar-none">
               <Link to="/dashboard">
                 <Button variant="ghost" size="sm">
                   <LayoutDashboard className="h-4 w-4 mr-2" />
