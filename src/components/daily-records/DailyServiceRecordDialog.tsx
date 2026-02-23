@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useGeolocation, GeoPosition } from "@/hooks/useGeolocation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -16,6 +17,7 @@ import { VoiceInputButton } from "@/components/ui/VoiceInputButton";
 import { AISummaryCard } from "@/components/ai/AISummaryCard";
 import { AISolutionSuggester } from "@/components/ai/AISolutionSuggester";
 import { AIExecutionReport } from "@/components/ai/AIExecutionReport";
+import { GeolocationCapture } from "@/components/ui/GeolocationCapture";
 import { UploadedImage } from "@/lib/imageUtils";
 import { toast } from "sonner";
 import { Loader2, MessageCircle, Phone, MapPin, FileDown, Monitor } from "lucide-react";
@@ -80,6 +82,11 @@ export function DailyServiceRecordDialog({
   const [companies, setCompanies] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
+  const [enderecoCliente, setEnderecoCliente] = useState("");
+  const [gpsInicio, setGpsInicio] = useState<GeoPosition | null>(null);
+  const [gpsFim, setGpsFim] = useState<GeoPosition | null>(null);
+  const geoInicio = useGeolocation();
+  const geoFim = useGeolocation();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -103,6 +110,10 @@ export function DailyServiceRecordDialog({
       loadCompanies();
       if (recordId) {
         loadRecord();
+      } else {
+        setGpsInicio(null);
+        setGpsFim(null);
+        setEnderecoCliente("");
       }
     }
   }, [open, recordId]);
@@ -173,6 +184,25 @@ export function DailyServiceRecordDialog({
         // Carregar ativos da empresa
         loadAssets(data.company_id);
         
+        // Carregar endereço do cliente
+        setEnderecoCliente((data as any).endereco_cliente || "");
+        
+        // Restaurar GPS salvo
+        if ((data as any).latitude_inicio && (data as any).longitude_inicio) {
+          setGpsInicio({
+            latitude: (data as any).latitude_inicio,
+            longitude: (data as any).longitude_inicio,
+            timestamp: Date.now(),
+          });
+        }
+        if ((data as any).latitude_fim && (data as any).longitude_fim) {
+          setGpsFim({
+            latitude: (data as any).latitude_fim,
+            longitude: (data as any).longitude_fim,
+            timestamp: Date.now(),
+          });
+        }
+        
         // Carregar fotos existentes
         if (data.fotos && Array.isArray(data.fotos)) {
           setUploadedImages(data.fotos as unknown as UploadedImage[]);
@@ -204,6 +234,11 @@ export function DailyServiceRecordDialog({
         solucao: data.solucao || null,
         observacoes: data.observacoes || null,
         fotos: uploadedImages,
+        endereco_cliente: enderecoCliente || null,
+        latitude_inicio: gpsInicio?.latitude || null,
+        longitude_inicio: gpsInicio?.longitude || null,
+        latitude_fim: gpsFim?.latitude || null,
+        longitude_fim: gpsFim?.longitude || null,
       };
 
       if (recordId) {
@@ -263,10 +298,17 @@ export function DailyServiceRecordDialog({
                 <FormItem>
                   <FormLabel>Empresa *</FormLabel>
                   <Select 
-                    onValueChange={(value) => {
+                    onValueChange={async (value) => {
                       field.onChange(value);
                       loadAssets(value);
                       form.setValue("asset_id", "");
+                      // Carregar endereço do cliente
+                      const { data: company } = await supabase
+                        .from("companies")
+                        .select("endereco")
+                        .eq("id", value)
+                        .single();
+                      setEnderecoCliente(company?.endereco || "");
                     }} 
                     value={field.value}
                   >
@@ -548,6 +590,44 @@ export function DailyServiceRecordDialog({
               )}
             />
 
+            {/* Localização */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Localização
+              </h4>
+              
+              {enderecoCliente && (
+                <div className="text-sm p-2 rounded-md bg-muted">
+                  <span className="font-medium">Endereço do cliente:</span> {enderecoCliente}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <GeolocationCapture
+                  label="Check-in (Início)"
+                  position={gpsInicio}
+                  loading={geoInicio.loading}
+                  error={geoInicio.error}
+                  onCapture={async () => {
+                    const pos = await geoInicio.captureLocation();
+                    if (pos) setGpsInicio(pos);
+                  }}
+                  disabled={loading}
+                />
+                <GeolocationCapture
+                  label="Check-out (Fim)"
+                  position={gpsFim}
+                  loading={geoFim.loading}
+                  error={geoFim.error}
+                  onCapture={async () => {
+                    const pos = await geoFim.captureLocation();
+                    if (pos) setGpsFim(pos);
+                  }}
+                  disabled={loading}
+                />
+              </div>
+            </div>
 
             <ImageUpload
               bucketName="daily-service-photos"
