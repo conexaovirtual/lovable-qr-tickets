@@ -25,6 +25,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const PublicTicket = lazy(() => import("./pages/PublicTicket"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
+const WhatsAppSettings = lazy(() => import("./pages/WhatsAppSettings"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -67,6 +68,7 @@ const App = () => (
             <Route path="/profile/settings" element={<ProfileSettings />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/knowledge-base" element={<KnowledgeBase />} />
+            <Route path="/whatsapp-settings" element={<WhatsAppSettings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

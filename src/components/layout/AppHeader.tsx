@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, User, LogOut, LayoutDashboard, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList, FileText, Ticket, BarChart3, BookOpen } from 'lucide-react';
+import { Menu, User, LogOut, LayoutDashboard, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList, FileText, Ticket, BarChart3, BookOpen, MessageSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -131,6 +131,12 @@ export function AppHeader() {
                       Técnicos
                     </Button>
                   </Link>
+                  <Link to="/whatsapp-settings">
+                    <Button variant="ghost" size="sm">
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      WhatsApp
+                    </Button>
+                  </Link>
                 </>
               )}
               {profile.roles?.includes('gestor_cliente') && (
@@ -206,6 +212,10 @@ export function AppHeader() {
                     <DropdownMenuItem onClick={() => navigate('/technicians')}>
                       <Wrench className="h-4 w-4 mr-2" />
                       Técnicos
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/whatsapp-settings')}>
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      WhatsApp
                     </DropdownMenuItem>
                   </>
                 )}
