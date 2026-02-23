@@ -266,15 +266,19 @@ export default function WhatsAppSettings() {
                       <SelectValue placeholder="Selecione a instância" />
                     </SelectTrigger>
                     <SelectContent>
-                      {instances.map((inst: any) => (
-                        <SelectItem key={inst.instance?.instanceName || inst.instanceName} value={inst.instance?.instanceName || inst.instanceName}>
-                          {inst.instance?.instanceName || inst.instanceName}
-                          {' '}
-                          <Badge variant={inst.instance?.state === 'open' ? 'default' : 'secondary'} className="ml-2">
-                            {inst.instance?.state || 'unknown'}
-                          </Badge>
-                        </SelectItem>
-                      ))}
+                      {instances.map((inst: any) => {
+                        const name = inst.instance?.instanceName || inst.instanceName || inst.name;
+                        const state = inst.instance?.state || inst.connectionStatus || 'unknown';
+                        return (
+                          <SelectItem key={name} value={name}>
+                            {name}
+                            {' '}
+                            <Badge variant={state === 'open' ? 'default' : 'secondary'} className="ml-2">
+                              {state}
+                            </Badge>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 ) : (
