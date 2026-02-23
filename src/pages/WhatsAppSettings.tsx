@@ -50,21 +50,11 @@ export default function WhatsAppSettings() {
   const { data: instances, isLoading: instancesLoading } = useQuery({
     queryKey: ['evolution-instances'],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-send`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({ action: 'fetch_instances' }),
-        }
-      );
-      if (!res.ok) throw new Error('Erro ao buscar instâncias');
-      return await res.json();
+      const { data, error } = await supabase.functions.invoke('whatsapp-send', {
+        body: { action: 'fetch_instances' },
+      });
+      if (error) throw error;
+      return data;
     },
     enabled: !!profile?.roles?.includes('admin_provedor'),
     retry: 1,
@@ -153,20 +143,10 @@ export default function WhatsAppSettings() {
     }
     setCheckingStatus(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-send`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({ action: 'check_status', instance_name: instanceName }),
-        }
-      );
-      const result = await res.json();
+      const { data: result, error } = await supabase.functions.invoke('whatsapp-send', {
+        body: { action: 'check_status', instance_name: instanceName },
+      });
+      if (error) throw error;
       const state = result?.instance?.state || result?.state || 'unknown';
       setConnectionStatus(state);
       
@@ -185,24 +165,14 @@ export default function WhatsAppSettings() {
     if (!instanceName) return;
     try {
       const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-send`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({
-            action: 'set_webhook',
-            instance_name: instanceName,
-            webhook_url: webhookUrl,
-          }),
-        }
-      );
-      const result = await res.json();
+      const { data: result, error } = await supabase.functions.invoke('whatsapp-send', {
+        body: {
+          action: 'set_webhook',
+          instance_name: instanceName,
+          webhook_url: webhookUrl,
+        },
+      });
+      if (error) throw error;
       
       if (config?.id) {
         await supabase.from('whatsapp_config').update({ webhook_configured: true }).eq('id', config.id);
@@ -221,25 +191,15 @@ export default function WhatsAppSettings() {
       return;
     }
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-send`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({
-            action: 'send_text',
-            phone: testPhone,
-            text: testMessage,
-            instance_name: instanceName,
-          }),
-        }
-      );
-      const result = await res.json();
+      const { data: result, error } = await supabase.functions.invoke('whatsapp-send', {
+        body: {
+          action: 'send_text',
+          phone: testPhone,
+          text: testMessage,
+          instance_name: instanceName,
+        },
+      });
+      if (error) throw error;
       toast({ title: 'Mensagem enviada!', description: `Para: ${testPhone}` });
     } catch (err: any) {
       toast({ title: 'Erro ao enviar', description: err.message, variant: 'destructive' });
