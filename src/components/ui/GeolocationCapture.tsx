@@ -1,4 +1,4 @@
-import { MapPin, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { MapPin, Loader2, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GeoPosition } from '@/hooks/useGeolocation';
 
@@ -9,6 +9,32 @@ interface GeolocationCaptureProps {
   error: string | null;
   onCapture: () => void;
   disabled?: boolean;
+}
+
+function StaticMapPreview({ latitude, longitude }: { latitude: number; longitude: number }) {
+  const zoom = 16;
+  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.003},${latitude - 0.002},${longitude + 0.003},${latitude + 0.002}&layer=mapnik&marker=${latitude},${longitude}`;
+  const linkUrl = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=${zoom}/${latitude}/${longitude}`;
+
+  return (
+    <div className="relative rounded-md overflow-hidden border bg-muted">
+      <iframe
+        title="Localização GPS"
+        src={mapUrl}
+        className="w-full h-[120px] pointer-events-none"
+        loading="lazy"
+      />
+      <a
+        href={linkUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute bottom-1 right-1 flex items-center gap-1 text-[10px] bg-background/80 backdrop-blur-sm text-foreground px-1.5 py-0.5 rounded shadow-sm hover:bg-background transition-colors"
+      >
+        <ExternalLink className="h-3 w-3" />
+        Abrir mapa
+      </a>
+    </div>
+  );
 }
 
 export function GeolocationCapture({
@@ -53,10 +79,13 @@ export function GeolocationCapture({
       </div>
 
       {position && (
-        <div className="text-xs text-muted-foreground">
-          📍 Lat: {position.latitude.toFixed(6)} | Lng: {position.longitude.toFixed(6)}
-          {position.accuracy && ` | Precisão: ${Math.round(position.accuracy)}m`}
-        </div>
+        <>
+          <StaticMapPreview latitude={position.latitude} longitude={position.longitude} />
+          <div className="text-xs text-muted-foreground">
+            📍 Lat: {position.latitude.toFixed(6)} | Lng: {position.longitude.toFixed(6)}
+            {position.accuracy && ` | Precisão: ${Math.round(position.accuracy)}m`}
+          </div>
+        </>
       )}
 
       {error && (
