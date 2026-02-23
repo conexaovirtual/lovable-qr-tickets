@@ -25,10 +25,10 @@ export function DailyServiceRecordCard({ record, onEdit, onView }: DailyServiceR
         .from('daily_service_records')
         .select(`
           *,
-          companies (nome_fantasia),
-          profiles (nome),
+          companies (nome_fantasia, cnpj, endereco, telefone, email),
+          profiles (nome, telefone),
           tickets (numero, titulo),
-          assets (tag_patrimonial, tipo)
+          assets (tag_patrimonial, tipo, nome, fabricante, modelo, numero_serie)
         `)
         .eq('id', record.id)
         .single();

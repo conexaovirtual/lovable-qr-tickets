@@ -684,9 +684,9 @@ export function DailyServiceRecordDialog({
                         .from('daily_service_records')
                         .select(`
                           *,
-                          companies (nome_fantasia),
-                          profiles (nome),
-                          assets (tag_patrimonial, tipo)
+                          companies (nome_fantasia, cnpj, endereco, telefone, email),
+                          profiles (nome, telefone),
+                          assets (tag_patrimonial, tipo, nome, fabricante, modelo, numero_serie)
                         `)
                         .eq('id', recordId)
                         .single();
