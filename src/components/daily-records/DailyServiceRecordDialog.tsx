@@ -167,6 +167,9 @@ export function DailyServiceRecordDialog({
       if (error) throw error;
 
       if (data) {
+        // Carregar ativos da empresa ANTES de resetar o form
+        await loadAssets(data.company_id);
+        
         form.reset({
           company_id: data.company_id,
           asset_id: data.asset_id || "",
@@ -180,9 +183,6 @@ export function DailyServiceRecordDialog({
           status: data.status as "em_andamento" | "concluido" | "pendente",
           observacoes: data.observacoes || "",
         });
-        
-        // Carregar ativos da empresa
-        loadAssets(data.company_id);
         
         // Carregar endereço do cliente
         setEnderecoCliente((data as any).endereco_cliente || "");
