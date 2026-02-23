@@ -71,7 +71,7 @@ export function TicketNextStepsDialog({
           asset_id: assetId,
           data_atendimento: format(new Date(), 'yyyy-MM-dd'),
           hora_inicio: format(new Date(), 'HH:mm'),
-          canal: 'visita_tecnica',
+          canal: (ticket.canal === 'acesso_remoto' ? 'acesso_remoto' : ticket.canal === 'ligacao' ? 'ligacao' : ticket.canal === 'whatsapp' ? 'whatsapp' : 'visita_tecnica') as any,
           titulo: ticket.titulo,
           descricao: ticket.descricao,
           status: 'em_andamento',
