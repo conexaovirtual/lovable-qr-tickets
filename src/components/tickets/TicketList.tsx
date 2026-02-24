@@ -71,6 +71,9 @@ export function TicketList({ filters }: TicketListProps) {
     if (filters.viaQRCode) {
       query = query.eq('public_request', filters.viaQRCode === 'true');
     }
+    if (filters.canal) {
+      query = query.eq('canal', filters.canal);
+    }
 
     const { data, error, count } = await query;
     
