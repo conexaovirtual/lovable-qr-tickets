@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Send, Bot, UserRound, Phone, CheckCheck, Check, Clock,
-  MessageSquare, Info, Ticket
+  MessageSquare, Info, Ticket, ArrowLeft
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -31,9 +31,10 @@ interface ChatAreaProps {
   conversation: Conversation | null;
   onToggleInfo: () => void;
   showInfo: boolean;
+  onBack?: () => void;
 }
 
-export function ChatArea({ conversation, onToggleInfo, showInfo }: ChatAreaProps) {
+export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -158,6 +159,11 @@ export function ChatArea({ conversation, onToggleInfo, showInfo }: ChatAreaProps
     <div className="flex-1 flex flex-col min-w-0">
       {/* Chat Header */}
       <div className="h-14 border-b px-4 flex items-center gap-3 bg-card shrink-0">
+        {onBack && (
+          <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        )}
         <Avatar className="h-9 w-9">
           <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
             {(conversation.contact_name || conversation.phone_number).slice(0, 2).toUpperCase()}

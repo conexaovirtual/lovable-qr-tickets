@@ -3,10 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MessageSquare, Bot, Wifi, WifiOff } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, MessageSquare, Bot, Wifi, WifiOff, BarChart3 } from "lucide-react";
 import { ConversationList, type Conversation } from "@/components/whatsapp-platform/ConversationList";
 import { ChatArea } from "@/components/whatsapp-platform/ChatArea";
 import { ContactInfoPanel } from "@/components/whatsapp-platform/ContactInfoPanel";
+import { MetricsDashboard } from "@/components/whatsapp-platform/MetricsDashboard";
 
 const WhatsAppPlatform = () => {
   const { user, loading } = useAuth();
@@ -15,6 +17,7 @@ const WhatsAppPlatform = () => {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [showInfo, setShowInfo] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
+  const [activeTab, setActiveTab] = useState<"inbox" | "metrics">("inbox");
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -62,6 +65,11 @@ const WhatsAppPlatform = () => {
 
   const handleSelectConversation = (conv: Conversation) => {
     setSelectedConversation(conv);
+    setActiveTab("inbox");
+  };
+
+  const handleBack = () => {
+    setSelectedConversation(null);
   };
 
   if (loading) return null;
@@ -96,42 +104,55 @@ const WhatsAppPlatform = () => {
               </>
             )}
           </div>
-          <div className="flex items-center gap-1.5 text-xs border-l pl-2 ml-1">
-            <Bot className="h-3.5 w-3.5 text-primary" />
-            <span className="text-muted-foreground hidden sm:inline">
-              {conversations.filter((c) => c.ai_enabled).length} conversas com IA
-            </span>
-          </div>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "inbox" | "metrics")} className="border-l pl-2 ml-1">
+            <TabsList className="h-7 p-0.5">
+              <TabsTrigger value="inbox" className="text-xs h-6 px-2 gap-1">
+                <MessageSquare className="h-3 w-3" /> Inbox
+              </TabsTrigger>
+              <TabsTrigger value="metrics" className="text-xs h-6 px-2 gap-1">
+                <BarChart3 className="h-3 w-3" /> Métricas
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Conversation List - hidden on mobile when chat is open */}
-        <div className={`w-full md:w-80 lg:w-96 shrink-0 ${selectedConversation ? "hidden md:block" : "block"}`}>
-          <ConversationList
-            conversations={conversations}
-            selectedId={selectedConversation?.id || null}
-            onSelect={handleSelectConversation}
-          />
-        </div>
+        {activeTab === "metrics" ? (
+          <div className="flex-1 overflow-auto">
+            <MetricsDashboard />
+          </div>
+        ) : (
+          <>
+            {/* Conversation List - hidden on mobile when chat is open */}
+            <div className={`w-full md:w-80 lg:w-96 shrink-0 ${selectedConversation ? "hidden md:block" : "block"}`}>
+              <ConversationList
+                conversations={conversations}
+                selectedId={selectedConversation?.id || null}
+                onSelect={handleSelectConversation}
+              />
+            </div>
 
-        {/* Chat Area */}
-        <div className={`flex-1 flex min-w-0 ${!selectedConversation ? "hidden md:flex" : "flex"}`}>
-          <ChatArea
-            conversation={selectedConversation}
-            onToggleInfo={() => setShowInfo(!showInfo)}
-            showInfo={showInfo}
-          />
+            {/* Chat Area */}
+            <div className={`flex-1 flex min-w-0 ${!selectedConversation ? "hidden md:flex" : "flex"}`}>
+              <ChatArea
+                conversation={selectedConversation}
+                onToggleInfo={() => setShowInfo(!showInfo)}
+                showInfo={showInfo}
+                onBack={handleBack}
+              />
 
-          {/* Contact Info Panel */}
-          {showInfo && selectedConversation && (
-            <ContactInfoPanel
-              conversation={selectedConversation}
-              onClose={() => setShowInfo(false)}
-            />
-          )}
-        </div>
+              {/* Contact Info Panel */}
+              {showInfo && selectedConversation && (
+                <ContactInfoPanel
+                  conversation={selectedConversation}
+                  onClose={() => setShowInfo(false)}
+                />
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

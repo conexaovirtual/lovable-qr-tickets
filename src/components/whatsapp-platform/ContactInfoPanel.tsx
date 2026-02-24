@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Phone, Building2, Ticket, Calendar, Bot, UserRound, X, ExternalLink
+  Phone, Building2, Ticket, Calendar, Bot, UserRound, X, ExternalLink, UserCheck
 } from "lucide-react";
+import { AssignmentSelect } from "./AssignmentSelect";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
@@ -107,6 +108,23 @@ export function ContactInfoPanel({ conversation, onClose }: ContactInfoPanelProp
                 {conversation.status}
               </Badge>
             </div>
+          </div>
+
+          <Separator />
+
+          {/* Assignment */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+              Técnico Responsável
+            </div>
+            <AssignmentSelect
+              conversationId={conversation.id}
+              currentAssignedTo={conversation.assigned_to}
+            />
+            <Badge variant="outline" className="text-[10px] capitalize">
+              {conversation.queue_status === "waiting" ? "Na fila" : conversation.queue_status === "assigned" ? "Atribuída" : "Resolvida"}
+            </Badge>
           </div>
 
           <Separator />

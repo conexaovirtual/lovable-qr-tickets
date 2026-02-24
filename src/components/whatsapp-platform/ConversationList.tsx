@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Bot, Clock, MessageSquare, Users } from "lucide-react";
+import { Search, Bot, Clock, MessageSquare, Users, UserCheck } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -17,6 +17,10 @@ export interface Conversation {
   created_at: string;
   ai_enabled: boolean;
   ai_context: any;
+  assigned_to: string | null;
+  queue_status: string;
+  first_response_at: string | null;
+  resolved_at: string | null;
 }
 
 interface ConversationListProps {
@@ -45,8 +49,8 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
     const matchesFilter =
       filter === "all" ||
       (filter === "ai" && c.ai_enabled) ||
-      (filter === "waiting" && !c.ai_enabled) ||
-      (filter === "active" && c.status === "active");
+      (filter === "waiting" && c.queue_status === "waiting") ||
+      (filter === "assigned" && c.queue_status === "assigned");
 
     return matchesSearch && matchesFilter;
   });
@@ -79,7 +83,10 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
               <Bot className="h-3 w-3" /> IA
             </TabsTrigger>
             <TabsTrigger value="waiting" className="text-xs flex-1 gap-1">
-              <Clock className="h-3 w-3" /> Manual
+              <Clock className="h-3 w-3" /> Fila
+            </TabsTrigger>
+            <TabsTrigger value="assigned" className="text-xs flex-1 gap-1">
+              <UserCheck className="h-3 w-3" /> Atrib.
             </TabsTrigger>
           </TabsList>
         </Tabs>
