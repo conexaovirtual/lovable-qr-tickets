@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Send, Bot, UserRound, Phone, CheckCheck, Check, Clock,
-  MessageSquare, Info, Ticket, ArrowLeft
+  MessageSquare, Info, Ticket, ArrowLeft, AlertTriangle, CheckCircle2
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -108,6 +108,16 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
     toast.success(enabled ? "IA ativada" : "Modo manual ativado");
   };
 
+  const resolveConversation = async () => {
+    if (!conversation) return;
+    const { error } = await supabase
+      .from("waba_conversations")
+      .update({ queue_status: "resolved", resolved_at: new Date().toISOString() })
+      .eq("id", conversation.id);
+    if (error) { toast.error("Erro ao resolver"); return; }
+    toast.success("Conversa marcada como resolvida");
+  };
+
   const getStatusIcon = (status: string | null) => {
     switch (status) {
       case "read": return <CheckCheck className="h-3 w-3 text-primary" />;
@@ -178,6 +188,14 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {conversation.queue_status !== "resolved" && (
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1 hidden sm:flex" onClick={resolveConversation}>
+              <CheckCircle2 className="h-3 w-3" /> Resolver
+            </Button>
+          )}
+          {conversation.queue_status === "resolved" && (
+            <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">Resolvida</Badge>
+          )}
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground hidden sm:inline">
               {conversation.ai_enabled ? "IA Ativa" : "Manual"}
@@ -206,7 +224,24 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
                 </Badge>
               </div>
               <div className="space-y-1.5">
-                {group.msgs.map((msg) => (
+                {group.msgs.map((msg) => {
+                  // System events (escalation, resolution)
+                  if (msg.message_type === "system" || msg.sender_type === "system") {
+                    const isEscalation = msg.content?.includes("Escalado");
+                    const isResolved = msg.content?.includes("resolvida");
+                    return (
+                      <div key={msg.id} className="flex justify-center my-2">
+                        <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${
+                          isEscalation ? "bg-warning/15 text-warning" : isResolved ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
+                        }`}>
+                          {isEscalation ? <AlertTriangle className="h-3 w-3" /> : isResolved ? <CheckCircle2 className="h-3 w-3" /> : <Info className="h-3 w-3" />}
+                          <span>{msg.content}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
                   <div key={msg.id} className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 shadow-sm ${
                       msg.direction === "outbound"
@@ -234,7 +269,8 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
