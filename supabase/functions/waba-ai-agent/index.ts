@@ -92,6 +92,9 @@ serve(async (req: Request) => {
 
     if (!choice) throw new Error("No AI response");
 
+    // Track first response
+    const isFirstResponse = !conversation.first_response_at;
+
     // Handle tool calls
     if (choice.message?.tool_calls?.length) {
       const toolResults = await handleToolCalls(supabase, choice.message.tool_calls, phone_number, conversation_id);
@@ -119,10 +122,12 @@ serve(async (req: Request) => {
         const finalContent = followUp.choices?.[0]?.message?.content;
         if (finalContent) {
           await sendAndSaveReply(supabase, conversation_id, phone_number, finalContent, PHONE_NUMBER_ID, ACCESS_TOKEN);
+          if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
         }
       }
     } else if (choice.message?.content) {
       await sendAndSaveReply(supabase, conversation_id, phone_number, choice.message.content, PHONE_NUMBER_ID, ACCESS_TOKEN);
+      if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
     }
 
     return new Response(JSON.stringify({ ok: true }), {
@@ -227,6 +232,8 @@ REGRAS:
 - Se não souber a empresa do cliente, pergunte antes de criar chamados.
 - Seja conciso. Use emojis com moderação (✅, ⚠️, 📋, 🔧).
 - Quando criar um chamado, informe o número ao cliente.
+- Se o problema for URGENTE ou complexo demais, use escalate_to_human para transferir a um técnico.
+- Quando o problema for resolvido via base de conhecimento, use resolve_conversation.
 - Nunca invente informações. Se não souber, diga que vai encaminhar para um técnico.`;
 }
 
@@ -279,6 +286,37 @@ function getTools() {
             data_sugerida: { type: "string", description: "Data sugerida no formato YYYY-MM-DD" },
           },
           required: ["company_id", "motivo"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "escalate_to_human",
+        description: "Transfere a conversa para um técnico humano quando o problema é complexo ou urgente demais para a IA resolver",
+        parameters: {
+          type: "object",
+          properties: {
+            reason: { type: "string", description: "Motivo da escalação" },
+            conversation_id: { type: "string", description: "ID da conversa" },
+          },
+          required: ["reason", "conversation_id"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "resolve_conversation",
+        description: "Marca a conversa como resolvida quando o problema do cliente foi solucionado via base de conhecimento",
+        parameters: {
+          type: "object",
+          properties: {
+            conversation_id: { type: "string", description: "ID da conversa" },
+          },
+          required: ["conversation_id"],
           additionalProperties: false,
         },
       },
@@ -366,6 +404,49 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
         break;
       }
 
+      case "escalate_to_human": {
+        // Disable AI and move to waiting queue
+        await supabase
+          .from("waba_conversations")
+          .update({ ai_enabled: false, queue_status: "waiting" })
+          .eq("id", args.conversation_id);
+
+        // Save system event message
+        await supabase.from("waba_messages").insert({
+          conversation_id: args.conversation_id,
+          direction: "outbound",
+          message_type: "system",
+          content: `⚠️ Escalado para técnico: ${args.reason}`,
+          status: "delivered",
+          sender_type: "system",
+        });
+
+        result = { success: true, reason: args.reason };
+        console.log(`Conversation ${args.conversation_id} escalated: ${args.reason}`);
+        break;
+      }
+
+      case "resolve_conversation": {
+        await supabase
+          .from("waba_conversations")
+          .update({ queue_status: "resolved", resolved_at: new Date().toISOString() })
+          .eq("id", args.conversation_id);
+
+        // Save system event
+        await supabase.from("waba_messages").insert({
+          conversation_id: args.conversation_id,
+          direction: "outbound",
+          message_type: "system",
+          content: "✅ Conversa resolvida pela IA",
+          status: "delivered",
+          sender_type: "system",
+        });
+
+        result = { success: true };
+        console.log(`Conversation ${args.conversation_id} resolved by AI`);
+        break;
+      }
+
       default:
         result = { error: "Unknown tool" };
     }
@@ -424,4 +505,13 @@ async function sendAndSaveReply(
       .update({ last_message_at: new Date().toISOString() })
       .eq("id", conversationId);
   }
+}
+
+// ─── Track First Response ────────────────────────────────────────────
+
+async function trackFirstResponse(supabase: any, conversationId: string) {
+  await supabase
+    .from("waba_conversations")
+    .update({ first_response_at: new Date().toISOString() })
+    .eq("id", conversationId);
 }

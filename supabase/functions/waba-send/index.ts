@@ -69,10 +69,24 @@ serve(async (req: Request) => {
             sender_type: "agent",
           });
 
-          // Update conversation last_message_at
+          // Update conversation: last_message, first_response, queue_status
+          const { data: conv } = await supabase
+            .from("waba_conversations")
+            .select("first_response_at, queue_status")
+            .eq("id", conversation_id)
+            .single();
+
+          const updates: any = { last_message_at: new Date().toISOString() };
+          if (!conv?.first_response_at) {
+            updates.first_response_at = new Date().toISOString();
+          }
+          if (conv?.queue_status === "waiting") {
+            updates.queue_status = "assigned";
+          }
+
           await supabase
             .from("waba_conversations")
-            .update({ last_message_at: new Date().toISOString() })
+            .update(updates)
             .eq("id", conversation_id);
         }
 

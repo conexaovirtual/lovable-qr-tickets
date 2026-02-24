@@ -135,6 +135,12 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                     <p className="text-xs text-muted-foreground truncate">
                       {conv.phone_number}
                     </p>
+                    {conv.queue_status === "waiting" && (
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 border-warning text-warning">Fila</Badge>
+                    )}
+                    {conv.queue_status === "resolved" && (
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 border-success text-success">✓</Badge>
+                    )}
                   </div>
                 </div>
               </button>
