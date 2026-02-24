@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const GRAPH_API_URL = "https://graph.facebook.com/v21.0";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -16,11 +15,11 @@ serve(async (req: Request) => {
 
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
-    const ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL");
+    const MABBIX_CONNECTION_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
 
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-    if (!PHONE_NUMBER_ID || !ACCESS_TOKEN) throw new Error("WhatsApp API not configured");
+    if (!MABBIX_BACKEND_URL || !MABBIX_CONNECTION_TOKEN) throw new Error("Mabbix API not configured");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -58,7 +57,7 @@ serve(async (req: Request) => {
       .order("created_at", { ascending: false })
       .limit(20);
 
-    const chatHistory = (recentMessages || []).reverse().map((m) => ({
+    const chatHistory = (recentMessages || []).reverse().map((m: any) => ({
       role: m.direction === "inbound" ? "user" : "assistant",
       content: m.content || "",
     }));
@@ -121,12 +120,12 @@ serve(async (req: Request) => {
         const followUp = await followUpResponse.json();
         const finalContent = followUp.choices?.[0]?.message?.content;
         if (finalContent) {
-          await sendAndSaveReply(supabase, conversation_id, phone_number, finalContent, PHONE_NUMBER_ID, ACCESS_TOKEN);
+          await sendAndSaveReply(supabase, conversation_id, phone_number, finalContent, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
           if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
         }
       }
     } else if (choice.message?.content) {
-      await sendAndSaveReply(supabase, conversation_id, phone_number, choice.message.content, PHONE_NUMBER_ID, ACCESS_TOKEN);
+      await sendAndSaveReply(supabase, conversation_id, phone_number, choice.message.content, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
       if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
     }
 
@@ -145,20 +144,17 @@ serve(async (req: Request) => {
 // ─── Context Gathering ───────────────────────────────────────────────
 
 async function gatherContext(supabase: any, phone: string, message: string) {
-  // Search knowledge base for relevant articles
   const { data: articles } = await supabase
     .from("knowledge_articles")
     .select("titulo, problema, solucao, categoria, tags")
     .limit(10);
 
-  // Find matching contact/company
   const { data: contact } = await supabase
     .from("whatsapp_contacts")
     .select("*, companies:company_id(nome_fantasia, id)")
     .eq("phone_number", phone)
     .maybeSingle();
 
-  // Get open tickets for this contact's company
   let openTickets: any[] = [];
   if (contact?.company_id) {
     const { data } = await supabase
@@ -171,7 +167,6 @@ async function gatherContext(supabase: any, phone: string, message: string) {
     openTickets = data || [];
   }
 
-  // Get upcoming visits for this company
   let visits: any[] = [];
   if (contact?.company_id) {
     const { data } = await supabase
@@ -405,13 +400,11 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
       }
 
       case "escalate_to_human": {
-        // Disable AI and move to waiting queue
         await supabase
           .from("waba_conversations")
           .update({ ai_enabled: false, queue_status: "waiting" })
           .eq("id", args.conversation_id);
 
-        // Save system event message
         await supabase.from("waba_messages").insert({
           conversation_id: args.conversation_id,
           direction: "outbound",
@@ -432,7 +425,6 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
           .update({ queue_status: "resolved", resolved_at: new Date().toISOString() })
           .eq("id", args.conversation_id);
 
-        // Save system event
         await supabase.from("waba_messages").insert({
           conversation_id: args.conversation_id,
           direction: "outbound",
@@ -461,50 +453,49 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
   return results;
 }
 
-// ─── Send & Save Reply ───────────────────────────────────────────────
+// ─── Send & Save Reply via Mabbix ────────────────────────────────────
 
 async function sendAndSaveReply(
   supabase: any,
   conversationId: string,
   phone: string,
   text: string,
-  phoneNumberId: string,
-  accessToken: string
+  mabbixUrl: string,
+  mabbixToken: string
 ) {
-  // Send via Meta Graph API
-  const response = await fetch(`${GRAPH_API_URL}/${phoneNumberId}/messages`, {
+  // Send via Mabbix API
+  const response = await fetch(`${mabbixUrl}/api/messages/send`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${mabbixToken}`,
     },
     body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to: phone,
-      type: "text",
-      text: { body: text },
+      number: phone,
+      openTicket: "0",
+      queueId: "0",
+      body: text,
     }),
   });
 
   const result = await response.json();
-  console.log("AI reply sent:", JSON.stringify(result).substring(0, 200));
+  console.log("AI reply sent via Mabbix:", JSON.stringify(result).substring(0, 200));
 
-  if (result.messages?.[0]) {
-    await supabase.from("waba_messages").insert({
-      conversation_id: conversationId,
-      wamid: result.messages[0].id,
-      direction: "outbound",
-      message_type: "text",
-      content: text,
-      status: "sent",
-      sender_type: "ai",
-    });
+  const messageId = result?.id || result?.message?.id || null;
+  await supabase.from("waba_messages").insert({
+    conversation_id: conversationId,
+    wamid: messageId ? String(messageId) : null,
+    direction: "outbound",
+    message_type: "text",
+    content: text,
+    status: "sent",
+    sender_type: "ai",
+  });
 
-    await supabase
-      .from("waba_conversations")
-      .update({ last_message_at: new Date().toISOString() })
-      .eq("id", conversationId);
-  }
+  await supabase
+    .from("waba_conversations")
+    .update({ last_message_at: new Date().toISOString() })
+    .eq("id", conversationId);
 }
 
 // ─── Track First Response ────────────────────────────────────────────

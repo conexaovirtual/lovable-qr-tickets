@@ -7,23 +7,6 @@ const corsHeaders = {
 };
 
 serve(async (req: Request) => {
-  // Handle webhook verification (GET request from Meta)
-  if (req.method === "GET") {
-    const url = new URL(req.url);
-    const mode = url.searchParams.get("hub.mode");
-    const token = url.searchParams.get("hub.verify_token");
-    const challenge = url.searchParams.get("hub.challenge");
-
-    const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN");
-
-    if (mode === "subscribe" && token === VERIFY_TOKEN) {
-      console.log("Webhook verified successfully");
-      return new Response(challenge, { status: 200 });
-    }
-
-    return new Response("Forbidden", { status: 403 });
-  }
-
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -35,138 +18,42 @@ serve(async (req: Request) => {
     );
 
     const body = await req.json();
-    console.log("WABA webhook received:", JSON.stringify(body).substring(0, 500));
+    console.log("Mabbix webhook received:", JSON.stringify(body).substring(0, 500));
 
-    const entries = body.entry || [];
-    for (const entry of entries) {
-      const changes = entry.changes || [];
-      for (const change of changes) {
-        if (change.field !== "messages") continue;
+    // Mabbix webhook payload structure
+    // Messages: body contains ticket info + message data
+    // Ticket events: body contains ticket status changes
+    // Tags: body contains tag changes
 
-        const value = change.value;
-        const contacts = value.contacts || [];
-        const messages = value.messages || [];
-        const statuses = value.statuses || [];
+    const event = body.event || body.type || detectEvent(body);
 
-        // Process incoming messages
-        for (const msg of messages) {
-          const contact = contacts.find((c: any) => c.wa_id === msg.from);
-          const contactName = contact?.profile?.name || "Desconhecido";
-          const phoneNumber = msg.from;
-
-          // Upsert conversation
-          const { data: conversation } = await supabase
-            .from("waba_conversations")
-            .upsert(
-              {
-                phone_number: phoneNumber,
-                contact_name: contactName,
-                last_message_at: new Date().toISOString(),
-                status: "active",
-              },
-              { onConflict: "phone_number" }
-            )
-            .select()
-            .single();
-
-          if (!conversation) {
-            console.error("Failed to upsert conversation for", phoneNumber);
-            continue;
-          }
-
-          // Extract message content
-          let content = "";
-          let messageType = "text";
-          let mediaUrl = null;
-
-          switch (msg.type) {
-            case "text":
-              content = msg.text?.body || "";
-              messageType = "text";
-              break;
-            case "image":
-              content = msg.image?.caption || "[Imagem]";
-              messageType = "image";
-              mediaUrl = msg.image?.id;
-              break;
-            case "audio":
-              content = "[Áudio]";
-              messageType = "audio";
-              mediaUrl = msg.audio?.id;
-              break;
-            case "video":
-              content = msg.video?.caption || "[Vídeo]";
-              messageType = "video";
-              mediaUrl = msg.video?.id;
-              break;
-            case "document":
-              content = msg.document?.filename || "[Documento]";
-              messageType = "document";
-              mediaUrl = msg.document?.id;
-              break;
-            case "sticker":
-              content = "[Sticker]";
-              messageType = "sticker";
-              break;
-            case "location":
-              content = `📍 Lat: ${msg.location?.latitude}, Lng: ${msg.location?.longitude}`;
-              messageType = "location";
-              break;
-            default:
-              content = `[${msg.type}]`;
-              messageType = msg.type;
-          }
-
-          // Save message
-          await supabase.from("waba_messages").insert({
-            conversation_id: conversation.id,
-            wamid: msg.id,
-            direction: "inbound",
-            message_type: messageType,
-            content,
-            media_url: mediaUrl,
-            status: "received",
-            raw_payload: msg,
-            sender_type: "user",
-          });
-
-          console.log(`Message saved from ${phoneNumber}: ${content.substring(0, 50)}`);
-
-          // Trigger AI Agent for text messages
-          if (messageType === "text" && content) {
-            try {
-              const aiResponse = await fetch(
-                `${Deno.env.get("SUPABASE_URL")}/functions/v1/waba-ai-agent`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-                  },
-                  body: JSON.stringify({
-                    conversation_id: conversation.id,
-                    message_content: content,
-                    phone_number: phoneNumber,
-                  }),
-                }
-              );
-              const aiResult = await aiResponse.json();
-              console.log("AI Agent result:", JSON.stringify(aiResult).substring(0, 200));
-            } catch (aiErr) {
-              console.error("AI Agent invocation failed:", aiErr);
-              // Don't fail the webhook if AI fails
-            }
-          }
-        }
-
-        // Process message status updates
-        for (const statusUpdate of statuses) {
-          if (statusUpdate.id) {
-            await supabase
-              .from("waba_messages")
-              .update({ status: statusUpdate.status })
-              .eq("wamid", statusUpdate.id);
-          }
+    switch (event) {
+      case "message":
+      case "messages":
+      case "received": {
+        await handleIncomingMessage(supabase, body);
+        break;
+      }
+      case "ticket_open":
+      case "ticket_close":
+      case "ticket": {
+        console.log("Ticket event:", event, JSON.stringify(body).substring(0, 200));
+        break;
+      }
+      case "tag": {
+        console.log("Tag event:", JSON.stringify(body).substring(0, 200));
+        break;
+      }
+      case "status": {
+        await handleStatusUpdate(supabase, body);
+        break;
+      }
+      default: {
+        // Try to process as message if it has message-like fields
+        if (body.msg || body.message || body.body?.msg || body.ticket) {
+          await handleIncomingMessage(supabase, body);
+        } else {
+          console.log("Unknown Mabbix event:", event, JSON.stringify(body).substring(0, 300));
         }
       }
     }
@@ -176,10 +63,184 @@ serve(async (req: Request) => {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
-    console.error("WABA webhook error:", error);
+    console.error("Mabbix webhook error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 });
+
+function detectEvent(body: any): string {
+  if (body.msg || body.message || body.body?.msg) return "message";
+  if (body.ticket && body.action) return "ticket";
+  if (body.tags) return "tag";
+  if (body.mediaUrl || body.media) return "message";
+  return "unknown";
+}
+
+async function handleIncomingMessage(supabase: any, body: any) {
+  // Extract data from Mabbix webhook payload
+  // Mabbix sends different structures - handle flexibly
+  const ticket = body.ticket || body.body?.ticket || {};
+  const contact = body.contact || body.body?.contact || ticket.contact || {};
+  const msg = body.msg || body.message || body.body?.msg || {};
+
+  // Extract phone number (Mabbix formats: with @s.whatsapp.net or clean)
+  let phoneNumber = contact.number || contact.pushname || ticket.contact?.number || body.from || body.number || "";
+  phoneNumber = phoneNumber.replace(/@.*$/, "").replace(/\D/g, "");
+
+  if (!phoneNumber) {
+    console.log("No phone number found in webhook payload, skipping");
+    return;
+  }
+
+  const contactName = contact.name || contact.pushname || ticket.contact?.name || "Desconhecido";
+
+  // Upsert conversation
+  const { data: conversation } = await supabase
+    .from("waba_conversations")
+    .upsert(
+      {
+        phone_number: phoneNumber,
+        contact_name: contactName,
+        last_message_at: new Date().toISOString(),
+        status: "active",
+      },
+      { onConflict: "phone_number" }
+    )
+    .select()
+    .single();
+
+  if (!conversation) {
+    console.error("Failed to upsert conversation for", phoneNumber);
+    return;
+  }
+
+  // Extract message content
+  let content = "";
+  let messageType = "text";
+  let mediaUrl = null;
+
+  // Handle Mabbix message structure
+  const messageObj = msg.message || msg;
+  
+  if (typeof messageObj === "string") {
+    content = messageObj;
+    messageType = "text";
+  } else if (messageObj?.conversation) {
+    content = messageObj.conversation;
+    messageType = "text";
+  } else if (messageObj?.extendedTextMessage) {
+    content = messageObj.extendedTextMessage?.text || "";
+    messageType = "text";
+  } else if (messageObj?.imageMessage) {
+    content = messageObj.imageMessage?.caption || "[Imagem]";
+    messageType = "image";
+    mediaUrl = body.mediaUrl || body.media?.url || null;
+  } else if (messageObj?.audioMessage) {
+    content = "[Áudio]";
+    messageType = "audio";
+    mediaUrl = body.mediaUrl || body.media?.url || null;
+  } else if (messageObj?.videoMessage) {
+    content = messageObj.videoMessage?.caption || "[Vídeo]";
+    messageType = "video";
+    mediaUrl = body.mediaUrl || body.media?.url || null;
+  } else if (messageObj?.documentMessage) {
+    content = messageObj.documentMessage?.fileName || "[Documento]";
+    messageType = "document";
+    mediaUrl = body.mediaUrl || body.media?.url || null;
+  } else if (messageObj?.stickerMessage) {
+    content = "[Sticker]";
+    messageType = "sticker";
+  } else if (messageObj?.locationMessage) {
+    const lat = messageObj.locationMessage?.degreesLatitude;
+    const lng = messageObj.locationMessage?.degreesLongitude;
+    content = `📍 Lat: ${lat}, Lng: ${lng}`;
+    messageType = "location";
+  } else if (messageObj?.reactionMessage) {
+    content = `[Reação: ${messageObj.reactionMessage?.text || ""}]`;
+    messageType = "reaction";
+  } else if (messageObj?.contactMessage) {
+    content = "[Contato]";
+    messageType = "contact";
+  } else if (body.body) {
+    // Fallback: try body as text
+    content = typeof body.body === "string" ? body.body : JSON.stringify(body.body);
+    messageType = "text";
+  } else {
+    content = "[Mensagem não suportada]";
+    messageType = "unknown";
+  }
+
+  // Determine direction (inbound from client vs outbound from agent)
+  const isFromMe = msg.key?.fromMe || body.fromMe || false;
+  if (isFromMe) {
+    console.log("Outbound message echoed via webhook, skipping save");
+    return;
+  }
+
+  // Save message
+  const wamid = msg.key?.id || msg.id || body.id || null;
+  await supabase.from("waba_messages").insert({
+    conversation_id: conversation.id,
+    wamid: wamid ? String(wamid) : null,
+    direction: "inbound",
+    message_type: messageType,
+    content,
+    media_url: mediaUrl,
+    status: "received",
+    raw_payload: body,
+    sender_type: "user",
+  });
+
+  console.log(`Message saved from ${phoneNumber}: ${content.substring(0, 50)}`);
+
+  // Trigger AI Agent for text messages
+  if (messageType === "text" && content && content !== "[Mensagem não suportada]") {
+    try {
+      const aiResponse = await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/waba-ai-agent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({
+            conversation_id: conversation.id,
+            message_content: content,
+            phone_number: phoneNumber,
+          }),
+        }
+      );
+      const aiResult = await aiResponse.json();
+      console.log("AI Agent result:", JSON.stringify(aiResult).substring(0, 200));
+    } catch (aiErr) {
+      console.error("AI Agent invocation failed:", aiErr);
+    }
+  }
+}
+
+async function handleStatusUpdate(supabase: any, body: any) {
+  const messageId = body.id || body.messageId || body.wamid;
+  const status = body.status || body.ack;
+  
+  if (messageId && status) {
+    const statusMap: Record<string, string> = {
+      "1": "sent",
+      "2": "delivered",
+      "3": "read",
+      sent: "sent",
+      delivered: "delivered",
+      read: "read",
+    };
+
+    const mappedStatus = statusMap[String(status)] || String(status);
+
+    await supabase
+      .from("waba_messages")
+      .update({ status: mappedStatus })
+      .eq("wamid", String(messageId));
+  }
+}

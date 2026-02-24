@@ -6,20 +6,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const GRAPH_API_URL = "https://graph.facebook.com/v21.0";
-
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
-    const ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL");
+    const MABBIX_CONNECTION_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
 
-    if (!PHONE_NUMBER_ID || !ACCESS_TOKEN) {
+    if (!MABBIX_BACKEND_URL || !MABBIX_CONNECTION_TOKEN) {
       return new Response(
-        JSON.stringify({ error: "WhatsApp Business API not configured" }),
+        JSON.stringify({ error: "Mabbix API not configured" }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -36,101 +34,58 @@ serve(async (req: Request) => {
       case "send_text": {
         const { phone, text, conversation_id } = params;
 
-        // Send via Meta Graph API
+        // Send via Mabbix API
         const response = await fetch(
-          `${GRAPH_API_URL}/${PHONE_NUMBER_ID}/messages`,
+          `${MABBIX_BACKEND_URL}/api/messages/send`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${ACCESS_TOKEN}`,
+              Authorization: `Bearer ${MABBIX_CONNECTION_TOKEN}`,
             },
             body: JSON.stringify({
-              messaging_product: "whatsapp",
-              to: phone,
-              type: "text",
-              text: { body: text },
+              number: phone,
+              openTicket: "0",
+              queueId: "0",
+              body: text,
             }),
           }
         );
 
         const result = await response.json();
-        console.log("Meta API response:", JSON.stringify(result));
+        console.log("Mabbix API response:", JSON.stringify(result).substring(0, 300));
 
-        if (result.messages && result.messages[0]) {
-          // Save outbound message to DB
-          await supabase.from("waba_messages").insert({
-            conversation_id,
-            wamid: result.messages[0].id,
-            direction: "outbound",
-            message_type: "text",
-            content: text,
-            status: "sent",
-            sender_type: "agent",
-          });
-
-          // Update conversation: last_message, first_response, queue_status
-          const { data: conv } = await supabase
-            .from("waba_conversations")
-            .select("first_response_at, queue_status")
-            .eq("id", conversation_id)
-            .single();
-
-          const updates: any = { last_message_at: new Date().toISOString() };
-          if (!conv?.first_response_at) {
-            updates.first_response_at = new Date().toISOString();
-          }
-          if (conv?.queue_status === "waiting") {
-            updates.queue_status = "assigned";
-          }
-
-          await supabase
-            .from("waba_conversations")
-            .update(updates)
-            .eq("id", conversation_id);
-        }
-
-        return new Response(JSON.stringify(result), {
-          headers: { "Content-Type": "application/json", ...corsHeaders },
+        // Save outbound message to DB
+        const messageId = result?.id || result?.message?.id || null;
+        await supabase.from("waba_messages").insert({
+          conversation_id,
+          wamid: messageId ? String(messageId) : null,
+          direction: "outbound",
+          message_type: "text",
+          content: text,
+          status: "sent",
+          sender_type: "agent",
         });
-      }
 
-      case "send_template": {
-        const { phone, template_name, language_code, components, conversation_id } = params;
+        // Update conversation: last_message, first_response, queue_status
+        const { data: conv } = await supabase
+          .from("waba_conversations")
+          .select("first_response_at, queue_status")
+          .eq("id", conversation_id)
+          .single();
 
-        const response = await fetch(
-          `${GRAPH_API_URL}/${PHONE_NUMBER_ID}/messages`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${ACCESS_TOKEN}`,
-            },
-            body: JSON.stringify({
-              messaging_product: "whatsapp",
-              to: phone,
-              type: "template",
-              template: {
-                name: template_name,
-                language: { code: language_code || "pt_BR" },
-                components: components || [],
-              },
-            }),
-          }
-        );
-
-        const result = await response.json();
-
-        if (result.messages && result.messages[0]) {
-          await supabase.from("waba_messages").insert({
-            conversation_id,
-            wamid: result.messages[0].id,
-            direction: "outbound",
-            message_type: "template",
-            content: `[Template: ${template_name}]`,
-            status: "sent",
-          });
+        const updates: any = { last_message_at: new Date().toISOString() };
+        if (!conv?.first_response_at) {
+          updates.first_response_at = new Date().toISOString();
         }
+        if (conv?.queue_status === "waiting") {
+          updates.queue_status = "assigned";
+        }
+
+        await supabase
+          .from("waba_conversations")
+          .update(updates)
+          .eq("id", conversation_id);
 
         return new Response(JSON.stringify(result), {
           headers: { "Content-Type": "application/json", ...corsHeaders },
