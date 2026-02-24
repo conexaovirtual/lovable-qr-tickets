@@ -66,6 +66,7 @@ serve(async (req: Request) => {
             message_type: "text",
             content: text,
             status: "sent",
+            sender_type: "agent",
           });
 
           // Update conversation last_message_at

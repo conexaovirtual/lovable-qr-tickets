@@ -7,17 +7,18 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import {
   MessageSquare,
   Send,
   ArrowLeft,
   Phone,
   Search,
-  User,
   Clock,
   CheckCheck,
   Check,
+  Bot,
+  UserRound,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -30,6 +31,7 @@ interface Conversation {
   status: string;
   last_message_at: string;
   created_at: string;
+  ai_enabled: boolean;
 }
 
 interface Message {
@@ -42,6 +44,7 @@ interface Message {
   media_url: string | null;
   status: string | null;
   created_at: string;
+  sender_type: string;
 }
 
 const WABAChat = () => {
@@ -68,12 +71,11 @@ const WABAChat = () => {
         .from("waba_conversations")
         .select("*")
         .order("last_message_at", { ascending: false });
-      if (data) setConversations(data);
+      if (data) setConversations(data as Conversation[]);
     };
 
     fetchConversations();
 
-    // Realtime subscription for conversations
     const channel = supabase
       .channel("waba-conversations-changes")
       .on(
@@ -96,12 +98,11 @@ const WABAChat = () => {
         .select("*")
         .eq("conversation_id", selectedConversation.id)
         .order("created_at", { ascending: true });
-      if (data) setMessages(data);
+      if (data) setMessages(data as Message[]);
     };
 
     fetchMessages();
 
-    // Realtime subscription for messages
     const channel = supabase
       .channel(`waba-messages-${selectedConversation.id}`)
       .on(
@@ -165,6 +166,26 @@ const WABAChat = () => {
     }
   };
 
+  const toggleAI = async (conversationId: string, enabled: boolean) => {
+    const { error } = await supabase
+      .from("waba_conversations")
+      .update({ ai_enabled: enabled })
+      .eq("id", conversationId);
+
+    if (error) {
+      toast.error("Erro ao alterar modo IA");
+      return;
+    }
+
+    setConversations((prev) =>
+      prev.map((c) => (c.id === conversationId ? { ...c, ai_enabled: enabled } : c))
+    );
+    if (selectedConversation?.id === conversationId) {
+      setSelectedConversation((prev) => prev ? { ...prev, ai_enabled: enabled } : prev);
+    }
+    toast.success(enabled ? "IA ativada para esta conversa" : "IA desativada - modo manual");
+  };
+
   const filteredConversations = conversations.filter((c) => {
     const term = searchTerm.toLowerCase();
     return (
@@ -181,6 +202,17 @@ const WABAChat = () => {
         return <CheckCheck className="h-3 w-3 text-muted-foreground" />;
       case "sent":
         return <Check className="h-3 w-3 text-muted-foreground" />;
+      default:
+        return null;
+    }
+  };
+
+  const getSenderIcon = (senderType: string) => {
+    switch (senderType) {
+      case "ai":
+        return <Bot className="h-3 w-3" />;
+      case "agent":
+        return <UserRound className="h-3 w-3" />;
       default:
         return null;
     }
@@ -246,9 +278,16 @@ const WABAChat = () => {
                         {format(new Date(conv.last_message_at), "HH:mm", { locale: ptBR })}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {conv.phone_number}
-                    </p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground truncate flex-1">
+                        {conv.phone_number}
+                      </p>
+                      {conv.ai_enabled && (
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 gap-0.5 border-primary/30 text-primary">
+                          <Bot className="h-2.5 w-2.5" /> IA
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -277,7 +316,7 @@ const WABAChat = () => {
                       .toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <div>
+                <div className="flex-1">
                   <p className="font-medium text-sm">
                     {selectedConversation.contact_name || selectedConversation.phone_number}
                   </p>
@@ -285,6 +324,16 @@ const WABAChat = () => {
                     <Phone className="h-3 w-3" />
                     {selectedConversation.phone_number}
                   </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {selectedConversation.ai_enabled ? "IA Ativa" : "Manual"}
+                  </span>
+                  <Switch
+                    checked={selectedConversation.ai_enabled}
+                    onCheckedChange={(checked) => toggleAI(selectedConversation.id, checked)}
+                  />
+                  <Bot className={`h-4 w-4 ${selectedConversation.ai_enabled ? "text-primary" : "text-muted-foreground"}`} />
                 </div>
               </div>
 
@@ -299,10 +348,22 @@ const WABAChat = () => {
                       <div
                         className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                           msg.direction === "outbound"
-                            ? "bg-primary text-primary-foreground rounded-br-md"
+                            ? msg.sender_type === "ai"
+                              ? "bg-primary/80 text-primary-foreground rounded-br-md"
+                              : "bg-primary text-primary-foreground rounded-br-md"
                             : "bg-muted rounded-bl-md"
                         }`}
                       >
+                        {msg.direction === "outbound" && msg.sender_type !== "user" && (
+                          <div className={`flex items-center gap-1 mb-1 ${
+                            msg.sender_type === "ai" ? "text-primary-foreground/70" : "text-primary-foreground/70"
+                          }`}>
+                            {getSenderIcon(msg.sender_type)}
+                            <span className="text-[10px] font-medium">
+                              {msg.sender_type === "ai" ? "Assistente IA" : "Técnico"}
+                            </span>
+                          </div>
+                        )}
                         <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                         <div
                           className={`flex items-center gap-1 mt-1 ${
@@ -323,9 +384,17 @@ const WABAChat = () => {
 
               {/* Message Input */}
               <div className="border-t p-3 bg-card">
+                {selectedConversation.ai_enabled && (
+                  <div className="flex items-center gap-2 mb-2 px-2 max-w-3xl mx-auto">
+                    <Bot className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs text-muted-foreground">
+                      IA respondendo automaticamente • Envie uma mensagem para intervir manualmente
+                    </span>
+                  </div>
+                )}
                 <div className="flex gap-2 max-w-3xl mx-auto">
                   <Input
-                    placeholder="Digite uma mensagem..."
+                    placeholder={selectedConversation.ai_enabled ? "Intervir manualmente..." : "Digite uma mensagem..."}
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
@@ -341,9 +410,15 @@ const WABAChat = () => {
           ) : (
             <div className="flex-1 flex items-center justify-center text-muted-foreground">
               <div className="text-center">
-                <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                <p className="text-lg font-medium">WhatsApp Business API</p>
+                <div className="relative mx-auto w-16 h-16 mb-4">
+                  <MessageSquare className="h-16 w-16 opacity-30" />
+                  <Bot className="h-6 w-6 absolute -bottom-1 -right-1 text-primary" />
+                </div>
+                <p className="text-lg font-medium">WhatsApp Business + IA</p>
                 <p className="text-sm mt-1">Selecione uma conversa para começar</p>
+                <p className="text-xs mt-2 text-muted-foreground/60">
+                  A IA responde automaticamente usando a base de conhecimento, cria chamados e consulta status
+                </p>
               </div>
             </div>
           )}
