@@ -67,3 +67,6 @@ verify_jwt = false
 
 [functions.waba-send]
 verify_jwt = false
+
+[functions.waba-ai-agent]
+verify_jwt = false

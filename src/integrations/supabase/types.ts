@@ -1520,6 +1520,8 @@ export type Database = {
       }
       waba_conversations: {
         Row: {
+          ai_context: Json | null
+          ai_enabled: boolean
           contact_name: string | null
           created_at: string
           id: string
@@ -1529,6 +1531,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_context?: Json | null
+          ai_enabled?: boolean
           contact_name?: string | null
           created_at?: string
           id?: string
@@ -1538,6 +1542,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_context?: Json | null
+          ai_enabled?: boolean
           contact_name?: string | null
           created_at?: string
           id?: string
@@ -1558,6 +1564,7 @@ export type Database = {
           media_url: string | null
           message_type: string
           raw_payload: Json | null
+          sender_type: string
           status: string | null
           wamid: string | null
         }
@@ -1570,6 +1577,7 @@ export type Database = {
           media_url?: string | null
           message_type?: string
           raw_payload?: Json | null
+          sender_type?: string
           status?: string | null
           wamid?: string | null
         }
@@ -1582,6 +1590,7 @@ export type Database = {
           media_url?: string | null
           message_type?: string
           raw_payload?: Json | null
+          sender_type?: string
           status?: string | null
           wamid?: string | null
         }

@@ -37,7 +37,6 @@ serve(async (req: Request) => {
     const body = await req.json();
     console.log("WABA webhook received:", JSON.stringify(body).substring(0, 500));
 
-    // Process each entry from Meta webhook
     const entries = body.entry || [];
     for (const entry of entries) {
       const changes = entry.changes || [];
@@ -128,12 +127,39 @@ serve(async (req: Request) => {
             media_url: mediaUrl,
             status: "received",
             raw_payload: msg,
+            sender_type: "user",
           });
 
           console.log(`Message saved from ${phoneNumber}: ${content.substring(0, 50)}`);
+
+          // Trigger AI Agent for text messages
+          if (messageType === "text" && content) {
+            try {
+              const aiResponse = await fetch(
+                `${Deno.env.get("SUPABASE_URL")}/functions/v1/waba-ai-agent`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                  },
+                  body: JSON.stringify({
+                    conversation_id: conversation.id,
+                    message_content: content,
+                    phone_number: phoneNumber,
+                  }),
+                }
+              );
+              const aiResult = await aiResponse.json();
+              console.log("AI Agent result:", JSON.stringify(aiResult).substring(0, 200));
+            } catch (aiErr) {
+              console.error("AI Agent invocation failed:", aiErr);
+              // Don't fail the webhook if AI fails
+            }
+          }
         }
 
-        // Process message status updates (sent, delivered, read)
+        // Process message status updates
         for (const statusUpdate of statuses) {
           if (statusUpdate.id) {
             await supabase
