@@ -244,6 +244,22 @@ export default function WhatsAppSettings() {
           <p className="text-muted-foreground">Configure a integração com WhatsApp via Evolution API</p>
         </div>
 
+        {/* Quick Access to WABA Chat */}
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-3">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-medium">WhatsApp Business API - Chat</p>
+                <p className="text-sm text-muted-foreground">Acesse o painel de conversas em tempo real</p>
+              </div>
+            </div>
+            <Button onClick={() => navigate('/waba-chat')}>
+              Abrir Chat
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Connection Status */}
         <Card>
           <CardHeader>
