@@ -1522,37 +1522,64 @@ export type Database = {
         Row: {
           ai_context: Json | null
           ai_enabled: boolean
+          assigned_to: string | null
           contact_name: string | null
           created_at: string
+          first_response_at: string | null
           id: string
           last_message_at: string | null
           phone_number: string
+          queue_status: string
+          resolved_at: string | null
           status: string
           updated_at: string
         }
         Insert: {
           ai_context?: Json | null
           ai_enabled?: boolean
+          assigned_to?: string | null
           contact_name?: string | null
           created_at?: string
+          first_response_at?: string | null
           id?: string
           last_message_at?: string | null
           phone_number: string
+          queue_status?: string
+          resolved_at?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           ai_context?: Json | null
           ai_enabled?: boolean
+          assigned_to?: string | null
           contact_name?: string | null
           created_at?: string
+          first_response_at?: string | null
           id?: string
           last_message_at?: string | null
           phone_number?: string
+          queue_status?: string
+          resolved_at?: string | null
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "waba_conversations_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waba_conversations_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       waba_messages: {
         Row: {
