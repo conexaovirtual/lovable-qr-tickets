@@ -35,7 +35,7 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
   };
 
   const handleFilterChange = useDebouncedCallback((field: string, value: string) => {
-    setFilters({ ...filters, [field]: value });
+    setFilters({ ...filters, [field]: value === 'all' ? '' : value });
   }, 300);
 
   const clearFilters = () => {
@@ -46,12 +46,12 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
     <div className="space-y-4 pt-4">
       <div className="space-y-2">
         <Label>Status</Label>
-        <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+        <Select value={filters.status || 'all'} onValueChange={(value) => handleFilterChange('status', value)}>
           <SelectTrigger>
             <SelectValue placeholder="Todos" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos</SelectItem>
+            <SelectItem value="all">Todos</SelectItem>
             <SelectItem value="novo">Novo</SelectItem>
             <SelectItem value="triagem">Triagem</SelectItem>
             <SelectItem value="em_atendimento">Em Atendimento</SelectItem>
@@ -66,12 +66,12 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
 
       <div className="space-y-2">
         <Label>Prioridade</Label>
-        <Select value={filters.prioridade} onValueChange={(value) => handleFilterChange('prioridade', value)}>
+        <Select value={filters.prioridade || 'all'} onValueChange={(value) => handleFilterChange('prioridade', value)}>
           <SelectTrigger>
             <SelectValue placeholder="Todas" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas</SelectItem>
+            <SelectItem value="all">Todas</SelectItem>
             <SelectItem value="critica">Crítica</SelectItem>
             <SelectItem value="alta">Alta</SelectItem>
             <SelectItem value="media">Média</SelectItem>
@@ -82,12 +82,12 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
 
       <div className="space-y-2">
         <Label>Categoria</Label>
-        <Select value={filters.categoria} onValueChange={(value) => handleFilterChange('categoria', value)}>
+        <Select value={filters.categoria || 'all'} onValueChange={(value) => handleFilterChange('categoria', value)}>
           <SelectTrigger>
             <SelectValue placeholder="Todas" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas</SelectItem>
+            <SelectItem value="all">Todas</SelectItem>
             {categories.map((cat) => (
               <SelectItem key={cat.id} value={cat.id}>
                 {cat.nome}
@@ -99,12 +99,12 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
 
       <div className="space-y-2">
         <Label>Canal</Label>
-        <Select value={filters.canal} onValueChange={(value) => handleFilterChange('canal', value)}>
+        <Select value={filters.canal || 'all'} onValueChange={(value) => handleFilterChange('canal', value)}>
           <SelectTrigger>
             <SelectValue placeholder="Todos" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos</SelectItem>
+            <SelectItem value="all">Todos</SelectItem>
             <SelectItem value="web">Portal Web</SelectItem>
             <SelectItem value="whatsapp">WhatsApp</SelectItem>
             <SelectItem value="ligacao">Telefone</SelectItem>
@@ -116,12 +116,12 @@ export function TicketFilters({ filters, setFilters }: TicketFiltersProps) {
 
       <div className="space-y-2">
         <Label>Origem</Label>
-        <Select value={filters.viaQRCode} onValueChange={(value) => handleFilterChange('viaQRCode', value)}>
+        <Select value={filters.viaQRCode || 'all'} onValueChange={(value) => handleFilterChange('viaQRCode', value)}>
           <SelectTrigger>
             <SelectValue placeholder="Todas" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas</SelectItem>
+            <SelectItem value="all">Todas</SelectItem>
             <SelectItem value="true">Via QR Code</SelectItem>
             <SelectItem value="false">Via Sistema</SelectItem>
           </SelectContent>
