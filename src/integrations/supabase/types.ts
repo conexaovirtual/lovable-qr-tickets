@@ -1518,6 +1518,83 @@ export type Database = {
           },
         ]
       }
+      waba_conversations: {
+        Row: {
+          contact_name: string | null
+          created_at: string
+          id: string
+          last_message_at: string | null
+          phone_number: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          phone_number: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          phone_number?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      waba_messages: {
+        Row: {
+          content: string | null
+          conversation_id: string
+          created_at: string
+          direction: string
+          id: string
+          media_url: string | null
+          message_type: string
+          raw_payload: Json | null
+          status: string | null
+          wamid: string | null
+        }
+        Insert: {
+          content?: string | null
+          conversation_id: string
+          created_at?: string
+          direction?: string
+          id?: string
+          media_url?: string | null
+          message_type?: string
+          raw_payload?: Json | null
+          status?: string | null
+          wamid?: string | null
+        }
+        Update: {
+          content?: string | null
+          conversation_id?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          media_url?: string | null
+          message_type?: string
+          raw_payload?: Json | null
+          status?: string | null
+          wamid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waba_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "waba_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_config: {
         Row: {
           auto_create_ticket: boolean | null
