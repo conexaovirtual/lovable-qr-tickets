@@ -117,6 +117,14 @@ export function AppHeader() {
                   Base de Conhecimento
                 </Button>
               </Link>
+              {(profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')) && (
+                <Link to="/whatsapp-platform">
+                  <Button variant="ghost" size="sm">
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    WhatsApp
+                  </Button>
+                </Link>
+              )}
               {profile.roles?.includes('admin_provedor') && (
                 <>
                   <Link to="/analytics">
@@ -197,6 +205,12 @@ export function AppHeader() {
                   <BookOpen className="h-4 w-4 mr-2" />
                   Base de Conhecimento
                 </DropdownMenuItem>
+                {(profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')) && (
+                  <DropdownMenuItem onClick={() => navigate('/whatsapp-platform')}>
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    WhatsApp
+                  </DropdownMenuItem>
+                )}
                 {profile.roles?.includes('admin_provedor') && (
                   <>
                     <DropdownMenuItem onClick={() => navigate('/analytics')}>
