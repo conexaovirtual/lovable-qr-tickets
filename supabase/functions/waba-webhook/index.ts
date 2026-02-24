@@ -20,48 +20,105 @@ serve(async (req: Request) => {
     const body = await req.json();
     console.log("Mabbix webhook received:", JSON.stringify(body).substring(0, 500));
 
-    // Mabbix webhook payload structure
-    // Messages: body contains ticket info + message data
-    // Ticket events: body contains ticket status changes
-    // Tags: body contains tag changes
+    // Mabbix sends two main payload formats:
+    // 1. With "mensagem" array + "sender" + "acao" + "name" (webhook de fluxo/chatbot)
+    // 2. With "mensagem" object (echo de mensagem individual com body, mediaUrl, fromMe etc)
 
-    const event = body.event || body.type || detectEvent(body);
+    const acao = body.acao;
+    const hasMensagem = body.mensagem !== undefined;
+    const hasSender = body.sender !== undefined;
 
-    switch (event) {
-      case "message":
-      case "messages":
-      case "received": {
-        await handleIncomingMessage(supabase, body);
-        break;
-      }
-      case "ticket_open":
-      case "ticket_close":
-      case "ticket": {
-        console.log("Ticket event:", event, JSON.stringify(body).substring(0, 200));
-        break;
-      }
-      case "tag": {
-        console.log("Tag event:", JSON.stringify(body).substring(0, 200));
-        break;
-      }
-      case "status": {
-        await handleStatusUpdate(supabase, body);
-        break;
-      }
-      default: {
-        // Try to process as message if it has message-like fields
-        if (body.msg || body.message || body.body?.msg || body.ticket) {
-          await handleIncomingMessage(supabase, body);
-        } else {
-          console.log("Unknown Mabbix event:", event, JSON.stringify(body).substring(0, 300));
-        }
-      }
+    // Handle ticket lifecycle events
+    if (acao === "closed") {
+      console.log("Ticket closed event for chamado:", body.chamadoId);
+      return okResponse();
     }
 
-    return new Response(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    if (acao === "action_from_user") {
+      console.log("Action from user event for chamado:", body.chamadoId);
+      return okResponse();
+    }
+
+    if (acao === "open" && !hasMensagem) {
+      console.log("Ticket opened event for chamado:", body.chamadoId);
+      return okResponse();
+    }
+
+    // Handle message echo (mensagem as object with fromMe)
+    if (hasMensagem && !Array.isArray(body.mensagem) && typeof body.mensagem === "object") {
+      const msg = body.mensagem;
+      
+      // Skip outbound echoes
+      if (msg.fromMe === true) {
+        console.log("Outbound message echo, skipping");
+        return okResponse();
+      }
+
+      // Inbound message as object format
+      const phoneNumber = extractPhone(msg.participant || body.sender || "");
+      if (!phoneNumber) {
+        console.log("No phone in message object payload, skipping");
+        return okResponse();
+      }
+
+      const contactName = body.name || "Desconhecido";
+      const content = msg.body || "[Mensagem sem texto]";
+      const messageType = detectMessageType(msg.mediaType, msg.mediaUrl);
+      const mediaUrl = msg.mediaUrl || null;
+      const wamid = msg.wid || String(msg.id || "");
+
+      await saveInboundMessage(supabase, {
+        phoneNumber,
+        contactName,
+        content,
+        messageType,
+        mediaUrl,
+        wamid,
+        rawPayload: body,
+      });
+
+      return okResponse();
+    }
+
+    // Handle message array format (main webhook format)
+    if (hasMensagem && Array.isArray(body.mensagem) && hasSender) {
+      // Skip outbound
+      if (body.fromMe === true) {
+        console.log("Outbound message array, skipping");
+        return okResponse();
+      }
+
+      const phoneNumber = extractPhone(body.sender);
+      if (!phoneNumber) {
+        console.log("No phone in array payload, skipping");
+        return okResponse();
+      }
+
+      const contactName = body.name || "Desconhecido";
+
+      // Process each message in the array
+      for (const msgItem of body.mensagem) {
+        const content = msgItem.text || msgItem.body || "[Mensagem sem texto]";
+        const messageType = msgItem.type || "text";
+        const mediaUrl = msgItem.fileUrl || null;
+        const wamid = body.chamadoId ? `mabbix_${body.chamadoId}_${Date.now()}` : `mabbix_${Date.now()}`;
+
+        await saveInboundMessage(supabase, {
+          phoneNumber,
+          contactName,
+          content,
+          messageType,
+          mediaUrl,
+          wamid,
+          rawPayload: body,
+        });
+      }
+
+      return okResponse();
+    }
+
+    console.log("Unhandled Mabbix payload structure, acao:", acao);
+    return okResponse();
   } catch (error: any) {
     console.error("Mabbix webhook error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
@@ -71,31 +128,39 @@ serve(async (req: Request) => {
   }
 });
 
-function detectEvent(body: any): string {
-  if (body.msg || body.message || body.body?.msg) return "message";
-  if (body.ticket && body.action) return "ticket";
-  if (body.tags) return "tag";
-  if (body.mediaUrl || body.media) return "message";
-  return "unknown";
+function okResponse() {
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json", ...corsHeaders },
+  });
 }
 
-async function handleIncomingMessage(supabase: any, body: any) {
-  // Extract data from Mabbix webhook payload
-  // Mabbix sends different structures - handle flexibly
-  const ticket = body.ticket || body.body?.ticket || {};
-  const contact = body.contact || body.body?.contact || ticket.contact || {};
-  const msg = body.msg || body.message || body.body?.msg || {};
+function extractPhone(raw: string): string {
+  return raw.replace(/@.*$/, "").replace(/\D/g, "");
+}
 
-  // Extract phone number (Mabbix formats: with @s.whatsapp.net or clean)
-  let phoneNumber = contact.number || contact.pushname || ticket.contact?.number || body.from || body.number || "";
-  phoneNumber = phoneNumber.replace(/@.*$/, "").replace(/\D/g, "");
+function detectMessageType(mediaType?: string, mediaUrl?: string): string {
+  if (!mediaType && !mediaUrl) return "text";
+  if (mediaType?.includes("image") || mediaUrl?.match(/\.(jpg|jpeg|png|gif|webp)/i)) return "image";
+  if (mediaType?.includes("audio")) return "audio";
+  if (mediaType?.includes("video")) return "video";
+  if (mediaType?.includes("document") || mediaType?.includes("application")) return "document";
+  if (mediaType === "conversation" || mediaType === "extendedTextMessage") return "text";
+  return mediaUrl ? "document" : "text";
+}
 
-  if (!phoneNumber) {
-    console.log("No phone number found in webhook payload, skipping");
-    return;
-  }
+interface InboundMessageData {
+  phoneNumber: string;
+  contactName: string;
+  content: string;
+  messageType: string;
+  mediaUrl: string | null;
+  wamid: string;
+  rawPayload: any;
+}
 
-  const contactName = contact.name || contact.pushname || ticket.contact?.name || "Desconhecido";
+async function saveInboundMessage(supabase: any, data: InboundMessageData) {
+  const { phoneNumber, contactName, content, messageType, mediaUrl, wamid, rawPayload } = data;
 
   // Upsert conversation
   const { data: conversation } = await supabase
@@ -117,87 +182,23 @@ async function handleIncomingMessage(supabase: any, body: any) {
     return;
   }
 
-  // Extract message content
-  let content = "";
-  let messageType = "text";
-  let mediaUrl = null;
-
-  // Handle Mabbix message structure
-  const messageObj = msg.message || msg;
-  
-  if (typeof messageObj === "string") {
-    content = messageObj;
-    messageType = "text";
-  } else if (messageObj?.conversation) {
-    content = messageObj.conversation;
-    messageType = "text";
-  } else if (messageObj?.extendedTextMessage) {
-    content = messageObj.extendedTextMessage?.text || "";
-    messageType = "text";
-  } else if (messageObj?.imageMessage) {
-    content = messageObj.imageMessage?.caption || "[Imagem]";
-    messageType = "image";
-    mediaUrl = body.mediaUrl || body.media?.url || null;
-  } else if (messageObj?.audioMessage) {
-    content = "[Áudio]";
-    messageType = "audio";
-    mediaUrl = body.mediaUrl || body.media?.url || null;
-  } else if (messageObj?.videoMessage) {
-    content = messageObj.videoMessage?.caption || "[Vídeo]";
-    messageType = "video";
-    mediaUrl = body.mediaUrl || body.media?.url || null;
-  } else if (messageObj?.documentMessage) {
-    content = messageObj.documentMessage?.fileName || "[Documento]";
-    messageType = "document";
-    mediaUrl = body.mediaUrl || body.media?.url || null;
-  } else if (messageObj?.stickerMessage) {
-    content = "[Sticker]";
-    messageType = "sticker";
-  } else if (messageObj?.locationMessage) {
-    const lat = messageObj.locationMessage?.degreesLatitude;
-    const lng = messageObj.locationMessage?.degreesLongitude;
-    content = `📍 Lat: ${lat}, Lng: ${lng}`;
-    messageType = "location";
-  } else if (messageObj?.reactionMessage) {
-    content = `[Reação: ${messageObj.reactionMessage?.text || ""}]`;
-    messageType = "reaction";
-  } else if (messageObj?.contactMessage) {
-    content = "[Contato]";
-    messageType = "contact";
-  } else if (body.body) {
-    // Fallback: try body as text
-    content = typeof body.body === "string" ? body.body : JSON.stringify(body.body);
-    messageType = "text";
-  } else {
-    content = "[Mensagem não suportada]";
-    messageType = "unknown";
-  }
-
-  // Determine direction (inbound from client vs outbound from agent)
-  const isFromMe = msg.key?.fromMe || body.fromMe || false;
-  if (isFromMe) {
-    console.log("Outbound message echoed via webhook, skipping save");
-    return;
-  }
-
   // Save message
-  const wamid = msg.key?.id || msg.id || body.id || null;
   await supabase.from("waba_messages").insert({
     conversation_id: conversation.id,
-    wamid: wamid ? String(wamid) : null,
+    wamid: wamid || null,
     direction: "inbound",
     message_type: messageType,
     content,
     media_url: mediaUrl,
     status: "received",
-    raw_payload: body,
+    raw_payload: rawPayload,
     sender_type: "user",
   });
 
-  console.log(`Message saved from ${phoneNumber}: ${content.substring(0, 50)}`);
+  console.log(`Message saved from ${phoneNumber}: ${content.substring(0, 80)}`);
 
   // Trigger AI Agent for text messages
-  if (messageType === "text" && content && content !== "[Mensagem não suportada]") {
+  if (messageType === "text" && content && content !== "[Mensagem sem texto]") {
     try {
       const aiResponse = await fetch(
         `${Deno.env.get("SUPABASE_URL")}/functions/v1/waba-ai-agent`,
@@ -219,28 +220,5 @@ async function handleIncomingMessage(supabase: any, body: any) {
     } catch (aiErr) {
       console.error("AI Agent invocation failed:", aiErr);
     }
-  }
-}
-
-async function handleStatusUpdate(supabase: any, body: any) {
-  const messageId = body.id || body.messageId || body.wamid;
-  const status = body.status || body.ack;
-  
-  if (messageId && status) {
-    const statusMap: Record<string, string> = {
-      "1": "sent",
-      "2": "delivered",
-      "3": "read",
-      sent: "sent",
-      delivered: "delivered",
-      read: "read",
-    };
-
-    const mappedStatus = statusMap[String(status)] || String(status);
-
-    await supabase
-      .from("waba_messages")
-      .update({ status: mappedStatus })
-      .eq("wamid", String(messageId));
   }
 }
