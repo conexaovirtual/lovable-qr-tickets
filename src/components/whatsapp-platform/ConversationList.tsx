@@ -58,7 +58,7 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
   return (
     <div className="flex flex-col h-full bg-card border-r">
       {/* Header */}
-      <div className="p-4 border-b space-y-3">
+      <div className="p-3 sm:p-4 border-b space-y-2.5 sm:space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-base">Conversas</h2>
           <Badge variant="secondary" className="text-xs">
@@ -68,7 +68,7 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por nome ou telefone..."
+            placeholder="Buscar..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-9 text-sm"
@@ -76,16 +76,16 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
         </div>
         <Tabs value={filter} onValueChange={setFilter}>
           <TabsList className="w-full h-8">
-            <TabsTrigger value="all" className="text-xs flex-1 gap-1">
+            <TabsTrigger value="all" className="text-[11px] sm:text-xs flex-1 gap-1">
               <Users className="h-3 w-3" /> Todas
             </TabsTrigger>
-            <TabsTrigger value="ai" className="text-xs flex-1 gap-1">
+            <TabsTrigger value="ai" className="text-[11px] sm:text-xs flex-1 gap-1">
               <Bot className="h-3 w-3" /> IA
             </TabsTrigger>
-            <TabsTrigger value="waiting" className="text-xs flex-1 gap-1">
+            <TabsTrigger value="waiting" className="text-[11px] sm:text-xs flex-1 gap-1">
               <Clock className="h-3 w-3" /> Fila
             </TabsTrigger>
-            <TabsTrigger value="assigned" className="text-xs flex-1 gap-1">
+            <TabsTrigger value="assigned" className="text-[11px] sm:text-xs flex-1 gap-1">
               <UserCheck className="h-3 w-3" /> Atrib.
             </TabsTrigger>
           </TabsList>
@@ -106,11 +106,11 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
               <button
                 key={conv.id}
                 onClick={() => onSelect(conv)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/50 ${
+                className={`w-full flex items-center gap-3 px-3 sm:px-4 py-3.5 sm:py-3 text-left transition-colors hover:bg-accent/50 active:bg-accent/70 ${
                   selectedId === conv.id ? "bg-accent border-l-2 border-l-primary" : ""
                 }`}
               >
-                <div className="relative">
+                <div className="relative shrink-0">
                   <Avatar className="h-11 w-11">
                     <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
                       {(conv.contact_name || conv.phone_number).slice(0, 2).toUpperCase()}
@@ -136,10 +136,10 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                       {conv.phone_number}
                     </p>
                     {conv.queue_status === "waiting" && (
-                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 border-warning text-warning">Fila</Badge>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 border-warning text-warning shrink-0">Fila</Badge>
                     )}
                     {conv.queue_status === "resolved" && (
-                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 border-success text-success">✓</Badge>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 border-success text-success shrink-0">✓</Badge>
                     )}
                   </div>
                 </div>

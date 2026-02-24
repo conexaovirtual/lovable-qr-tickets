@@ -131,22 +131,22 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
   // Empty state
   if (!conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-muted/30">
+      <div className="flex-1 flex items-center justify-center bg-muted/30 p-6">
         <div className="text-center space-y-3">
-          <div className="relative mx-auto w-20 h-20">
-            <MessageSquare className="h-20 w-20 text-muted-foreground/20" />
-            <Bot className="h-8 w-8 absolute -bottom-1 -right-1 text-primary" />
+          <div className="relative mx-auto w-16 h-16 sm:w-20 sm:h-20">
+            <MessageSquare className="h-full w-full text-muted-foreground/20" />
+            <Bot className="h-6 w-6 sm:h-8 sm:w-8 absolute -bottom-1 -right-1 text-primary" />
           </div>
           <div>
-            <p className="text-lg font-semibold text-foreground">Plataforma WhatsApp</p>
+            <p className="text-base sm:text-lg font-semibold text-foreground">Plataforma WhatsApp</p>
             <p className="text-sm text-muted-foreground mt-1">
               Selecione uma conversa para iniciar o atendimento
             </p>
           </div>
-          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground pt-2">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground pt-2">
             <span className="flex items-center gap-1"><Bot className="h-3.5 w-3.5 text-primary" /> IA Autônoma</span>
-            <span className="flex items-center gap-1"><Ticket className="h-3.5 w-3.5 text-primary" /> Abertura Automática</span>
-            <span className="flex items-center gap-1"><UserRound className="h-3.5 w-3.5 text-primary" /> Atendimento Híbrido</span>
+            <span className="flex items-center gap-1"><Ticket className="h-3.5 w-3.5 text-primary" /> Auto Tickets</span>
+            <span className="flex items-center gap-1"><UserRound className="h-3.5 w-3.5 text-primary" /> Híbrido</span>
           </div>
         </div>
       </div>
@@ -168,14 +168,14 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
   return (
     <div className="flex-1 flex flex-col min-w-0">
       {/* Chat Header */}
-      <div className="h-14 border-b px-4 flex items-center gap-3 bg-card shrink-0">
+      <div className="h-13 sm:h-14 border-b px-2 sm:px-4 flex items-center gap-2 sm:gap-3 bg-card shrink-0">
         {onBack && (
-          <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={onBack}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden shrink-0" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
         )}
-        <Avatar className="h-9 w-9">
-          <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+        <Avatar className="h-8 w-8 sm:h-9 sm:w-9 shrink-0">
+          <AvatarFallback className="bg-primary/10 text-primary text-xs sm:text-sm font-semibold">
             {(conversation.contact_name || conversation.phone_number).slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
@@ -183,31 +183,31 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
           <p className="font-medium text-sm truncate">
             {conversation.contact_name || conversation.phone_number}
           </p>
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <Phone className="h-3 w-3" /> {conversation.phone_number}
+          <p className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
+            <Phone className="h-3 w-3 shrink-0" />
+            <span className="truncate">{conversation.phone_number}</span>
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {conversation.queue_status !== "resolved" && (
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1 hidden sm:flex" onClick={resolveConversation}>
-              <CheckCircle2 className="h-3 w-3" /> Resolver
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1 px-2" onClick={resolveConversation}>
+              <CheckCircle2 className="h-3 w-3" />
+              <span className="hidden sm:inline">Resolver</span>
             </Button>
           )}
           {conversation.queue_status === "resolved" && (
-            <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">Resolvida</Badge>
+            <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/30 px-1.5">✓</Badge>
           )}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              {conversation.ai_enabled ? "IA Ativa" : "Manual"}
-            </span>
+          <div className="flex items-center gap-1.5">
             <Switch
               checked={conversation.ai_enabled}
               onCheckedChange={toggleAI}
+              className="scale-90 sm:scale-100"
             />
-            <Bot className={`h-4 w-4 ${conversation.ai_enabled ? "text-primary" : "text-muted-foreground"}`} />
+            <Bot className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${conversation.ai_enabled ? "text-primary" : "text-muted-foreground"}`} />
           </div>
           <Button variant="ghost" size="icon" onClick={onToggleInfo}
-            className={showInfo ? "bg-accent" : ""}>
+            className={`h-8 w-8 ${showInfo ? "bg-accent" : ""}`}>
             <Info className="h-4 w-4" />
           </Button>
         </div>
@@ -215,7 +215,7 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
 
       {/* Messages */}
       <ScrollArea className="flex-1 bg-muted/20">
-        <div className="p-4 space-y-1 max-w-3xl mx-auto">
+        <div className="p-3 sm:p-4 space-y-1 max-w-3xl mx-auto">
           {groupedMessages.map((group) => (
             <div key={group.date}>
               <div className="flex justify-center my-3">
@@ -225,17 +225,17 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
               </div>
               <div className="space-y-1.5">
                 {group.msgs.map((msg) => {
-                  // System events (escalation, resolution)
+                  // System events
                   if (msg.message_type === "system" || msg.sender_type === "system") {
                     const isEscalation = msg.content?.includes("Escalado");
                     const isResolved = msg.content?.includes("resolvida");
                     return (
                       <div key={msg.id} className="flex justify-center my-2">
-                        <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${
+                        <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs max-w-[90%] ${
                           isEscalation ? "bg-warning/15 text-warning" : isResolved ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
                         }`}>
-                          {isEscalation ? <AlertTriangle className="h-3 w-3" /> : isResolved ? <CheckCircle2 className="h-3 w-3" /> : <Info className="h-3 w-3" />}
-                          <span>{msg.content}</span>
+                          {isEscalation ? <AlertTriangle className="h-3 w-3 shrink-0" /> : isResolved ? <CheckCircle2 className="h-3 w-3 shrink-0" /> : <Info className="h-3 w-3 shrink-0" />}
+                          <span className="truncate">{msg.content}</span>
                         </div>
                       </div>
                     );
@@ -243,7 +243,7 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
 
                   return (
                   <div key={msg.id} className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 shadow-sm ${
+                    <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-3 py-2 shadow-sm ${
                       msg.direction === "outbound"
                         ? msg.sender_type === "ai"
                           ? "bg-primary/85 text-primary-foreground rounded-br-sm"
@@ -254,7 +254,7 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
                         <div className="flex items-center gap-1 mb-0.5 opacity-70">
                           {msg.sender_type === "ai" ? <Bot className="h-3 w-3" /> : <UserRound className="h-3 w-3" />}
                           <span className="text-[10px] font-medium">
-                            {msg.sender_type === "ai" ? "Assistente IA" : "Técnico"}
+                            {msg.sender_type === "ai" ? "IA" : "Técnico"}
                           </span>
                         </div>
                       )}
@@ -279,12 +279,12 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
       </ScrollArea>
 
       {/* Input */}
-      <div className="border-t p-3 bg-card shrink-0">
+      <div className="border-t p-2 sm:p-3 bg-card shrink-0 pb-[env(safe-area-inset-bottom,8px)]">
         {conversation.ai_enabled && (
-          <div className="flex items-center gap-2 mb-2 px-1 max-w-3xl mx-auto">
+          <div className="flex items-center gap-2 mb-1.5 px-1 max-w-3xl mx-auto">
             <Bot className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="text-xs text-muted-foreground">
-              IA respondendo automaticamente • Envie para intervir manualmente
+            <span className="text-[11px] text-muted-foreground truncate">
+              IA respondendo • Envie para intervir
             </span>
           </div>
         )}
@@ -295,9 +295,9 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
             disabled={sending}
-            className="flex-1"
+            className="flex-1 h-10"
           />
-          <Button onClick={handleSend} disabled={!newMessage.trim() || sending} size="icon">
+          <Button onClick={handleSend} disabled={!newMessage.trim() || sending} size="icon" className="h-10 w-10 shrink-0">
             <Send className="h-4 w-4" />
           </Button>
         </div>
