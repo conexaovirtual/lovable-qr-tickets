@@ -24,7 +24,8 @@ import {
   ClipboardList,
   Monitor,
   AlertCircle,
-  Bot
+  Bot,
+  MessageSquare
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -401,6 +402,10 @@ export default function Dashboard() {
                 <Button onClick={() => navigate('/ai-support')} variant="outline" className="w-full justify-start">
                   <Bot className="h-4 w-4 mr-2" />
                   Assistente IA de Suporte
+                </Button>
+                <Button onClick={() => navigate('/whatsapp-platform')} variant="outline" className="w-full justify-start border-primary/30 text-primary hover:bg-primary/5">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Plataforma WhatsApp
                 </Button>
               </CardContent>
             </Card>
