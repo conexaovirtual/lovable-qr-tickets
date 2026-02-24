@@ -131,12 +131,6 @@ export function AppHeader() {
                       Técnicos
                     </Button>
                   </Link>
-                  <Link to="/whatsapp-settings">
-                    <Button variant="ghost" size="sm">
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      WhatsApp
-                    </Button>
-                  </Link>
                 </>
               )}
               {profile.roles?.includes('gestor_cliente') && (
@@ -212,10 +206,6 @@ export function AppHeader() {
                     <DropdownMenuItem onClick={() => navigate('/technicians')}>
                       <Wrench className="h-4 w-4 mr-2" />
                       Técnicos
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/whatsapp-settings')}>
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      WhatsApp
                     </DropdownMenuItem>
                   </>
                 )}

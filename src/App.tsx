@@ -25,7 +25,6 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const PublicTicket = lazy(() => import("./pages/PublicTicket"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
-const WhatsAppSettings = lazy(() => import("./pages/WhatsAppSettings"));
 const WABAChat = lazy(() => import("./pages/WABAChat"));
 const AISupportChat = lazy(() => import("./pages/AISupportChat"));
 const WhatsAppPlatform = lazy(() => import("./pages/WhatsAppPlatform"));
@@ -71,7 +70,6 @@ const App = () => (
             <Route path="/profile/settings" element={<ProfileSettings />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/knowledge-base" element={<KnowledgeBase />} />
-            <Route path="/whatsapp-settings" element={<WhatsAppSettings />} />
             <Route path="/waba-chat" element={<WABAChat />} />
             <Route path="/ai-support" element={<AISupportChat />} />
             <Route path="/whatsapp-platform" element={<WhatsAppPlatform />} />
