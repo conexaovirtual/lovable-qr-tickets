@@ -23,7 +23,8 @@ import {
   Calendar as CalendarIcon,
   ClipboardList,
   Monitor,
-  AlertCircle
+  AlertCircle,
+  Bot
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -396,6 +397,10 @@ export default function Dashboard() {
                 <Button onClick={() => navigate('/assets')} variant="outline" className="w-full justify-start">
                   <Package className="h-4 w-4 mr-2" />
                   Gerenciar Ativos
+                </Button>
+                <Button onClick={() => navigate('/ai-support')} variant="outline" className="w-full justify-start">
+                  <Bot className="h-4 w-4 mr-2" />
+                  Assistente IA de Suporte
                 </Button>
               </CardContent>
             </Card>

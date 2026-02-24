@@ -27,6 +27,7 @@ const Analytics = lazy(() => import("./pages/Analytics"));
 const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
 const WhatsAppSettings = lazy(() => import("./pages/WhatsAppSettings"));
 const WABAChat = lazy(() => import("./pages/WABAChat"));
+const AISupportChat = lazy(() => import("./pages/AISupportChat"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -71,6 +72,7 @@ const App = () => (
             <Route path="/knowledge-base" element={<KnowledgeBase />} />
             <Route path="/whatsapp-settings" element={<WhatsAppSettings />} />
             <Route path="/waba-chat" element={<WABAChat />} />
+            <Route path="/ai-support" element={<AISupportChat />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
