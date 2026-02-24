@@ -39,7 +39,6 @@ export function ContactInfoPanel({ conversation, onClose }: ContactInfoPanelProp
         setContact(contactData);
         setCompany(contactData.companies);
 
-        // Load tickets for company
         if (contactData.company_id) {
           const { data: ticketData } = await supabase
             .from("tickets")
@@ -75,9 +74,9 @@ export function ContactInfoPanel({ conversation, onClose }: ContactInfoPanelProp
   };
 
   return (
-    <div className="w-80 border-l bg-card flex flex-col shrink-0">
+    <div className="w-full h-full md:w-80 border-l bg-card flex flex-col shrink-0">
       {/* Header */}
-      <div className="h-14 border-b px-4 flex items-center justify-between shrink-0">
+      <div className="h-12 sm:h-14 border-b px-4 flex items-center justify-between shrink-0">
         <span className="font-medium text-sm">Detalhes do Contato</span>
         <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
           <X className="h-4 w-4" />
@@ -88,8 +87,8 @@ export function ContactInfoPanel({ conversation, onClose }: ContactInfoPanelProp
         <div className="p-4 space-y-5">
           {/* Contact Info */}
           <div className="flex flex-col items-center text-center space-y-2">
-            <Avatar className="h-16 w-16">
-              <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
+            <Avatar className="h-14 w-14 sm:h-16 sm:w-16">
+              <AvatarFallback className="bg-primary/10 text-primary text-base sm:text-lg font-semibold">
                 {(conversation.contact_name || conversation.phone_number).slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -99,7 +98,7 @@ export function ContactInfoPanel({ conversation, onClose }: ContactInfoPanelProp
                 <Phone className="h-3 w-3" /> {conversation.phone_number}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap justify-center">
               <Badge variant={conversation.ai_enabled ? "default" : "secondary"} className="text-xs gap-1">
                 {conversation.ai_enabled ? <Bot className="h-3 w-3" /> : <UserRound className="h-3 w-3" />}
                 {conversation.ai_enabled ? "IA Ativa" : "Manual"}
@@ -169,7 +168,7 @@ export function ContactInfoPanel({ conversation, onClose }: ContactInfoPanelProp
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded-lg border p-2 text-center">
                 <p className="text-lg font-bold">{msgStats.total}</p>
-                <p className="text-[10px] text-muted-foreground">Mensagens</p>
+                <p className="text-[10px] text-muted-foreground">Msgs</p>
               </div>
               <div className="rounded-lg border p-2 text-center">
                 <p className="text-lg font-bold text-primary">{msgStats.ai}</p>
@@ -198,7 +197,7 @@ export function ContactInfoPanel({ conversation, onClose }: ContactInfoPanelProp
                   <button
                     key={t.id}
                     onClick={() => navigate(`/tickets/${t.id}`)}
-                    className="w-full rounded-lg border p-2.5 text-left hover:bg-accent/50 transition-colors"
+                    className="w-full rounded-lg border p-2.5 text-left hover:bg-accent/50 active:bg-accent transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium">#{t.numero}</span>
