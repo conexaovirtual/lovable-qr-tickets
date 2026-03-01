@@ -199,7 +199,7 @@ serve(async (req: Request) => {
     }
 
     // Send final text response — if AI exhausted tool rounds without generating text, send a fallback
-    let finalContent = currentMessage?.content;
+    let finalContent = currentMessage?.content?.trim() || null;
     if (!finalContent && round > 0) {
       // Generate a proper farewell since the AI resolved but forgot to reply
       const fallbackResponse = await fetch(AI_GATEWAY_URL, {
