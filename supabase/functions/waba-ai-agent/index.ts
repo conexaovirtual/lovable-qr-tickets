@@ -675,6 +675,9 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
     switch (call.function.name) {
       case "create_ticket": {
         const contactName = context.contact?.contact_name || phone;
+        const TECNICO_ID = "e336e78e-c11a-48b5-8d69-2bb48cf6bb3b";
+        const TECNICO_PHONE = "5562999522470";
+
         const { data: ticket, error } = await supabase
           .from("tickets")
           .insert({
@@ -682,12 +685,13 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
             descricao: args.descricao,
             company_id: args.company_id,
             canal: "whatsapp",
-            status: "novo",
+            status: "em_atendimento",
             urgencia: args.urgencia || "media",
             impacto: args.impacto || "medio",
             asset_id: args.asset_id || null,
             solicitante_nome: contactName,
             solicitante_contato: phone,
+            tecnico_id: TECNICO_ID,
             public_request: true,
           })
           .select("numero, id")
@@ -698,7 +702,41 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
           result = { success: false, error: error.message };
         } else {
           result = { success: true, numero: ticket.numero, id: ticket.id };
-          console.log(`Ticket #${ticket.numero} created via WhatsApp AI (urgencia: ${args.urgencia}, impacto: ${args.impacto})`);
+          console.log(`Ticket #${ticket.numero} created and assigned to Jose Pereira`);
+
+          // Notify technician via WhatsApp
+          try {
+            const companyName = context.contact?.company?.nome_fantasia || "Empresa não identificada";
+            const notifMsg = `🔔 *Novo Chamado #${ticket.numero}*\n\n` +
+              `📋 *Título:* ${args.titulo}\n` +
+              `🏢 *Empresa:* ${companyName}\n` +
+              `👤 *Solicitante:* ${contactName}\n` +
+              `📞 *Contato:* ${phone}\n` +
+              `⚡ *Urgência:* ${args.urgencia || "media"}\n` +
+              `💥 *Impacto:* ${args.impacto || "medio"}\n\n` +
+              `📝 *Descrição:*\n${args.descricao}\n\n` +
+              `${args.asset_id ? `🖥️ *Ativo vinculado:* Sim` : `🖥️ *Ativo:* Não vinculado`}`;
+
+            const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
+            const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
+            if (MABBIX_URL && MABBIX_TOKEN) {
+              await fetch(`${MABBIX_URL}/api/messages/send`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${MABBIX_TOKEN}`,
+                },
+                body: JSON.stringify({
+                  number: TECNICO_PHONE,
+                  text: notifMsg,
+                }),
+              });
+              console.log(`WhatsApp notification sent to technician ${TECNICO_PHONE}`);
+            }
+          } catch (notifErr) {
+            console.error("Failed to notify technician:", notifErr);
+            // Don't fail the ticket creation if notification fails
+          }
         }
         break;
       }
