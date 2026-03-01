@@ -83,11 +83,29 @@ serve(async (req: Request) => {
       .order("created_at", { ascending: false })
       .limit(20);
 
-    // Only use recent messages (last 10) to avoid context pollution from old conversations
-    const chatHistory = (recentMessages || []).reverse().slice(-10).map((m: any) => ({
-      role: m.direction === "inbound" ? "user" : "assistant",
-      content: m.content || "",
-    }));
+    // Only use recent messages (last 8) to avoid context pollution from old conversations
+    // Exclude messages with no real content (e.g. "[Mensagem sem texto]", filenames)
+    const chatHistory = (recentMessages || [])
+      .reverse()
+      .filter((m: any) => {
+        const c = (m.content || "").trim();
+        return c && c !== "[Mensagem sem texto]" && !c.match(/^[a-f0-9-]+_[A-Z0-9]+\.\w+$/);
+      })
+      .slice(-8)
+      .map((m: any) => ({
+        role: m.direction === "inbound" ? "user" : "assistant",
+        content: m.content || "",
+      }));
+
+    // Replace the last user message with the effective (transcribed) version if audio
+    if (isAudioMessage && chatHistory.length > 0) {
+      const lastIdx = chatHistory.length - 1;
+      if (chatHistory[lastIdx].role === "user") {
+        chatHistory[lastIdx].content = effectiveMessage;
+      } else {
+        chatHistory.push({ role: "user", content: effectiveMessage });
+      }
+    }
 
     // Call AI with upgraded model
     const aiResponse = await fetch(AI_GATEWAY_URL, {
@@ -101,8 +119,6 @@ serve(async (req: Request) => {
         messages: [
           { role: "system", content: systemPrompt },
           ...chatHistory,
-          // Re-inject current message explicitly to ensure AI focuses on it
-          { role: "user", content: `[MENSAGEM ATUAL - PRIORIDADE MÁXIMA]: ${effectiveMessage}` },
         ],
         tools: getTools(),
         tool_choice: "auto",
