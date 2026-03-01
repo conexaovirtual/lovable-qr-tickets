@@ -1069,7 +1069,7 @@ async function transcribeAudio(mediaUrl: string, apiKey: string): Promise<string
   }
 }
 
-// ─── Send Audio Reply via ElevenLabs TTS + Mabbix ────────────────────
+// ─── Send Audio Reply via Lovable AI (Google TTS - Free) + Mabbix ────
 
 async function sendAudioReply(
   supabase: any,
@@ -1080,56 +1080,65 @@ async function sendAudioReply(
   mabbixToken: string
 ) {
   try {
-    const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
-    if (!ELEVENLABS_API_KEY) {
-      console.log("ELEVENLABS_API_KEY not configured, skipping audio reply");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      console.log("LOVABLE_API_KEY not configured, skipping audio reply");
       return;
     }
 
-    // Limit text to 5000 chars for TTS
-    const ttsText = text.substring(0, 5000);
+    // Limit text for TTS
+    const ttsText = text.substring(0, 3000);
 
-    // Generate audio with ElevenLabs TTS
-    // Using "Sarah" voice (EXAVITQu4vr4xnSDxMaL) - natural female voice
-    const voiceId = "EXAVITQu4vr4xnSDxMaL";
-    const ttsResponse = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_22050_32`,
-      {
-        method: "POST",
-        headers: {
-          "xi-api-key": ELEVENLABS_API_KEY,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          text: ttsText,
-          model_id: "eleven_multilingual_v2",
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.3,
-            use_speaker_boost: true,
+    // Use Gemini multimodal to generate speech audio
+    // We ask Gemini to produce a spoken audio response
+    const ttsResponse = await fetch(AI_GATEWAY_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        modalities: ["AUDIO"],
+        speech_config: {
+          voice_config: {
+            prebuilt_voice_config: {
+              voice_name: "Kore",
+            },
           },
-        }),
-      }
-    );
+        },
+        messages: [
+          {
+            role: "system",
+            content: "Você é uma assistente de suporte técnico brasileira. Leia o texto fornecido em voz alta de forma natural, clara e profissional em português brasileiro. Não adicione nenhum comentário, apenas fale o texto.",
+          },
+          {
+            role: "user",
+            content: `Leia este texto em voz alta: "${ttsText}"`,
+          },
+        ],
+      }),
+    });
 
     if (!ttsResponse.ok) {
       const errText = await ttsResponse.text();
-      console.error("ElevenLabs TTS error:", ttsResponse.status, errText);
+      console.error("Lovable AI TTS error:", ttsResponse.status, errText);
       return;
     }
 
-    const audioBuffer = await ttsResponse.arrayBuffer();
-    console.log(`TTS audio generated: ${audioBuffer.byteLength} bytes`);
+    const ttsResult = await ttsResponse.json();
+    
+    // Extract audio data from the response
+    const audioContent = ttsResult.choices?.[0]?.message?.audio?.data;
+    
+    if (!audioContent) {
+      console.log("No audio data in TTS response, skipping audio reply");
+      return;
+    }
 
-    // Convert to base64
-    const base64Audio = btoa(
-      Array.from(new Uint8Array(audioBuffer))
-        .map((b) => String.fromCharCode(b))
-        .join("")
-    );
+    console.log(`TTS audio generated via Lovable AI`);
 
-    // Send audio via Mabbix
+    // Send audio via Mabbix (base64 audio)
     const sendResponse = await fetch(`${mabbixUrl}/api/messages/send`, {
       method: "POST",
       headers: {
@@ -1140,7 +1149,7 @@ async function sendAudioReply(
         number: phone,
         openTicket: "0",
         queueId: "0",
-        body: `data:audio/mp3;base64,${base64Audio}`,
+        body: `data:audio/mp3;base64,${audioContent}`,
         isAudio: true,
       }),
     });
