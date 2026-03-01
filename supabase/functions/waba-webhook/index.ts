@@ -85,7 +85,7 @@ serve(async (req: Request) => {
         mediaUrl,
         wamid,
         rawPayload: body,
-        isGroup: isGroupChat(senderRaw),
+        isGroup: isGroupChat(senderBodyRaw || participantRaw),
       });
 
       return okResponse();
