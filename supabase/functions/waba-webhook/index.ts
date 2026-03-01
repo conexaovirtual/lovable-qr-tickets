@@ -55,7 +55,8 @@ serve(async (req: Request) => {
       }
 
       // Inbound message as object format
-      const phoneNumber = extractPhone(msg.participant || body.sender || "");
+      const senderRaw = msg.participant || body.sender || "";
+      const phoneNumber = extractPhone(senderRaw);
       if (!phoneNumber) {
         console.log("No phone in message object payload, skipping");
         return okResponse();
@@ -75,6 +76,7 @@ serve(async (req: Request) => {
         mediaUrl,
         wamid,
         rawPayload: body,
+        isGroup: isGroupChat(senderRaw),
       });
 
       return okResponse();
@@ -88,11 +90,13 @@ serve(async (req: Request) => {
         return okResponse();
       }
 
-      const phoneNumber = extractPhone(body.sender);
+      const senderRaw = body.sender;
+      const phoneNumber = extractPhone(senderRaw);
       if (!phoneNumber) {
         console.log("No phone in array payload, skipping");
         return okResponse();
       }
+      const groupFlag = isGroupChat(senderRaw);
 
       const contactName = body.name || "Desconhecido";
 
@@ -111,6 +115,7 @@ serve(async (req: Request) => {
           mediaUrl,
           wamid,
           rawPayload: body,
+          isGroup: groupFlag,
         });
       }
 
@@ -139,6 +144,10 @@ function extractPhone(raw: string): string {
   return raw.replace(/@.*$/, "").replace(/\D/g, "");
 }
 
+function isGroupChat(raw: string): boolean {
+  return raw.includes("@g.us");
+}
+
 function detectMessageType(mediaType?: string, mediaUrl?: string): string {
   if (!mediaType && !mediaUrl) return "text";
   if (mediaType?.includes("image") || mediaUrl?.match(/\.(jpg|jpeg|png|gif|webp)/i)) return "image";
@@ -157,10 +166,11 @@ interface InboundMessageData {
   mediaUrl: string | null;
   wamid: string;
   rawPayload: any;
+  isGroup: boolean;
 }
 
 async function saveInboundMessage(supabase: any, data: InboundMessageData) {
-  const { phoneNumber, contactName, content, messageType, mediaUrl, wamid, rawPayload } = data;
+  const { phoneNumber, contactName, content, messageType, mediaUrl, wamid, rawPayload, isGroup } = data;
 
   // Upsert conversation
   const { data: conversation } = await supabase
@@ -212,6 +222,7 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
             conversation_id: conversation.id,
             message_content: content,
             phone_number: phoneNumber,
+            is_group: isGroup,
           }),
         }
       );
