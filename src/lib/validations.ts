@@ -153,6 +153,12 @@ export const companySchema = z.object({
     .refine((val) => !val || val.length === 0 || validateBrazilianPhone(val), {
       message: 'Telefone inválido. Use o formato (00) 00000-0000'
     }),
+  whatsapp: z.string()
+    .trim()
+    .optional()
+    .refine((val) => !val || val.length === 0 || validateBrazilianPhone(val), {
+      message: 'WhatsApp inválido. Use o formato (00) 00000-0000'
+    }),
   endereco: z.string()
     .trim()
     .max(300, 'Endereço muito longo')

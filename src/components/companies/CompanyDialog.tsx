@@ -53,6 +53,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       cnpj: '',
       email: '',
       telefone: '',
+      whatsapp: '',
       endereco: '',
       status: true,
       sla_primeiro_atendimento_horas: 4,
@@ -69,6 +70,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         cnpj: company.cnpj || '',
         email: company.email || '',
         telefone: company.telefone || '',
+        whatsapp: company.whatsapp || '',
         endereco: company.endereco || '',
         status: company.status ?? true,
         sla_primeiro_atendimento_horas: company.sla_primeiro_atendimento_horas || 4,
@@ -84,6 +86,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         cnpj: '',
         email: '',
         telefone: '',
+        whatsapp: '',
         endereco: '',
         status: true,
         sla_primeiro_atendimento_horas: 4,
@@ -510,6 +513,27 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Telefone</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="(00) 00000-0000"
+                        onChange={(e) => {
+                          const formatted = formatPhone(e.target.value);
+                          field.onChange(formatted);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="whatsapp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WhatsApp</FormLabel>
                     <FormControl>
                       <Input 
                         {...field} 
