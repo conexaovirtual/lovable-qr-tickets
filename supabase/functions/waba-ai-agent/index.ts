@@ -198,13 +198,36 @@ serve(async (req: Request) => {
       }
     }
 
-    // Send final text response
-    const finalContent = currentMessage?.content;
+    // Send final text response — if AI exhausted tool rounds without generating text, send a fallback
+    let finalContent = currentMessage?.content;
+    if (!finalContent && round > 0) {
+      // Generate a proper farewell since the AI resolved but forgot to reply
+      const fallbackResponse = await fetch(AI_GATEWAY_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: AI_MODEL,
+          messages: [
+            ...messages,
+            { role: "user", content: "[SISTEMA] Você executou ações mas não enviou uma resposta ao cliente. Gere uma mensagem curta e amigável confirmando o que foi feito (ex: chamado fechado, conversa encerrada, etc)." },
+          ],
+        }),
+      });
+      if (fallbackResponse.ok) {
+        const fallbackResult = await fallbackResponse.json();
+        finalContent = fallbackResult.choices?.[0]?.message?.content;
+      }
+      if (!finalContent) {
+        finalContent = "✅ Ação realizada com sucesso! Se precisar de mais alguma coisa, estou à disposição.";
+      }
+      console.log("Fallback reply generated after", round, "tool rounds");
+    }
     if (finalContent) {
       await sendAndSaveReply(supabase, conversation_id, phone_number, finalContent, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
       if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
-    } else {
-      console.log("No final content after", round, "tool rounds. Last message:", JSON.stringify(currentMessage).substring(0, 200));
     }
 
     return new Response(JSON.stringify({ ok: true }), {
