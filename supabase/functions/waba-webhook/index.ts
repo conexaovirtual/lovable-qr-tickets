@@ -55,10 +55,19 @@ serve(async (req: Request) => {
       }
 
       // Inbound message as object format
-      const senderRaw = msg.participant || body.sender || "";
-      const phoneNumber = extractPhone(senderRaw);
+      const participantRaw = msg.participant || "";
+      const senderBodyRaw = body.sender || "";
+      // Prefer body.sender (real phone) over msg.participant (may be LID)
+      const participantPhone = extractPhone(participantRaw);
+      const senderPhone = extractPhone(senderBodyRaw);
+      // Use sender if participant looks like a LID (too long or starts with unusual prefix)
+      const phoneNumber = (senderPhone && senderPhone.length >= 10 && senderPhone.length <= 15) 
+        ? senderPhone 
+        : (participantPhone && participantPhone.length >= 10 && participantPhone.length <= 15)
+          ? participantPhone
+          : senderPhone || participantPhone;
       if (!phoneNumber) {
-        console.log("No phone in message object payload, skipping");
+        console.log("No valid phone in message object payload, skipping");
         return okResponse();
       }
 
