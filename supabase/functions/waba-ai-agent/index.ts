@@ -226,8 +226,14 @@ serve(async (req: Request) => {
       console.log("Fallback reply generated after", round, "tool rounds");
     }
     if (finalContent) {
-      await sendAndSaveReply(supabase, conversation_id, phone_number, finalContent, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
-      if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
+      // Strip any tool call JSON that the AI accidentally wrote as text
+      finalContent = finalContent.replace(/\{\s*"tool_code"[\s\S]*?\}/g, "").trim();
+      finalContent = finalContent.replace(/\{\s*"function"[\s\S]*?\}/g, "").trim();
+      finalContent = finalContent.replace(/\{\s*"parameters"[\s\S]*?\}/g, "").trim();
+      if (finalContent) {
+        await sendAndSaveReply(supabase, conversation_id, phone_number, finalContent, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
+        if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
+      }
     }
 
     return new Response(JSON.stringify({ ok: true }), {
@@ -457,6 +463,13 @@ REGRAS DE CONDUTA:
 - Quando o cliente informar que o problema foi resolvido, use close_ticket para fechar o chamado.
 - Informe o número do chamado que foi fechado e agradeça.
 - Após fechar o chamado, use resolve_conversation para encerrar a conversa.
+
+⛔ REGRA CRÍTICA - TOOL CALLS:
+- NUNCA escreva JSON de tool calls no texto da mensagem.
+- NUNCA escreva { "tool_code": ... } ou { "function": ... } no texto.
+- Use EXCLUSIVAMENTE o mecanismo de tool_calls estruturado da API.
+- Se quiser usar uma ferramenta, chame-a via tool_calls, NUNCA como texto.
+- Sua resposta ao cliente deve ser SOMENTE texto natural, sem código JSON.
 
 💬 ESTILO:
 - Seja conciso e direto. Use emojis com moderação (✅ ⚠️ 📋 🔧 📞).
