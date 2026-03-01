@@ -83,7 +83,8 @@ serve(async (req: Request) => {
       .order("created_at", { ascending: false })
       .limit(20);
 
-    const chatHistory = (recentMessages || []).reverse().map((m: any) => ({
+    // Only use recent messages (last 10) to avoid context pollution from old conversations
+    const chatHistory = (recentMessages || []).reverse().slice(-10).map((m: any) => ({
       role: m.direction === "inbound" ? "user" : "assistant",
       content: m.content || "",
     }));
@@ -100,6 +101,8 @@ serve(async (req: Request) => {
         messages: [
           { role: "system", content: systemPrompt },
           ...chatHistory,
+          // Re-inject current message explicitly to ensure AI focuses on it
+          { role: "user", content: `[MENSAGEM ATUAL - PRIORIDADE MÁXIMA]: ${effectiveMessage}` },
         ],
         tools: getTools(),
         tool_choice: "auto",
@@ -359,6 +362,12 @@ ${visitsText || "Nenhuma visita agendada."}
 ═══════════════════════════════════════
 REGRAS DE CONDUTA:
 ═══════════════════════════════════════
+
+⚡ REGRA #1 - PRIORIDADE DA MENSAGEM ATUAL:
+- SEMPRE responda à ÚLTIMA mensagem recebida (marcada como [MENSAGEM ATUAL]).
+- IGNORE contexto antigo que contradiga a mensagem atual.
+- Se o cliente mudou de assunto, acompanhe o novo assunto imediatamente.
+- NÃO use nomes ou empresas mencionados em mensagens anteriores se a mensagem atual menciona dados diferentes.
 
 🔍 DIAGNÓSTICO:
 - Sempre use search_knowledge_base PROATIVAMENTE para buscar soluções antes de responder sobre problemas técnicos.
