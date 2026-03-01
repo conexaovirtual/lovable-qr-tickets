@@ -419,6 +419,8 @@ REGRAS DE CONDUTA:
   • MÉDIO: Problema parcial, alguns afetados, workaround disponível
   • BAIXO: Inconveniência menor, um usuário afetado
 - Tente identificar o ativo mencionado e vincule ao chamado.
+- Se o equipamento NÃO estiver cadastrado nos ativos da empresa, use register_asset para cadastrá-lo ANTES de criar o chamado.
+- Pergunte ao cliente informações básicas do equipamento: tipo (notebook, desktop, impressora, etc.), fabricante/modelo se souber.
 - Use o nome do contato (${contactName}) como solicitante.
 
 🔄 ESCALONAMENTO GRADUAL:
@@ -633,6 +635,27 @@ function getTools() {
             contact_name: { type: "string", description: "Nome do contato/pessoa que está conversando" },
           },
           required: ["nome_fantasia"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "register_asset",
+        description: "Cadastra um novo ativo (equipamento) para a empresa do cliente. Use quando o cliente menciona um equipamento que não está cadastrado no sistema. Pergunte informações básicas como nome/identificação, tipo e modelo.",
+        parameters: {
+          type: "object",
+          properties: {
+            company_id: { type: "string", description: "UUID da empresa dona do equipamento" },
+            nome: { type: "string", description: "Nome ou identificação do equipamento (ex: 'Notebook do João', 'Impressora Recepção')" },
+            tipo: { type: "string", enum: ["desktop", "notebook", "servidor", "impressora", "monitor", "roteador", "switch", "modem", "camera", "dvr", "outro"], description: "Tipo do equipamento" },
+            fabricante: { type: "string", description: "Fabricante (ex: Dell, HP, Lenovo) - opcional" },
+            modelo: { type: "string", description: "Modelo do equipamento - opcional" },
+            numero_serie: { type: "string", description: "Número de série - opcional" },
+            setor: { type: "string", description: "Setor onde o equipamento fica (ex: Recepção, TI, Financeiro) - opcional" },
+          },
+          required: ["company_id", "nome", "tipo"],
           additionalProperties: false,
         },
       },
@@ -974,6 +997,32 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
             message: "Empresa cadastrada e contato vinculado automaticamente.",
           };
           console.log(`Company "${args.nome_fantasia}" registered and contact ${phone} linked`);
+        }
+        break;
+      }
+
+      case "register_asset": {
+        const { data: newAsset, error: assetError } = await supabase
+          .from("assets")
+          .insert({
+            company_id: args.company_id,
+            nome: args.nome,
+            tipo: args.tipo,
+            fabricante: args.fabricante || null,
+            modelo: args.modelo || null,
+            numero_serie: args.numero_serie || null,
+            setor: args.setor || null,
+            estado: "em_uso",
+          })
+          .select("id, nome, tipo")
+          .single();
+
+        if (assetError) {
+          console.error("Error registering asset:", assetError);
+          result = { success: false, error: assetError.message };
+        } else {
+          result = { success: true, asset_id: newAsset.id, nome: newAsset.nome, tipo: newAsset.tipo };
+          console.log(`Asset "${newAsset.nome}" (${newAsset.tipo}) registered for company ${args.company_id}`);
         }
         break;
       }
