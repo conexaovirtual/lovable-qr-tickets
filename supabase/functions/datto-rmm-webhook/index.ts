@@ -57,6 +57,173 @@ function mapUrgency(dattoP: string | undefined): string {
     default: return 'baixa';
   }
 }
+// ─── Auto-link or create asset + company via AI ─────────────────────
+async function autoLinkOrCreateAsset(supabase: any, payload: DattoPayload) {
+  try {
+    const siteName = payload.site_name || '';
+    const hostname = payload.device_hostname || payload.device_id || 'Desconhecido';
+
+    // Fetch all companies for AI matching
+    const { data: companies } = await supabase
+      .from('companies')
+      .select('id, nome_fantasia, razao_social, cnpj')
+      .eq('status', true);
+
+    let companyId: string | null = null;
+    let companyName = siteName || hostname;
+    let autoCreated = false;
+
+    if (companies && companies.length > 0 && siteName) {
+      // Use AI to find best match
+      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+      if (lovableApiKey) {
+        const companyList = companies.map((c: any) =>
+          `ID: ${c.id} | Nome: ${c.nome_fantasia} | Razão: ${c.razao_social || 'N/A'}`
+        ).join('\n');
+
+        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${lovableApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [
+              {
+                role: "system",
+                content: `Você é um sistema de matching de empresas. Dado o nome de um site/cliente do Datto RMM, encontre a empresa correspondente na lista. 
+Considere abreviações, variações e nomes parciais. Exemplo: "ACME Corp" pode ser "ACME Corporação Ltda".
+Responda APENAS com o ID da empresa encontrada, ou "NONE" se nenhuma for compatível. Não adicione explicações.`
+              },
+              {
+                role: "user",
+                content: `Site Datto: "${siteName}"\nHostname: "${hostname}"\n\nEmpresas cadastradas:\n${companyList}`
+              }
+            ],
+            temperature: 0.1,
+          }),
+        });
+
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          const aiResult = aiData.choices?.[0]?.message?.content?.trim();
+          
+          if (aiResult && aiResult !== 'NONE') {
+            const match = companies.find((c: any) => c.id === aiResult);
+            if (match) {
+              companyId = match.id;
+              companyName = match.nome_fantasia;
+              console.log(`AI matched site "${siteName}" to company "${companyName}" (${companyId})`);
+            }
+          }
+        }
+      }
+
+      // Fallback: text match
+      if (!companyId) {
+        const siteNorm = siteName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        for (const c of companies) {
+          const nameNorm = c.nome_fantasia.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const razaoNorm = (c.razao_social || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (siteNorm.includes(nameNorm) || nameNorm.includes(siteNorm) ||
+              siteNorm.includes(razaoNorm) || razaoNorm.includes(siteNorm)) {
+            companyId = c.id;
+            companyName = c.nome_fantasia;
+            console.log(`Fallback matched site "${siteName}" to company "${companyName}"`);
+            break;
+          }
+        }
+      }
+    }
+
+    // Auto-create company if no match
+    if (!companyId) {
+      const newCompanyName = siteName || `Datto - ${hostname}`;
+      const { data: newCompany, error: companyError } = await supabase
+        .from('companies')
+        .insert({
+          nome_fantasia: newCompanyName,
+          tipo_contrato: 'eventual',
+          status: true,
+        })
+        .select('id')
+        .single();
+
+      if (companyError) {
+        console.error('Error auto-creating company:', companyError);
+        return null;
+      }
+
+      companyId = newCompany.id;
+      autoCreated = true;
+      console.log(`Auto-created company "${newCompanyName}" (${companyId})`);
+
+      await supabase.from('ai_alerts').insert({
+        tipo: 'datto_auto_company_created',
+        severidade: 'info',
+        titulo: `Empresa criada automaticamente: ${newCompanyName}`,
+        descricao: `A IA criou automaticamente a empresa "${newCompanyName}" a partir do site Datto "${siteName}". Verifique os dados e complete o cadastro (CNPJ, endereço, contrato, etc).`,
+        acao_sugerida: `Acesse Empresas e complete o cadastro de "${newCompanyName}".`,
+        dados: { site_name: siteName, device_hostname: hostname, auto_created: true } as any,
+      });
+    }
+
+    // Determine asset type from hostname/OS
+    let tipo = 'desktop';
+    const osLower = (payload.device_os || '').toLowerCase();
+    const hostLower = hostname.toLowerCase();
+    if (hostLower.includes('srv') || hostLower.includes('server') || osLower.includes('server')) {
+      tipo = 'servidor';
+    } else if (hostLower.includes('nb') || hostLower.includes('laptop') || hostLower.includes('note')) {
+      tipo = 'notebook';
+    } else if (hostLower.includes('sw') || hostLower.includes('switch')) {
+      tipo = 'switch';
+    } else if (hostLower.includes('rt') || hostLower.includes('router')) {
+      tipo = 'roteador';
+    }
+
+    // Create asset
+    const { data: newAsset, error: assetError } = await supabase
+      .from('assets')
+      .insert({
+        nome: hostname,
+        company_id: companyId,
+        tipo,
+        estado: 'em_uso',
+        datto_device_id: payload.device_id || null,
+        datto_device_uid: payload.device_uid || null,
+        datto_site_id: payload.site_id || null,
+        datto_status: 'online',
+        datto_last_sync: new Date().toISOString(),
+        sistema_operacional: payload.device_os || null,
+        observacoes: `Ativo criado automaticamente via Datto RMM. Site: ${siteName}. ${autoCreated ? '(Empresa também criada automaticamente)' : ''}`,
+      })
+      .select('id, company_id, nome, estado')
+      .single();
+
+    if (assetError) {
+      console.error('Error auto-creating asset:', assetError);
+      return null;
+    }
+
+    console.log(`Auto-created asset "${hostname}" linked to company ${companyId}`);
+
+    await supabase.from('ai_alerts').insert({
+      tipo: 'datto_auto_asset_created',
+      severidade: 'info',
+      titulo: `Ativo criado automaticamente: ${hostname}`,
+      descricao: `O ativo "${hostname}" foi criado e vinculado à empresa "${companyName}". Verifique as informações e complete o cadastro.`,
+      acao_sugerida: `Acesse Ativos e complete o cadastro de "${hostname}" (fabricante, modelo, nº série, etc).`,
+      dados: { device_hostname: hostname, device_id: payload.device_id, site_name: siteName, company_id: companyId, company_auto_created: autoCreated } as any,
+    });
+
+    return newAsset;
+  } catch (err) {
+    console.error('autoLinkOrCreateAsset error:', err);
+    return null;
+  }
+}
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -98,9 +265,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Find matching asset by datto_device_id or hostname (nome)
+    // ─── Find or auto-create asset + company ───────────────────────────
     let asset = null;
 
+    // 1. Try by datto_device_id
     if (payload.device_id) {
       const { data } = await supabase
         .from('assets')
@@ -110,6 +278,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       asset = data;
     }
 
+    // 2. Try by hostname
     if (!asset && payload.device_hostname) {
       const { data } = await supabase
         .from('assets')
@@ -117,6 +286,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
         .ilike('nome', `%${payload.device_hostname}%`)
         .maybeSingle();
       asset = data;
+    }
+
+    // 3. If no asset found, use AI to match/create company + asset
+    if (!asset && (payload.device_hostname || payload.device_id)) {
+      console.log('Asset not found, attempting AI auto-link...');
+      asset = await autoLinkOrCreateAsset(supabase, payload);
     }
 
     // Update asset datto status
@@ -290,15 +465,8 @@ Prioridade: ${payload.alert_priority || 'N/A'}`
         }
       }
     } else if (shouldCreateTicket && !asset) {
-      // Asset not found - create ai_alert
-      await supabase.from('ai_alerts').insert({
-        tipo: 'datto_device_not_found',
-        severidade: 'warning',
-        titulo: `Dispositivo Datto não vinculado: ${payload.device_hostname || payload.device_id}`,
-        descricao: `Um alerta foi recebido do Datto RMM para o dispositivo "${payload.device_hostname}" (ID: ${payload.device_id}), mas nenhum ativo correspondente foi encontrado no sistema. Vincule o device_id ao ativo correto.`,
-        acao_sugerida: `Acesse a página de Ativos e vincule o Device ID "${payload.device_id}" ao ativo correspondente.`,
-        dados: payload as any,
-      });
+      // Asset auto-creation failed - log warning
+      console.warn('Could not auto-create asset for device:', payload.device_hostname);
     }
 
     // Log the alert
