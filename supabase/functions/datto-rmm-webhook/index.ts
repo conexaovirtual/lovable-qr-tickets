@@ -410,6 +410,9 @@ Prioridade: ${payload.alert_priority || 'N/A'}`
             ].join('\n');
           }
 
+          const TECNICO_ID = 'e336e78e-c11a-48b5-8d69-2bb48cf6bb3b';
+          const TECNICO_PHONE = '5562999522470';
+
           const { data: ticket, error: ticketError } = await supabase
             .from('tickets')
             .insert({
@@ -417,10 +420,11 @@ Prioridade: ${payload.alert_priority || 'N/A'}`
               titulo: `[DATTO] ${payload.alert_type || 'Alerta'}: ${payload.device_hostname || 'Dispositivo'}`,
               descricao,
               canal: 'monitoramento',
-              status: 'novo',
+              status: 'em_atendimento',
               impacto: mapImpact(payload.alert_priority),
               urgencia: mapUrgency(payload.alert_priority),
               asset_id: asset.id,
+              tecnico_id: TECNICO_ID,
             })
             .select('id, numero')
             .single();
@@ -460,6 +464,41 @@ Prioridade: ${payload.alert_priority || 'N/A'}`
               );
             } catch (pushErr) {
               console.error('Push notification error (non-fatal):', pushErr);
+            }
+
+            // Send WhatsApp notification to technician
+            try {
+              const MABBIX_BACKEND_URL = Deno.env.get('MABBIX_BACKEND_URL');
+              const MABBIX_CONNECTION_TOKEN = Deno.env.get('MABBIX_CONNECTION_TOKEN');
+              if (MABBIX_BACKEND_URL && MABBIX_CONNECTION_TOKEN) {
+                const whatsappMsg = [
+                  `🔔 *Alerta Datto RMM - Chamado #${ticket.numero}*`,
+                  ``,
+                  `📌 *Dispositivo:* ${payload.device_hostname || 'N/A'}`,
+                  `🏢 *Site:* ${payload.site_name || 'N/A'}`,
+                  `⚠️ *Tipo:* ${payload.alert_type || 'N/A'}`,
+                  `🔴 *Prioridade:* ${payload.alert_priority || 'N/A'}`,
+                  ``,
+                  `💬 *Mensagem:* ${payload.alert_message || 'Sem detalhes'}`,
+                  ``,
+                  `O chamado já foi aberto e atribuído a você. Acesse o sistema para mais detalhes.`,
+                ].join('\n');
+
+                await fetch(`${MABBIX_BACKEND_URL}/sendText`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${MABBIX_CONNECTION_TOKEN}`,
+                  },
+                  body: JSON.stringify({
+                    number: TECNICO_PHONE,
+                    text: whatsappMsg,
+                  }),
+                });
+                console.log(`WhatsApp notification sent to technician for ticket #${ticket.numero}`);
+              }
+            } catch (waErr) {
+              console.error('WhatsApp notification error (non-fatal):', waErr);
             }
           }
         }
