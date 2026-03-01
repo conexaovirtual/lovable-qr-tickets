@@ -665,6 +665,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
             asset_id: args.asset_id || null,
             solicitante_nome: contactName,
             solicitante_contato: phone,
+            public_request: true,
           })
           .select("numero, id")
           .single();
@@ -940,6 +941,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
             nome_fantasia: args.nome_fantasia,
             telefone: args.telefone || null,
             email: args.email || null,
+            whatsapp: phone,
             tipo_contrato: "eventual",
             status: true,
           })
