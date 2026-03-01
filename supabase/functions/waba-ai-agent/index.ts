@@ -65,8 +65,9 @@ serve(async (req: Request) => {
     let effectiveMessage = message_content || "";
     if (isAudioMessage && media_url) {
       console.log("Transcribing audio from:", media_url);
-      effectiveMessage = await transcribeAudio(media_url, LOVABLE_API_KEY);
-      console.log("Audio transcription:", effectiveMessage.substring(0, 200));
+      const transcription = await transcribeAudio(media_url, LOVABLE_API_KEY);
+      console.log("Audio transcription:", transcription.substring(0, 200));
+      effectiveMessage = `[O cliente enviou uma mensagem de voz que foi transcrita automaticamente]: ${transcription}`;
     }
 
     // Gather enriched context
@@ -157,18 +158,13 @@ serve(async (req: Request) => {
           await sendAndSaveReply(supabase, conversation_id, phone_number, finalContent, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
           if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
           // If original was audio, also send audio response
-          if (isAudioMessage) {
-            await sendAudioReply(supabase, conversation_id, phone_number, finalContent, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
-          }
+          // TTS not supported by gateway, text reply is sufficient
         }
       }
     } else if (choice.message?.content) {
       await sendAndSaveReply(supabase, conversation_id, phone_number, choice.message.content, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
       if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
-      // If original was audio, also send audio response
-      if (isAudioMessage) {
-        await sendAudioReply(supabase, conversation_id, phone_number, choice.message.content, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
-      }
+      // TTS not supported by gateway, text reply is sufficient
     }
 
     return new Response(JSON.stringify({ ok: true }), {
@@ -323,6 +319,7 @@ IMPORTANTE: O vínculo via link_contact é SILENCIOSO — faça automaticamente 
 ═══════════════════════════════════════
 CAPACIDADES:
 ═══════════════════════════════════════
+0. PROCESSAR ÁUDIO: Você CONSEGUE ouvir e entender mensagens de voz — elas são transcritas automaticamente. Quando receber "[O cliente enviou uma mensagem de voz que foi transcrita automaticamente]:", responda normalmente ao conteúdo transcrito. NUNCA diga que não consegue ouvir áudios.
 1. RESPONDER DÚVIDAS TÉCNICAS usando a base de conhecimento
 2. BUSCAR ATIVAMENTE na base de conhecimento (use search_knowledge_base)
 3. IDENTIFICAR CLIENTE: buscar empresa por nome e vincular contato automaticamente
