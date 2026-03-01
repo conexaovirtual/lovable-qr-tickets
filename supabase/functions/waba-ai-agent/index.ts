@@ -279,19 +279,26 @@ function buildSystemPrompt(context: any) {
 EMPRESA DO CLIENTE: ${companyName}
 CONTATO: ${contactName}
 TIPO DE CONTRATO: ${contractType}
-${companyId ? `COMPANY_ID: ${companyId}` : "⚠️ EMPRESA NÃO IDENTIFICADA - pergunte o nome da empresa antes de qualquer ação."}
+${companyId ? `COMPANY_ID: ${companyId}` : `⚠️ EMPRESA NÃO IDENTIFICADA - você DEVE identificar o cliente antes de qualquer ação.
+FLUXO OBRIGATÓRIO:
+1. Pergunte o nome da empresa do cliente
+2. Use find_company para buscar no cadastro
+3. Se encontrar: use link_contact para vincular o contato
+4. Se NÃO encontrar: pergunte os dados básicos e use register_company para cadastrar`}
 
 ═══════════════════════════════════════
 CAPACIDADES:
 ═══════════════════════════════════════
 1. RESPONDER DÚVIDAS TÉCNICAS usando a base de conhecimento
 2. BUSCAR ATIVAMENTE na base de conhecimento (use search_knowledge_base)
-3. ABRIR CHAMADOS com confirmação do cliente e classificação de urgência
-4. CONSULTAR STATUS de chamados existentes
-5. LISTAR ATIVOS da empresa do cliente
-6. ADICIONAR COMENTÁRIOS a chamados existentes
-7. INFORMAR sobre visitas agendadas
-8. ESCALONAR para técnico (total ou parcial)
+3. IDENTIFICAR CLIENTE: buscar empresa por nome e vincular contato automaticamente
+4. CADASTRAR EMPRESA nova quando não existir no sistema
+5. ABRIR CHAMADOS com confirmação do cliente e classificação de urgência
+6. CONSULTAR STATUS de chamados existentes
+7. LISTAR ATIVOS da empresa do cliente
+8. ADICIONAR COMENTÁRIOS a chamados existentes
+9. INFORMAR sobre visitas agendadas
+10. ESCALONAR para técnico (total ou parcial)
 
 ═══════════════════════════════════════
 BASE DE CONHECIMENTO (artigos relevantes):
@@ -500,6 +507,55 @@ function getTools() {
             conversation_id: { type: "string", description: "ID da conversa" },
           },
           required: ["conversation_id"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "find_company",
+        description: "Busca uma empresa cadastrada pelo nome. Use quando o contato não está vinculado a uma empresa e informou o nome dela.",
+        parameters: {
+          type: "object",
+          properties: {
+            nome: { type: "string", description: "Nome da empresa informado pelo cliente (busca parcial)" },
+          },
+          required: ["nome"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "link_contact",
+        description: "Vincula o contato atual a uma empresa existente. Use após encontrar a empresa com find_company.",
+        parameters: {
+          type: "object",
+          properties: {
+            company_id: { type: "string", description: "UUID da empresa encontrada" },
+            contact_name: { type: "string", description: "Nome do contato informado pelo cliente" },
+          },
+          required: ["company_id"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "register_company",
+        description: "Cadastra uma nova empresa no sistema quando não encontrada via find_company. Também vincula o contato automaticamente.",
+        parameters: {
+          type: "object",
+          properties: {
+            nome_fantasia: { type: "string", description: "Nome fantasia da empresa" },
+            telefone: { type: "string", description: "Telefone da empresa (opcional)" },
+            email: { type: "string", description: "E-mail da empresa (opcional)" },
+            contact_name: { type: "string", description: "Nome do contato/pessoa que está conversando" },
+          },
+          required: ["nome_fantasia"],
           additionalProperties: false,
         },
       },
@@ -741,6 +797,105 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
 
         result = { success: true };
         console.log(`Conversation ${args.conversation_id} resolved by AI`);
+        break;
+      }
+
+      case "find_company": {
+        const searchName = args.nome.trim();
+        const { data: companies } = await supabase
+          .from("companies")
+          .select("id, nome_fantasia, razao_social, cnpj, telefone, tipo_contrato")
+          .or(`nome_fantasia.ilike.%${searchName}%,razao_social.ilike.%${searchName}%`)
+          .eq("status", true)
+          .limit(5);
+
+        if (companies && companies.length > 0) {
+          result = {
+            found: true,
+            total: companies.length,
+            companies: companies.map((c: any) => ({
+              id: c.id,
+              nome_fantasia: c.nome_fantasia,
+              razao_social: c.razao_social,
+              cnpj: c.cnpj,
+              tipo_contrato: c.tipo_contrato,
+            })),
+          };
+        } else {
+          result = { found: false, message: "Nenhuma empresa encontrada com esse nome." };
+        }
+        console.log(`find_company "${searchName}": ${(companies || []).length} results`);
+        break;
+      }
+
+      case "link_contact": {
+        // Update whatsapp_contacts with company_id
+        const { error: linkError } = await supabase
+          .from("whatsapp_contacts")
+          .upsert({
+            phone_number: phone,
+            company_id: args.company_id,
+            contact_name: args.contact_name || null,
+            last_message_at: new Date().toISOString(),
+          }, { onConflict: "phone_number" });
+
+        if (linkError) {
+          console.error("Error linking contact:", linkError);
+          result = { success: false, error: linkError.message };
+        } else {
+          // Also update conversation contact_name
+          await supabase
+            .from("waba_conversations")
+            .update({ contact_name: args.contact_name || null })
+            .eq("id", conversationId);
+
+          result = { success: true, company_id: args.company_id };
+          console.log(`Contact ${phone} linked to company ${args.company_id}`);
+        }
+        break;
+      }
+
+      case "register_company": {
+        // Create the company
+        const { data: newCompany, error: companyError } = await supabase
+          .from("companies")
+          .insert({
+            nome_fantasia: args.nome_fantasia,
+            telefone: args.telefone || null,
+            email: args.email || null,
+            tipo_contrato: "eventual",
+            status: true,
+          })
+          .select("id, nome_fantasia")
+          .single();
+
+        if (companyError) {
+          console.error("Error registering company:", companyError);
+          result = { success: false, error: companyError.message };
+        } else {
+          // Auto-link the contact to the new company
+          await supabase
+            .from("whatsapp_contacts")
+            .upsert({
+              phone_number: phone,
+              company_id: newCompany.id,
+              contact_name: args.contact_name || null,
+              last_message_at: new Date().toISOString(),
+            }, { onConflict: "phone_number" });
+
+          await supabase
+            .from("waba_conversations")
+            .update({ contact_name: args.contact_name || null })
+            .eq("id", conversationId);
+
+          result = {
+            success: true,
+            company_id: newCompany.id,
+            nome_fantasia: newCompany.nome_fantasia,
+            message: "Empresa cadastrada e contato vinculado automaticamente.",
+          };
+          console.log(`Company "${args.nome_fantasia}" registered and contact ${phone} linked`);
+        }
         break;
       }
 
