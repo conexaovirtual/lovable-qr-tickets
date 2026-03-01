@@ -1,103 +1,66 @@
 
 
-# Analise do Sistema e Plano de Expansao da IA
+# Plano: Melhorias no Atendimento Automático por IA do WhatsApp
 
-## Estado Atual da IA no Sistema
+## Problemas Identificados
 
-O sistema ja possui 7 modulos de IA integrados:
-
-| Modulo | Onde atua | Funcao |
-|--------|-----------|--------|
-| Categorizador por Voz | Abertura de chamado | Preenche titulo, categoria, impacto e urgencia |
-| Triagem IA | Detalhe do chamado (novo/triagem) | Sugere prioridade, tecnico e tickets similares |
-| Resumo Automatico | Fechamento de ticket/atendimento | Gera analise executiva |
-| Assistente Diagnostico | Ticket em atendimento | Chat com passos de troubleshooting |
-| Alertas Inteligentes | Dashboard | Notificacoes proativas de risco |
-| Previsao de Manutencao | Dashboard | Prediz falhas em ativos |
-| Planejador de Visitas | Analytics | Sugere agendamento de visitas |
-
-## Lacunas Identificadas
-
-Apos analise detalhada do fluxo de abertura e atendimento, identifiquei **5 oportunidades** de alto impacto:
+1. **Respostas genéricas**: A base de conhecimento é carregada com `LIMIT 10` sem relevância — pega artigos aleatórios, não os mais relevantes para a pergunta do cliente.
+2. **Sem contexto de ativos**: A IA não consulta os ativos (equipamentos) da empresa do cliente.
+3. **Sem histórico de atendimentos**: A IA não acessa atendimentos diários anteriores para aprender padrões.
+4. **Modelo desatualizado**: Usa `gemini-2.5-flash` ao invés de `gemini-3-flash-preview` (mais recente e capaz).
+5. **Tools limitadas**: Faltam ferramentas para consultar ativos, listar atendimentos recentes e buscar na base de conhecimento por palavra-chave.
+6. **Escalonamento rígido**: Não há opção de escalonamento parcial (ex: encaminhar mas manter IA ativa para acompanhar).
+7. **Sem confirmação do cliente**: A IA cria tickets sem pedir confirmação ao cliente.
+8. **Sem prioridade inteligente**: Tickets criados pela IA são sempre "novo" sem classificação de urgência.
 
 ---
 
-### 1. Sugestao de Solucao por IA (ao resolver chamado)
+## Implementação
 
-**Problema:** Quando o tecnico muda o status para "Resolvido", o campo de solucao e em branco. O tecnico precisa digitar tudo manualmente.
+### 1. Context Gathering aprimorado (`waba-ai-agent`)
 
-**Solucao:** Criar uma funcao backend `ai-solution-suggester` que analisa a descricao do chamado, historico de tickets similares resolvidos e dados do ativo para sugerir um texto de solucao pre-preenchido. Um botao "Sugerir Solucao com IA" aparecera ao lado do campo solucao no componente `TicketStatusUpdate`.
+- Buscar artigos da base de conhecimento **relevantes à mensagem** usando busca por texto (`ilike` nos campos `problema`, `solucao`, `tags`)
+- Consultar **ativos da empresa** (últimos 20 ativos com nome, tipo, status)
+- Consultar **últimos 10 atendimentos diários** da empresa para contexto histórico
+- Consultar **nome do técnico** atribuído aos tickets abertos (join com profiles)
 
-**Impacto:** Reduz tempo de documentacao em ~60%, melhora a qualidade dos registros.
+### 2. Novas tools para a IA
 
----
+- `search_knowledge_base`: Busca artigos por palavra-chave (a IA pode buscar ativamente ao invés de depender do contexto estático)
+- `list_company_assets`: Lista ativos da empresa com filtro por tipo/status
+- `update_ticket_priority`: Permite a IA classificar urgência/impacto ao criar tickets
+- `add_ticket_comment`: Permite a IA adicionar comentários de follow-up a tickets existentes
 
-### 2. Base de Conhecimento Automatica (Knowledge Base)
+### 3. System Prompt melhorado
 
-**Problema:** Tickets resolvidos ficam "enterrados" no historico. Quando um problema semelhante aparece, o tecnico precisa buscar manualmente.
+- Adicionar contexto de ativos e histórico de atendimentos
+- Instruir IA a **confirmar com o cliente** antes de criar tickets
+- Instruir IA a **classificar urgência** baseada nos sintomas
+- Adicionar fluxo de escalonamento gradual: primeiro tenta resolver, depois sugere ticket, só escalona se necessário
+- Instruir IA a usar `search_knowledge_base` proativamente
 
-**Solucao:** Criar uma nova pagina `/knowledge-base` com tabela `knowledge_articles` que armazena artigos gerados automaticamente pela IA ao fechar tickets. Uma funcao backend `ai-knowledge-generator` extrai o problema, a solucao e tags do ticket resolvido e cria um artigo pesquisavel. Na abertura de novos chamados, o sistema exibira automaticamente artigos relevantes.
+### 4. Ticket creation inteligente
 
-**Impacto:** Acelera resolucao de problemas recorrentes, permite autoatendimento.
+- Ao criar ticket, incluir campos `impacto` e `urgencia` baseados na análise da IA
+- Vincular o `contact_name` do WhatsApp como `solicitante_nome`
+- Tentar identificar o ativo mencionado na conversa e vincular ao ticket
 
----
+### 5. Upgrade do modelo
 
-### 3. IA no Fechamento de Atendimento Diario
+- Mudar de `gemini-2.5-flash` para `gemini-3-flash-preview`
 
-**Problema:** O `ServiceOrderExecutionDialog` e os atendimentos diarios nao tem nenhuma assistencia de IA ao documentar a execucao.
+### 6. Fluxo de escalonamento melhorado
 
-**Solucao:** Adicionar botao "Gerar Relatorio com IA" no dialog de execucao de OS e no fechamento de atendimentos diarios. A IA analisa o titulo, descricao, tempo gasto e fotos anexadas para gerar uma descricao profissional da execucao.
-
-**Impacto:** Documentacao padronizada e completa em todos os atendimentos.
-
----
-
-### 4. Enriquecimento Inteligente de Alertas Datto
-
-**Problema:** Alertas do Datto RMM chegam com mensagens tecnicas brutas (ex: "Security Threat detected") sem contexto util para o tecnico.
-
-**Solucao:** Modificar a funcao `datto-rmm-webhook` para chamar a IA e enriquecer o alerta antes de criar o ticket. A IA traduzira a mensagem tecnica em descricao clara, sugerira acoes imediatas e classificara a severidade real baseada no contexto do ativo e historico.
-
-**Impacto:** Tickets do Datto ja nascem com informacoes uteis, reduzindo tempo de triagem.
-
----
-
-### 5. Resposta Automatica Inteligente para Chamados via QR Code
-
-**Problema:** Quando um usuario externo abre um chamado via QR Code, ele so recebe confirmacao generica. Nao ha orientacao imediata.
-
-**Solucao:** Apos criar o ticket publico, a IA analisa a descricao e gera uma resposta automatica com passos preliminares que o usuario pode tentar (ex: "Enquanto aguarda o tecnico, tente reiniciar o equipamento"). Essa resposta e salva como comentario automatico no ticket.
-
-**Impacto:** Melhora a experiencia do usuario final e pode resolver problemas simples antes do tecnico chegar.
+- Novo tool `partial_escalate`: Notifica técnico mas mantém IA ativa como copiloto
+- Ao escalonar, a IA envia resumo estruturado do problema para o técnico (contexto, tentativas, classificação)
 
 ---
 
-## Detalhes Tecnicos
+## Arquivos a editar
 
-### Novas funcoes backend
-- `ai-solution-suggester` - Sugere texto de solucao baseado no contexto do chamado
-- `ai-knowledge-generator` - Gera artigos de conhecimento a partir de tickets resolvidos
-- `ai-execution-report` - Gera relatorio de execucao para OS e atendimentos
-- `ai-auto-response` - Gera resposta automatica para chamados publicos
+| Arquivo | Alteração |
+|---------|-----------|
+| `supabase/functions/waba-ai-agent/index.ts` | Reescrever `gatherContext`, `buildSystemPrompt`, `getTools`, `handleToolCalls`; upgrade modelo |
 
-### Nova tabela
-- `knowledge_articles` (id, ticket_id, titulo, problema, solucao, tags, categoria, created_at) com RLS para admins e tecnicos
-
-### Componentes novos/modificados
-- `AISolutionSuggester` - Botao + card de sugestao no TicketStatusUpdate
-- `KnowledgeBase` - Nova pagina com busca e listagem de artigos
-- `KnowledgeArticleCard` - Card de artigo na base de conhecimento
-- `AIExecutionReport` - Botao no ServiceOrderExecutionDialog
-- Modificacao do `datto-rmm-webhook` para enriquecimento
-- Modificacao do fluxo de ticket publico para auto-resposta
-
-### Modelo de IA
-Todas as funcoes usarao `google/gemini-3-flash-preview` via Lovable AI Gateway (sem necessidade de chave adicional).
-
-### Ordem de implementacao sugerida
-1. Sugestao de Solucao (maior impacto imediato no dia a dia)
-2. Base de Conhecimento (valor acumulativo ao longo do tempo)
-3. IA na Execucao de OS (padronizacao)
-4. Enriquecimento Datto (melhoria da integracao existente)
-5. Auto-resposta QR Code (experiencia do usuario final)
+Nenhuma migração de banco necessária — todas as tabelas já existem.
 
