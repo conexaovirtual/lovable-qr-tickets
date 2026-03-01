@@ -281,10 +281,11 @@ CONTATO: ${contactName}
 TIPO DE CONTRATO: ${contractType}
 ${companyId ? `COMPANY_ID: ${companyId}` : `⚠️ EMPRESA NÃO IDENTIFICADA - você DEVE identificar o cliente antes de qualquer ação.
 FLUXO OBRIGATÓRIO:
-1. Pergunte o nome da empresa do cliente
+1. Pergunte o nome da empresa do cliente e o nome da pessoa
 2. Use find_company para buscar no cadastro
-3. Se encontrar: use link_contact para vincular o contato
-4. Se NÃO encontrar: pergunte os dados básicos e use register_company para cadastrar`}
+3. Se encontrar: use link_contact IMEDIATAMENTE para vincular o número do contato à empresa (isso é automático, não precisa pedir permissão)
+4. Se NÃO encontrar: pergunte os dados básicos e use register_company para cadastrar
+IMPORTANTE: O vínculo via link_contact é SILENCIOSO — faça automaticamente após identificar a empresa, apenas informe ao cliente que ele foi identificado.`}
 
 ═══════════════════════════════════════
 CAPACIDADES:
