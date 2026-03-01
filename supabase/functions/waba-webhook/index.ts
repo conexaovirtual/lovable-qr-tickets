@@ -207,29 +207,32 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
 
   console.log(`Message saved from ${phoneNumber}: ${content.substring(0, 80)}`);
 
-  // Trigger AI Agent for text messages
-  if (messageType === "text" && content && content !== "[Mensagem sem texto]") {
-    try {
-      const aiResponse = await fetch(
-        `${Deno.env.get("SUPABASE_URL")}/functions/v1/waba-ai-agent`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          },
-          body: JSON.stringify({
-            conversation_id: conversation.id,
-            message_content: content,
-            phone_number: phoneNumber,
-            is_group: isGroup,
-          }),
-        }
-      );
-      const aiResult = await aiResponse.json();
-      console.log("AI Agent result:", JSON.stringify(aiResult).substring(0, 200));
-    } catch (aiErr) {
-      console.error("AI Agent invocation failed:", aiErr);
+    // Trigger AI Agent for text and audio messages
+    const shouldTriggerAI = (messageType === "text" && content && content !== "[Mensagem sem texto]") || messageType === "audio";
+    if (shouldTriggerAI) {
+      try {
+        const aiResponse = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/waba-ai-agent`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              conversation_id: conversation.id,
+              message_content: content,
+              phone_number: phoneNumber,
+              is_group: isGroup,
+              media_url: mediaUrl,
+              message_type: messageType,
+            }),
+          }
+        );
+        const aiResult = await aiResponse.json();
+        console.log("AI Agent result:", JSON.stringify(aiResult).substring(0, 200));
+      } catch (aiErr) {
+        console.error("AI Agent invocation failed:", aiErr);
+      }
     }
-  }
 }

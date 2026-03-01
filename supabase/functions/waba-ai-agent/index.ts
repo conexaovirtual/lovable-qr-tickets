@@ -27,8 +27,9 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { conversation_id, message_content, phone_number, is_group } = await req.json();
-    console.log("AI Agent processing:", { conversation_id, message_content: message_content?.substring(0, 100), is_group });
+    const { conversation_id, message_content, phone_number, is_group, media_url, message_type } = await req.json();
+    const isAudioMessage = message_type === "audio";
+    console.log("AI Agent processing:", { conversation_id, message_content: message_content?.substring(0, 100), is_group, isAudioMessage });
 
     // Check if AI is enabled for this conversation
     const { data: conversation } = await supabase
@@ -60,8 +61,16 @@ serve(async (req: Request) => {
       }
     }
 
+    // Transcribe audio if needed
+    let effectiveMessage = message_content || "";
+    if (isAudioMessage && media_url) {
+      console.log("Transcribing audio from:", media_url);
+      effectiveMessage = await transcribeAudio(media_url, LOVABLE_API_KEY);
+      console.log("Audio transcription:", effectiveMessage.substring(0, 200));
+    }
+
     // Gather enriched context
-    const context = await gatherContext(supabase, phone_number, message_content);
+    const context = await gatherContext(supabase, phone_number, effectiveMessage);
 
     const systemPrompt = buildSystemPrompt(context);
 
@@ -147,11 +156,19 @@ serve(async (req: Request) => {
         if (finalContent) {
           await sendAndSaveReply(supabase, conversation_id, phone_number, finalContent, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
           if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
+          // If original was audio, also send audio response
+          if (isAudioMessage) {
+            await sendAudioReply(supabase, conversation_id, phone_number, finalContent, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
+          }
         }
       }
     } else if (choice.message?.content) {
       await sendAndSaveReply(supabase, conversation_id, phone_number, choice.message.content, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
       if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
+      // If original was audio, also send audio response
+      if (isAudioMessage) {
+        await sendAudioReply(supabase, conversation_id, phone_number, choice.message.content, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
+      }
     }
 
     return new Response(JSON.stringify({ ok: true }), {
@@ -981,4 +998,176 @@ async function trackFirstResponse(supabase: any, conversationId: string) {
     .from("waba_conversations")
     .update({ first_response_at: new Date().toISOString() })
     .eq("id", conversationId);
+}
+
+// ─── Audio Transcription via Gemini ──────────────────────────────────
+
+async function transcribeAudio(mediaUrl: string, apiKey: string): Promise<string> {
+  try {
+    // Download audio file
+    const audioResponse = await fetch(mediaUrl);
+    if (!audioResponse.ok) throw new Error(`Failed to download audio: ${audioResponse.status}`);
+
+    const audioBuffer = await audioResponse.arrayBuffer();
+    const base64Audio = btoa(
+      Array.from(new Uint8Array(audioBuffer))
+        .map((b) => String.fromCharCode(b))
+        .join("")
+    );
+
+    // Detect format from URL or content-type
+    const contentType = audioResponse.headers.get("content-type") || "audio/ogg";
+    const format = contentType.includes("ogg") ? "ogg" : contentType.includes("mp3") ? "mp3" : contentType.includes("mp4") || contentType.includes("m4a") ? "m4a" : "ogg";
+
+    console.log(`Audio downloaded: ${audioBuffer.byteLength} bytes, format: ${format}`);
+
+    // Use Gemini to transcribe (it supports audio natively)
+    const transcribeResponse = await fetch(AI_GATEWAY_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: AI_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Transcreva este áudio em português brasileiro. Retorne APENAS o texto transcrito, sem comentários adicionais. Se não conseguir entender, diga 'Não foi possível entender o áudio'.",
+              },
+              {
+                type: "input_audio",
+                input_audio: {
+                  data: base64Audio,
+                  format: format,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!transcribeResponse.ok) {
+      const errText = await transcribeResponse.text();
+      console.error("Transcription error:", errText);
+      throw new Error(`Transcription failed: ${transcribeResponse.status}`);
+    }
+
+    const transcribeResult = await transcribeResponse.json();
+    const transcription = transcribeResult.choices?.[0]?.message?.content?.trim();
+
+    if (!transcription) throw new Error("Empty transcription");
+
+    return transcription;
+  } catch (error: any) {
+    console.error("Audio transcription failed:", error);
+    return "[Áudio recebido - não foi possível transcrever]";
+  }
+}
+
+// ─── Send Audio Reply via ElevenLabs TTS + Mabbix ────────────────────
+
+async function sendAudioReply(
+  supabase: any,
+  conversationId: string,
+  phone: string,
+  text: string,
+  mabbixUrl: string,
+  mabbixToken: string
+) {
+  try {
+    const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
+    if (!ELEVENLABS_API_KEY) {
+      console.log("ELEVENLABS_API_KEY not configured, skipping audio reply");
+      return;
+    }
+
+    // Limit text to 5000 chars for TTS
+    const ttsText = text.substring(0, 5000);
+
+    // Generate audio with ElevenLabs TTS
+    // Using "Sarah" voice (EXAVITQu4vr4xnSDxMaL) - natural female voice
+    const voiceId = "EXAVITQu4vr4xnSDxMaL";
+    const ttsResponse = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_22050_32`,
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVENLABS_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: ttsText,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75,
+            style: 0.3,
+            use_speaker_boost: true,
+          },
+        }),
+      }
+    );
+
+    if (!ttsResponse.ok) {
+      const errText = await ttsResponse.text();
+      console.error("ElevenLabs TTS error:", ttsResponse.status, errText);
+      return;
+    }
+
+    const audioBuffer = await ttsResponse.arrayBuffer();
+    console.log(`TTS audio generated: ${audioBuffer.byteLength} bytes`);
+
+    // Convert to base64
+    const base64Audio = btoa(
+      Array.from(new Uint8Array(audioBuffer))
+        .map((b) => String.fromCharCode(b))
+        .join("")
+    );
+
+    // Send audio via Mabbix
+    const sendResponse = await fetch(`${mabbixUrl}/api/messages/send`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${mabbixToken}`,
+      },
+      body: JSON.stringify({
+        number: phone,
+        openTicket: "0",
+        queueId: "0",
+        body: `data:audio/mp3;base64,${base64Audio}`,
+        isAudio: true,
+      }),
+    });
+
+    const sendResult = await sendResponse.json();
+    console.log("Audio reply sent via Mabbix:", JSON.stringify(sendResult).substring(0, 200));
+
+    // Save audio message to DB
+    const messageId = sendResult?.id || sendResult?.message?.id || null;
+    await supabase.from("waba_messages").insert({
+      conversation_id: conversationId,
+      wamid: messageId ? String(messageId) : null,
+      direction: "outbound",
+      message_type: "audio",
+      content: `[Áudio] ${text.substring(0, 200)}`,
+      status: "sent",
+      sender_type: "ai",
+    });
+
+    await supabase
+      .from("waba_conversations")
+      .update({ last_message_at: new Date().toISOString() })
+      .eq("id", conversationId);
+
+    console.log("Audio reply saved and sent successfully");
+  } catch (error: any) {
+    console.error("Failed to send audio reply:", error);
+    // Don't throw - audio is supplementary, text was already sent
+  }
 }

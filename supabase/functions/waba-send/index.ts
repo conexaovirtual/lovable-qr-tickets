@@ -92,6 +92,68 @@ serve(async (req: Request) => {
         });
       }
 
+      case "send_audio": {
+        const { phone, audio_base64, conversation_id } = params;
+
+        // Send audio via Mabbix API
+        const response = await fetch(
+          `${MABBIX_BACKEND_URL}/api/messages/send`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${MABBIX_CONNECTION_TOKEN}`,
+            },
+            body: JSON.stringify({
+              number: phone,
+              openTicket: "0",
+              queueId: "0",
+              body: audio_base64,
+              isAudio: true,
+            }),
+          }
+        );
+
+        const result = await response.json();
+        console.log("Mabbix audio response:", JSON.stringify(result).substring(0, 300));
+
+        // Save outbound audio message to DB
+        const messageId = result?.id || result?.message?.id || null;
+        await supabase.from("waba_messages").insert({
+          conversation_id,
+          wamid: messageId ? String(messageId) : null,
+          direction: "outbound",
+          message_type: "audio",
+          content: "[Mensagem de áudio]",
+          status: "sent",
+          sender_type: "agent",
+        });
+
+        // Update conversation timestamps
+        const { data: conv } = await supabase
+          .from("waba_conversations")
+          .select("first_response_at, queue_status")
+          .eq("id", conversation_id)
+          .single();
+
+        const updates: any = { last_message_at: new Date().toISOString() };
+        if (!conv?.first_response_at) {
+          updates.first_response_at = new Date().toISOString();
+        }
+        if (conv?.queue_status === "waiting") {
+          updates.queue_status = "assigned";
+        }
+
+        await supabase
+          .from("waba_conversations")
+          .update(updates)
+          .eq("id", conversation_id);
+
+        return new Response(JSON.stringify(result), {
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown action" }), {
           status: 400,
