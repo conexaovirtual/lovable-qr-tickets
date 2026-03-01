@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Mail, Phone, MapPin, Clock, Eye, FileText, Calendar } from 'lucide-react';
+import { Edit, Mail, Phone, MapPin, Clock, Eye, FileText, Calendar, MessageCircle } from 'lucide-react';
 
 interface CompanyCardProps {
   company: any;
@@ -59,6 +59,13 @@ export const CompanyCard = memo(({ company, onEdit }: CompanyCardProps) => {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Phone className="h-4 w-4" />
             <span>{company.telefone}</span>
+          </div>
+        )}
+
+        {company.whatsapp && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MessageCircle className="h-4 w-4" />
+            <span>{company.whatsapp}</span>
           </div>
         )}
         

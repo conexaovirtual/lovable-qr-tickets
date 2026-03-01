@@ -396,6 +396,7 @@ export type Database = {
           telefone: string | null
           tipo_contrato: Database["public"]["Enums"]["company_contract_type"]
           updated_at: string | null
+          whatsapp: string | null
         }
         Insert: {
           cnpj?: string | null
@@ -412,6 +413,7 @@ export type Database = {
           telefone?: string | null
           tipo_contrato?: Database["public"]["Enums"]["company_contract_type"]
           updated_at?: string | null
+          whatsapp?: string | null
         }
         Update: {
           cnpj?: string | null
@@ -428,6 +430,7 @@ export type Database = {
           telefone?: string | null
           tipo_contrato?: Database["public"]["Enums"]["company_contract_type"]
           updated_at?: string | null
+          whatsapp?: string | null
         }
         Relationships: []
       }
