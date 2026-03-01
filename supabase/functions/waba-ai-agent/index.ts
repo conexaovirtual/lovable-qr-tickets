@@ -365,11 +365,12 @@ CAPACIDADES:
 3. IDENTIFICAR CLIENTE: buscar empresa por nome e vincular contato automaticamente
 4. CADASTRAR EMPRESA nova quando não existir no sistema
 5. ABRIR CHAMADOS com confirmação do cliente e classificação de urgência
-6. CONSULTAR STATUS de chamados existentes
-7. LISTAR ATIVOS da empresa do cliente
-8. ADICIONAR COMENTÁRIOS a chamados existentes
-9. INFORMAR sobre visitas agendadas
-10. ESCALONAR para técnico (total ou parcial)
+6. FECHAR/RESOLVER CHAMADOS quando o cliente confirmar que o problema foi solucionado (use close_ticket)
+7. CONSULTAR STATUS de chamados existentes
+8. LISTAR ATIVOS da empresa do cliente
+9. ADICIONAR COMENTÁRIOS a chamados existentes
+10. INFORMAR sobre visitas agendadas
+11. ESCALONAR para técnico (total ou parcial)
 
 ═══════════════════════════════════════
 BASE DE CONHECIMENTO (artigos relevantes):
@@ -428,6 +429,11 @@ REGRAS DE CONDUTA:
 2. Se não resolver: sugira abertura de chamado
 3. Se urgente/complexo: use partial_escalate (notifica técnico mas mantém IA ativa)
 4. Se crítico ou cliente insistir: use escalate_to_human (transfere completamente)
+
+✅ ENCERRAMENTO DE CHAMADOS:
+- Quando o cliente informar que o problema foi resolvido, use close_ticket para fechar o chamado.
+- Informe o número do chamado que foi fechado e agradeça.
+- Após fechar o chamado, use resolve_conversation para encerrar a conversa.
 
 💬 ESTILO:
 - Seja conciso e direto. Use emojis com moderação (✅ ⚠️ 📋 🔧 📞).
@@ -586,6 +592,22 @@ function getTools() {
             conversation_id: { type: "string", description: "ID da conversa" },
           },
           required: ["conversation_id"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "close_ticket",
+        description: "Fecha/resolve um chamado quando o cliente confirma que o problema foi solucionado. Atualiza o status para 'resolvido' e registra a solução.",
+        parameters: {
+          type: "object",
+          properties: {
+            ticket_numero: { type: "number", description: "Número do chamado a ser fechado" },
+            solucao: { type: "string", description: "Descrição da solução aplicada ou confirmação do cliente" },
+          },
+          required: ["ticket_numero", "solucao"],
           additionalProperties: false,
         },
       },
@@ -827,12 +849,12 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
         if (!ticket) {
           result = { success: false, error: "Chamado não encontrado" };
         } else {
-          // Use service role to insert comment as system
+          const TECNICO_ID_COMMENT = "e336e78e-c11a-48b5-8d69-2bb48cf6bb3b";
           const { error } = await supabase
             .from("ticket_comments")
             .insert({
               ticket_id: ticket.id,
-              user_id: "00000000-0000-0000-0000-000000000000", // system user placeholder
+              user_id: TECNICO_ID_COMMENT,
               comentario: `[Via WhatsApp IA] ${args.comentario}`,
               is_internal: true,
             });
@@ -842,6 +864,56 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
             result = { success: false, error: error.message };
           } else {
             result = { success: true };
+          }
+        }
+        break;
+      }
+
+      case "close_ticket": {
+        const { data: ticketToClose } = await supabase
+          .from("tickets")
+          .select("id, numero, status")
+          .eq("numero", args.ticket_numero)
+          .maybeSingle();
+
+        if (!ticketToClose) {
+          result = { success: false, error: "Chamado não encontrado" };
+        } else if (ticketToClose.status === "resolvido" || ticketToClose.status === "fechado") {
+          result = { success: true, message: "Chamado já estava resolvido/fechado" };
+        } else {
+          const { error: updateError } = await supabase
+            .from("tickets")
+            .update({
+              status: "resolvido",
+              solucao: args.solucao,
+              data_solucao: new Date().toISOString(),
+            })
+            .eq("id", ticketToClose.id);
+
+          if (updateError) {
+            console.error("Error closing ticket:", updateError);
+            result = { success: false, error: updateError.message };
+          } else {
+            // Add closing comment
+            const TECNICO_ID_CLOSE = "e336e78e-c11a-48b5-8d69-2bb48cf6bb3b";
+            await supabase.from("ticket_comments").insert({
+              ticket_id: ticketToClose.id,
+              user_id: TECNICO_ID_CLOSE,
+              comentario: `[Via WhatsApp IA] Chamado encerrado a pedido do cliente. Solução: ${args.solucao}`,
+              is_internal: true,
+            });
+
+            result = { success: true, numero: ticketToClose.numero, message: "Chamado resolvido com sucesso" };
+            console.log(`Ticket #${ticketToClose.numero} closed via WhatsApp AI`);
+
+            // Generate knowledge article
+            try {
+              await supabase.functions.invoke("ai-knowledge-generator", {
+                body: { ticket_id: ticketToClose.id },
+              });
+            } catch (e) {
+              console.error("Knowledge generation error:", e);
+            }
           }
         }
         break;
