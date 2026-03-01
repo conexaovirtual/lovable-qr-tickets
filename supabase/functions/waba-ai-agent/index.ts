@@ -148,11 +148,28 @@ serve(async (req: Request) => {
 
     const isFirstResponse = !conversation.first_response_at;
 
-    // Handle tool calls (possibly multiple rounds)
-    if (choice.message?.tool_calls?.length) {
-      const toolResults = await handleToolCalls(supabase, choice.message.tool_calls, phone_number, conversation_id, context);
+    // Handle tool calls with multi-round support (up to 3 rounds)
+    let currentMessage = choice.message;
+    let messages = [
+      { role: "system", content: systemPrompt },
+      ...chatHistory,
+    ];
+    
+    const MAX_TOOL_ROUNDS = 3;
+    let round = 0;
+    
+    while (currentMessage?.tool_calls?.length && round < MAX_TOOL_ROUNDS) {
+      round++;
+      console.log(`Tool call round ${round}:`, currentMessage.tool_calls.map((tc: any) => tc.function?.name).join(", "));
+      
+      const toolResults = await handleToolCalls(supabase, currentMessage.tool_calls, phone_number, conversation_id, context);
+      
+      messages = [
+        ...messages,
+        currentMessage,
+        ...toolResults,
+      ];
 
-      // Get final response after tool execution
       const followUpResponse = await fetch(AI_GATEWAY_URL, {
         method: "POST",
         headers: {
@@ -161,29 +178,33 @@ serve(async (req: Request) => {
         },
         body: JSON.stringify({
           model: AI_MODEL,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...chatHistory,
-            choice.message,
-            ...toolResults,
-          ],
+          messages,
+          tools: getTools(),
+          tool_choice: "auto",
         }),
       });
 
-      if (followUpResponse.ok) {
-        const followUp = await followUpResponse.json();
-        const finalContent = followUp.choices?.[0]?.message?.content;
-        if (finalContent) {
-          await sendAndSaveReply(supabase, conversation_id, phone_number, finalContent, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
-          if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
-          // If original was audio, also send audio response
-          // TTS not supported by gateway, text reply is sufficient
-        }
+      if (!followUpResponse.ok) {
+        console.error(`Follow-up round ${round} failed:`, followUpResponse.status);
+        break;
       }
-    } else if (choice.message?.content) {
-      await sendAndSaveReply(supabase, conversation_id, phone_number, choice.message.content, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
+
+      const followUp = await followUpResponse.json();
+      currentMessage = followUp.choices?.[0]?.message;
+      
+      if (!currentMessage) {
+        console.error(`No message in follow-up round ${round}`);
+        break;
+      }
+    }
+
+    // Send final text response
+    const finalContent = currentMessage?.content;
+    if (finalContent) {
+      await sendAndSaveReply(supabase, conversation_id, phone_number, finalContent, MABBIX_BACKEND_URL, MABBIX_CONNECTION_TOKEN);
       if (isFirstResponse) await trackFirstResponse(supabase, conversation_id);
-      // TTS not supported by gateway, text reply is sufficient
+    } else {
+      console.log("No final content after", round, "tool rounds. Last message:", JSON.stringify(currentMessage).substring(0, 200));
     }
 
     return new Response(JSON.stringify({ ok: true }), {
