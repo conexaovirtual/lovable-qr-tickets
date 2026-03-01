@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const AI_MODEL = "google/gemini-3-flash-preview";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -43,10 +44,9 @@ serve(async (req: Request) => {
       });
     }
 
-    // Gather context for the AI
+    // Gather enriched context
     const context = await gatherContext(supabase, phone_number, message_content);
 
-    // Build system prompt
     const systemPrompt = buildSystemPrompt(context);
 
     // Get conversation history (last 20 messages)
@@ -62,7 +62,7 @@ serve(async (req: Request) => {
       content: m.content || "",
     }));
 
-    // Call AI
+    // Call AI with upgraded model
     const aiResponse = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
@@ -70,7 +70,7 @@ serve(async (req: Request) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: AI_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           ...chatHistory,
@@ -83,6 +83,16 @@ serve(async (req: Request) => {
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
       console.error("AI Gateway error:", aiResponse.status, errText);
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+          status: 429, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ error: "Payment required" }), {
+          status: 402, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
       throw new Error(`AI Gateway error: ${aiResponse.status}`);
     }
 
@@ -91,13 +101,12 @@ serve(async (req: Request) => {
 
     if (!choice) throw new Error("No AI response");
 
-    // Track first response
     const isFirstResponse = !conversation.first_response_at;
 
-    // Handle tool calls
+    // Handle tool calls (possibly multiple rounds)
     if (choice.message?.tool_calls?.length) {
-      const toolResults = await handleToolCalls(supabase, choice.message.tool_calls, phone_number, conversation_id);
-      
+      const toolResults = await handleToolCalls(supabase, choice.message.tool_calls, phone_number, conversation_id, context);
+
       // Get final response after tool execution
       const followUpResponse = await fetch(AI_GATEWAY_URL, {
         method: "POST",
@@ -106,7 +115,7 @@ serve(async (req: Request) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: AI_MODEL,
           messages: [
             { role: "system", content: systemPrompt },
             ...chatHistory,
@@ -141,98 +150,207 @@ serve(async (req: Request) => {
   }
 });
 
-// ─── Context Gathering ───────────────────────────────────────────────
+// ─── Context Gathering (Enriched) ────────────────────────────────────
 
 async function gatherContext(supabase: any, phone: string, message: string) {
-  const { data: articles } = await supabase
-    .from("knowledge_articles")
-    .select("titulo, problema, solucao, categoria, tags")
-    .limit(10);
+  // Extract keywords from message for relevant search
+  const keywords = message
+    .toLowerCase()
+    .replace(/[^\w\sáéíóúãõâêô]/g, "")
+    .split(/\s+/)
+    .filter((w: string) => w.length > 3)
+    .slice(0, 5);
 
-  const { data: contact } = await supabase
-    .from("whatsapp_contacts")
-    .select("*, companies:company_id(nome_fantasia, id)")
-    .eq("phone_number", phone)
-    .maybeSingle();
+  // Run all queries in parallel
+  const [contactResult, relevantArticles, fallbackArticles] = await Promise.all([
+    supabase
+      .from("whatsapp_contacts")
+      .select("*, companies:company_id(nome_fantasia, id, tipo_contrato, sla_primeiro_atendimento_horas, sla_solucao_horas)")
+      .eq("phone_number", phone)
+      .maybeSingle(),
+    // Search relevant articles by keywords
+    keywords.length > 0
+      ? supabase
+          .from("knowledge_articles")
+          .select("titulo, problema, solucao, categoria, tags")
+          .or(keywords.map((k: string) => `problema.ilike.%${k}%,solucao.ilike.%${k}%,titulo.ilike.%${k}%`).join(","))
+          .order("util_count", { ascending: false })
+          .limit(8)
+      : Promise.resolve({ data: [] }),
+    // Fallback: top articles by usefulness
+    supabase
+      .from("knowledge_articles")
+      .select("titulo, problema, solucao, categoria, tags")
+      .order("util_count", { ascending: false })
+      .limit(5),
+  ]);
 
+  const contact = contactResult.data;
+  const companyId = contact?.company_id;
+
+  // Merge relevant + fallback articles (deduplicated)
+  const allArticles = relevantArticles.data || [];
+  const seenIds = new Set(allArticles.map((a: any) => a.titulo));
+  for (const a of (fallbackArticles.data || [])) {
+    if (!seenIds.has(a.titulo)) {
+      allArticles.push(a);
+      seenIds.add(a.titulo);
+    }
+  }
+
+  // Company-specific queries (run in parallel if company exists)
   let openTickets: any[] = [];
-  if (contact?.company_id) {
-    const { data } = await supabase
-      .from("tickets")
-      .select("numero, titulo, status, prioridade, tecnico_id, created_at")
-      .eq("company_id", contact.company_id)
-      .in("status", ["novo", "em_atendimento"])
-      .order("created_at", { ascending: false })
-      .limit(10);
-    openTickets = data || [];
-  }
-
   let visits: any[] = [];
-  if (contact?.company_id) {
-    const { data } = await supabase
-      .from("visit_schedules")
-      .select("proxima_visita, motivo, status, prioridade")
-      .eq("company_id", contact.company_id)
-      .eq("status", "pendente")
-      .order("proxima_visita", { ascending: true })
-      .limit(5);
-    visits = data || [];
+  let assets: any[] = [];
+  let recentServices: any[] = [];
+
+  if (companyId) {
+    const [ticketsResult, visitsResult, assetsResult, servicesResult] = await Promise.all([
+      supabase
+        .from("tickets")
+        .select("numero, titulo, status, prioridade, tecnico_id, created_at, profiles:tecnico_id(nome)")
+        .eq("company_id", companyId)
+        .in("status", ["novo", "em_atendimento"])
+        .order("created_at", { ascending: false })
+        .limit(10),
+      supabase
+        .from("visit_schedules")
+        .select("proxima_visita, motivo, status, prioridade")
+        .eq("company_id", companyId)
+        .eq("status", "pendente")
+        .order("proxima_visita", { ascending: true })
+        .limit(5),
+      supabase
+        .from("assets")
+        .select("id, nome, tipo, estado, fabricante, modelo, setor, local")
+        .eq("company_id", companyId)
+        .order("updated_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("daily_service_records")
+        .select("titulo, descricao, solucao, status, data_atendimento, canal")
+        .eq("company_id", companyId)
+        .order("data_atendimento", { ascending: false })
+        .limit(10),
+    ]);
+
+    openTickets = ticketsResult.data || [];
+    visits = visitsResult.data || [];
+    assets = assetsResult.data || [];
+    recentServices = servicesResult.data || [];
   }
 
-  return { articles, contact, openTickets, visits };
+  return { articles: allArticles, contact, openTickets, visits, assets, recentServices, companyId };
 }
 
-// ─── System Prompt ───────────────────────────────────────────────────
+// ─── System Prompt (Enhanced) ────────────────────────────────────────
 
 function buildSystemPrompt(context: any) {
   const articlesText = (context.articles || [])
-    .map((a: any) => `• ${a.titulo}: ${a.problema} → ${a.solucao}`)
+    .map((a: any) => `• **${a.titulo}**: ${a.problema} → ${a.solucao}`)
     .join("\n");
 
   const ticketsText = (context.openTickets || [])
-    .map((t: any) => `• #${t.numero} - ${t.titulo} (${t.status}, prioridade: ${t.prioridade})`)
+    .map((t: any) => {
+      const tecnico = t.profiles?.nome || "não atribuído";
+      return `• #${t.numero} - ${t.titulo} (${t.status}, prioridade: ${t.prioridade}, técnico: ${tecnico})`;
+    })
     .join("\n");
 
   const visitsText = (context.visits || [])
-    .map((v: any) => `• ${v.proxima_visita} - ${v.motivo} (${v.status})`)
+    .map((v: any) => `• ${v.proxima_visita} - ${v.motivo} (${v.status}, prioridade: ${v.prioridade})`)
+    .join("\n");
+
+  const assetsText = (context.assets || [])
+    .map((a: any) => `• ${a.nome} (${a.tipo}, ${a.estado}) - ${a.fabricante || ""} ${a.modelo || ""} | Setor: ${a.setor || "N/A"} | Local: ${a.local || "N/A"}`)
+    .join("\n");
+
+  const servicesText = (context.recentServices || [])
+    .map((s: any) => `• [${s.data_atendimento}] ${s.titulo}: ${s.descricao?.substring(0, 80)}${s.solucao ? ` → Solução: ${s.solucao.substring(0, 80)}` : ""}`)
     .join("\n");
 
   const companyName = context.contact?.companies?.nome_fantasia || "não identificada";
-  const companyId = context.contact?.company_id || null;
+  const companyId = context.companyId || null;
+  const contractType = context.contact?.companies?.tipo_contrato || "N/A";
+  const contactName = context.contact?.contact_name || "não identificado";
 
-  return `Você é o assistente virtual de suporte técnico da Conexão Virtual. Responda SEMPRE em português brasileiro de forma profissional, amigável e objetiva.
+  return `Você é o assistente virtual de suporte técnico da **Conexão Virtual**. Responda SEMPRE em português brasileiro de forma profissional, amigável e objetiva.
 
 EMPRESA DO CLIENTE: ${companyName}
-${companyId ? `COMPANY_ID: ${companyId}` : "EMPRESA NÃO IDENTIFICADA - pergunte o nome da empresa se necessário."}
+CONTATO: ${contactName}
+TIPO DE CONTRATO: ${contractType}
+${companyId ? `COMPANY_ID: ${companyId}` : "⚠️ EMPRESA NÃO IDENTIFICADA - pergunte o nome da empresa antes de qualquer ação."}
 
+═══════════════════════════════════════
 CAPACIDADES:
-1. RESPONDER DÚVIDAS TÉCNICAS usando a base de conhecimento abaixo
-2. ABRIR CHAMADOS automaticamente quando o cliente reportar um problema
-3. CONSULTAR STATUS de chamados existentes
-4. INFORMAR sobre visitas agendadas
+═══════════════════════════════════════
+1. RESPONDER DÚVIDAS TÉCNICAS usando a base de conhecimento
+2. BUSCAR ATIVAMENTE na base de conhecimento (use search_knowledge_base)
+3. ABRIR CHAMADOS com confirmação do cliente e classificação de urgência
+4. CONSULTAR STATUS de chamados existentes
+5. LISTAR ATIVOS da empresa do cliente
+6. ADICIONAR COMENTÁRIOS a chamados existentes
+7. INFORMAR sobre visitas agendadas
+8. ESCALONAR para técnico (total ou parcial)
 
-BASE DE CONHECIMENTO:
-${articlesText || "Nenhum artigo disponível."}
+═══════════════════════════════════════
+BASE DE CONHECIMENTO (artigos relevantes):
+═══════════════════════════════════════
+${articlesText || "Nenhum artigo encontrado. Use search_knowledge_base para buscar."}
 
+═══════════════════════════════════════
 CHAMADOS ABERTOS DO CLIENTE:
+═══════════════════════════════════════
 ${ticketsText || "Nenhum chamado aberto."}
 
+═══════════════════════════════════════
+ATIVOS DA EMPRESA:
+═══════════════════════════════════════
+${assetsText || "Nenhum ativo cadastrado."}
+
+═══════════════════════════════════════
+HISTÓRICO DE ATENDIMENTOS RECENTES:
+═══════════════════════════════════════
+${servicesText || "Sem atendimentos recentes."}
+
+═══════════════════════════════════════
 VISITAS AGENDADAS:
+═══════════════════════════════════════
 ${visitsText || "Nenhuma visita agendada."}
 
-REGRAS:
-- Se o cliente descrever um PROBLEMA técnico que você NÃO consegue resolver pela base de conhecimento, use a ferramenta create_ticket para abrir um chamado.
-- Se o cliente perguntar sobre STATUS de chamado, consulte a lista acima e informe.
-- Se o cliente pedir para AGENDAR uma visita, use a ferramenta schedule_visit.
-- Se não souber a empresa do cliente, pergunte antes de criar chamados.
-- Seja conciso. Use emojis com moderação (✅, ⚠️, 📋, 🔧).
+═══════════════════════════════════════
+REGRAS DE CONDUTA:
+═══════════════════════════════════════
+
+🔍 DIAGNÓSTICO:
+- Sempre use search_knowledge_base PROATIVAMENTE para buscar soluções antes de responder sobre problemas técnicos.
+- Analise o histórico de atendimentos para identificar problemas recorrentes.
+- Verifique se o problema pode estar relacionado a um ativo específico da empresa.
+
+📋 CRIAÇÃO DE CHAMADOS (OBRIGATÓRIO SEGUIR):
+- NUNCA crie um chamado sem antes CONFIRMAR com o cliente: "Posso abrir um chamado para este problema?"
+- Aguarde a confirmação explícita do cliente (sim, ok, pode, por favor, etc.)
+- Ao criar, classifique urgência e impacto baseado nos sintomas:
+  • ALTO: Sistema parado, todos afetados, sem workaround
+  • MÉDIO: Problema parcial, alguns afetados, workaround disponível
+  • BAIXO: Inconveniência menor, um usuário afetado
+- Tente identificar o ativo mencionado e vincule ao chamado.
+- Use o nome do contato (${contactName}) como solicitante.
+
+🔄 ESCALONAMENTO GRADUAL:
+1. Primeiro: tente resolver com a base de conhecimento
+2. Se não resolver: sugira abertura de chamado
+3. Se urgente/complexo: use partial_escalate (notifica técnico mas mantém IA ativa)
+4. Se crítico ou cliente insistir: use escalate_to_human (transfere completamente)
+
+💬 ESTILO:
+- Seja conciso e direto. Use emojis com moderação (✅ ⚠️ 📋 🔧 📞).
 - Quando criar um chamado, informe o número ao cliente.
-- Se o problema for URGENTE ou complexo demais, use escalate_to_human para transferir a um técnico.
-- Quando o problema for resolvido via base de conhecimento, use resolve_conversation.
-- Nunca invente informações. Se não souber, diga que vai encaminhar para um técnico.`;
+- Nunca invente informações. Se não souber, diga que vai buscar ou encaminhar.
+- Se o cliente perguntar algo fora do escopo técnico, redirecione educadamente.`;
 }
 
-// ─── Tools Definition ────────────────────────────────────────────────
+// ─── Tools Definition (Expanded) ─────────────────────────────────────
 
 function getTools() {
   return [
@@ -240,15 +358,18 @@ function getTools() {
       type: "function",
       function: {
         name: "create_ticket",
-        description: "Cria um novo chamado de suporte técnico para o cliente",
+        description: "Cria um novo chamado de suporte. SOMENTE use após confirmação explícita do cliente.",
         parameters: {
           type: "object",
           properties: {
             titulo: { type: "string", description: "Título resumido do problema" },
-            descricao: { type: "string", description: "Descrição detalhada do problema reportado pelo cliente" },
+            descricao: { type: "string", description: "Descrição detalhada do problema" },
             company_id: { type: "string", description: "UUID da empresa do cliente" },
+            urgencia: { type: "string", enum: ["baixa", "media", "alta"], description: "Nível de urgência" },
+            impacto: { type: "string", enum: ["baixo", "medio", "alto"], description: "Nível de impacto" },
+            asset_id: { type: "string", description: "UUID do ativo relacionado (opcional)" },
           },
-          required: ["titulo", "descricao", "company_id"],
+          required: ["titulo", "descricao", "company_id", "urgencia", "impacto"],
           additionalProperties: false,
         },
       },
@@ -264,6 +385,54 @@ function getTools() {
             numero: { type: "number", description: "Número do chamado" },
           },
           required: ["numero"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "search_knowledge_base",
+        description: "Busca artigos na base de conhecimento por palavra-chave. Use proativamente antes de responder dúvidas técnicas.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Palavras-chave para buscar (ex: 'impressora não imprime', 'VPN erro')" },
+          },
+          required: ["query"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "list_company_assets",
+        description: "Lista os ativos (equipamentos) da empresa do cliente, com filtro opcional por tipo ou status",
+        parameters: {
+          type: "object",
+          properties: {
+            company_id: { type: "string", description: "UUID da empresa" },
+            tipo: { type: "string", description: "Filtrar por tipo (desktop, notebook, impressora, servidor, etc.)" },
+            estado: { type: "string", description: "Filtrar por estado (em_uso, estoque, manutencao, baixado)" },
+          },
+          required: ["company_id"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "add_ticket_comment",
+        description: "Adiciona um comentário a um chamado existente para follow-up ou atualização",
+        parameters: {
+          type: "object",
+          properties: {
+            ticket_numero: { type: "number", description: "Número do chamado" },
+            comentario: { type: "string", description: "Comentário a adicionar" },
+          },
+          required: ["ticket_numero", "comentario"],
           additionalProperties: false,
         },
       },
@@ -289,14 +458,33 @@ function getTools() {
       type: "function",
       function: {
         name: "escalate_to_human",
-        description: "Transfere a conversa para um técnico humano quando o problema é complexo ou urgente demais para a IA resolver",
+        description: "Transfere COMPLETAMENTE a conversa para um técnico humano. A IA deixa de responder.",
         parameters: {
           type: "object",
           properties: {
             reason: { type: "string", description: "Motivo da escalação" },
             conversation_id: { type: "string", description: "ID da conversa" },
+            resumo: { type: "string", description: "Resumo estruturado: problema, tentativas, classificação de urgência" },
           },
-          required: ["reason", "conversation_id"],
+          required: ["reason", "conversation_id", "resumo"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "partial_escalate",
+        description: "Notifica um técnico sobre o problema mas mantém a IA ativa como copiloto. Use para problemas que precisam atenção humana mas não requerem transferência imediata.",
+        parameters: {
+          type: "object",
+          properties: {
+            conversation_id: { type: "string", description: "ID da conversa" },
+            reason: { type: "string", description: "Motivo da notificação" },
+            resumo: { type: "string", description: "Resumo do problema: contexto, diagnóstico, tentativas, classificação" },
+            urgencia: { type: "string", enum: ["baixa", "media", "alta"], description: "Urgência da atenção humana" },
+          },
+          required: ["conversation_id", "reason", "resumo", "urgencia"],
           additionalProperties: false,
         },
       },
@@ -305,7 +493,7 @@ function getTools() {
       type: "function",
       function: {
         name: "resolve_conversation",
-        description: "Marca a conversa como resolvida quando o problema do cliente foi solucionado via base de conhecimento",
+        description: "Marca a conversa como resolvida quando o problema do cliente foi solucionado",
         parameters: {
           type: "object",
           properties: {
@@ -319,9 +507,9 @@ function getTools() {
   ];
 }
 
-// ─── Tool Execution ──────────────────────────────────────────────────
+// ─── Tool Execution (Expanded) ───────────────────────────────────────
 
-async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, conversationId: string) {
+async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, conversationId: string, context: any) {
   const results = [];
 
   for (const call of toolCalls) {
@@ -330,6 +518,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
 
     switch (call.function.name) {
       case "create_ticket": {
+        const contactName = context.contact?.contact_name || phone;
         const { data: ticket, error } = await supabase
           .from("tickets")
           .insert({
@@ -338,7 +527,10 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
             company_id: args.company_id,
             canal: "whatsapp",
             status: "novo",
-            solicitante_nome: phone,
+            urgencia: args.urgencia || "media",
+            impacto: args.impacto || "medio",
+            asset_id: args.asset_id || null,
+            solicitante_nome: contactName,
             solicitante_contato: phone,
           })
           .select("numero, id")
@@ -349,7 +541,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
           result = { success: false, error: error.message };
         } else {
           result = { success: true, numero: ticket.numero, id: ticket.id };
-          console.log(`Ticket #${ticket.numero} created via WhatsApp AI`);
+          console.log(`Ticket #${ticket.numero} created via WhatsApp AI (urgencia: ${args.urgencia}, impacto: ${args.impacto})`);
         }
         break;
       }
@@ -357,7 +549,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
       case "check_ticket_status": {
         const { data: ticket } = await supabase
           .from("tickets")
-          .select("numero, titulo, status, prioridade, created_at, tecnico_id")
+          .select("numero, titulo, status, prioridade, created_at, tecnico_id, profiles:tecnico_id(nome)")
           .eq("numero", args.numero)
           .maybeSingle();
 
@@ -369,9 +561,93 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
             status: ticket.status,
             prioridade: ticket.prioridade,
             criado_em: ticket.created_at,
+            tecnico: ticket.profiles?.nome || "não atribuído",
           };
         } else {
           result = { found: false };
+        }
+        break;
+      }
+
+      case "search_knowledge_base": {
+        const searchTerms = args.query.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2);
+        const orConditions = searchTerms
+          .map((t: string) => `problema.ilike.%${t}%,solucao.ilike.%${t}%,titulo.ilike.%${t}%`)
+          .join(",");
+
+        const { data: articles } = await supabase
+          .from("knowledge_articles")
+          .select("titulo, problema, solucao, categoria, tags")
+          .or(orConditions)
+          .order("util_count", { ascending: false })
+          .limit(5);
+
+        result = {
+          found: (articles || []).length,
+          articles: (articles || []).map((a: any) => ({
+            titulo: a.titulo,
+            problema: a.problema,
+            solucao: a.solucao,
+            categoria: a.categoria,
+          })),
+        };
+        break;
+      }
+
+      case "list_company_assets": {
+        let query = supabase
+          .from("assets")
+          .select("id, nome, tipo, estado, fabricante, modelo, setor, local, numero_serie")
+          .eq("company_id", args.company_id);
+
+        if (args.tipo) query = query.eq("tipo", args.tipo);
+        if (args.estado) query = query.eq("estado", args.estado);
+
+        const { data: assets } = await query.order("nome").limit(20);
+
+        result = {
+          total: (assets || []).length,
+          assets: (assets || []).map((a: any) => ({
+            id: a.id,
+            nome: a.nome,
+            tipo: a.tipo,
+            estado: a.estado,
+            fabricante: a.fabricante,
+            modelo: a.modelo,
+            setor: a.setor,
+            local: a.local,
+          })),
+        };
+        break;
+      }
+
+      case "add_ticket_comment": {
+        // Find ticket by number
+        const { data: ticket } = await supabase
+          .from("tickets")
+          .select("id")
+          .eq("numero", args.ticket_numero)
+          .maybeSingle();
+
+        if (!ticket) {
+          result = { success: false, error: "Chamado não encontrado" };
+        } else {
+          // Use service role to insert comment as system
+          const { error } = await supabase
+            .from("ticket_comments")
+            .insert({
+              ticket_id: ticket.id,
+              user_id: "00000000-0000-0000-0000-000000000000", // system user placeholder
+              comentario: `[Via WhatsApp IA] ${args.comentario}`,
+              is_internal: true,
+            });
+
+          if (error) {
+            console.error("Error adding comment:", error);
+            result = { success: false, error: error.message };
+          } else {
+            result = { success: true };
+          }
         }
         break;
       }
@@ -409,13 +685,42 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
           conversation_id: args.conversation_id,
           direction: "outbound",
           message_type: "system",
-          content: `⚠️ Escalado para técnico: ${args.reason}`,
+          content: `⚠️ Escalado para técnico: ${args.reason}\n\n📋 Resumo da IA:\n${args.resumo}`,
           status: "delivered",
           sender_type: "system",
         });
 
         result = { success: true, reason: args.reason };
-        console.log(`Conversation ${args.conversation_id} escalated: ${args.reason}`);
+        console.log(`Conversation ${args.conversation_id} fully escalated: ${args.reason}`);
+        break;
+      }
+
+      case "partial_escalate": {
+        // Keep AI enabled but notify team
+        await supabase
+          .from("waba_conversations")
+          .update({
+            queue_status: "ai_copilot",
+            ai_context: {
+              escalation_reason: args.reason,
+              resumo: args.resumo,
+              urgencia: args.urgencia,
+              escalated_at: new Date().toISOString(),
+            },
+          })
+          .eq("id", args.conversation_id);
+
+        await supabase.from("waba_messages").insert({
+          conversation_id: args.conversation_id,
+          direction: "outbound",
+          message_type: "system",
+          content: `📋 Notificação para equipe técnica (urgência: ${args.urgencia}):\n${args.reason}\n\nResumo: ${args.resumo}\n\n🤖 IA continua ativa como copiloto.`,
+          status: "delivered",
+          sender_type: "system",
+        });
+
+        result = { success: true, mode: "ai_copilot", urgencia: args.urgencia };
+        console.log(`Conversation ${args.conversation_id} partially escalated (copilot mode): ${args.reason}`);
         break;
       }
 
@@ -463,7 +768,6 @@ async function sendAndSaveReply(
   mabbixUrl: string,
   mabbixToken: string
 ) {
-  // Send via Mabbix API
   const response = await fetch(`${mabbixUrl}/api/messages/send`, {
     method: "POST",
     headers: {
