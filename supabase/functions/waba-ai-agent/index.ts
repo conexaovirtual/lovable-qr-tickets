@@ -27,8 +27,8 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { conversation_id, message_content, phone_number } = await req.json();
-    console.log("AI Agent processing:", { conversation_id, message_content: message_content?.substring(0, 100) });
+    const { conversation_id, message_content, phone_number, is_group } = await req.json();
+    console.log("AI Agent processing:", { conversation_id, message_content: message_content?.substring(0, 100), is_group });
 
     // Check if AI is enabled for this conversation
     const { data: conversation } = await supabase
@@ -42,6 +42,22 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ skipped: true, reason: "ai_disabled" }), {
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
+    }
+
+    // Skip groups without a linked company
+    if (is_group) {
+      const { data: contact } = await supabase
+        .from("whatsapp_contacts")
+        .select("company_id")
+        .eq("phone_number", phone_number)
+        .maybeSingle();
+
+      if (!contact?.company_id) {
+        console.log("Group without linked company, skipping:", phone_number);
+        return new Response(JSON.stringify({ skipped: true, reason: "unlinked_group" }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
     }
 
     // Gather enriched context
