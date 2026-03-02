@@ -1,29 +1,23 @@
 
 
-## Duas mudanças solicitadas
+## Problema
+O download via `<a>.click()` salva o PNG na pasta **Downloads** do celular, mas o app da Niimbot B1 só busca imagens na **Galeria/Fotos**. Precisamos usar a **Web Share API** para permitir que o usuário compartilhe/salve a imagem diretamente na galeria.
 
-### 1. Técnico José Pereira como responsável em todas as OS automáticas
+## Solução
 
-O `PredictiveMaintenanceCard.tsx` já cria OS automaticamente, mas **não define `tecnico_id`** na inserção. Os webhooks (datto, waba) já usam o ID correto (`e336e78e-...`).
+**Arquivo: `src/components/assets/AssetLabelPrint.tsx`**
 
-**Mudança**: Adicionar `tecnico_id: 'e336e78e-c11a-48b5-8d69-2bb48cf6bb3b'` no insert de `service_orders` dentro do `handleCreateOS` do `PredictiveMaintenanceCard.tsx` (linha 183).
+Modificar as funções `handleExportPNG` e `handleExportAllPNG`:
 
----
+1. **Detectar suporte à Web Share API** (`navigator.canShare`)
+2. **Se disponível** (celular): usar `navigator.share({ files: [File] })` — isso abre o menu nativo do sistema onde o usuário pode escolher "Salvar na Galeria" ou abrir direto no app da Niimbot
+3. **Se não disponível** (desktop): manter o download tradicional via `<a>.click()` como fallback
+4. **Converter o blob para `File`** com tipo `image/png` para compatibilidade com a Share API
 
-### 2. Etiquetas para app Niimbot B1
+O fluxo no celular será: clicar "Exportar para Niimbot" → menu nativo aparece → usuário escolhe "Salvar em Fotos" ou compartilha direto com o app Niimbot.
 
-O app Niimbot B1 importa etiquetas como **imagem PNG**. Atualmente o sistema gera etiquetas via HTML para impressão no navegador, o que não funciona com o app da Niimbot.
-
-**Mudança**: Adicionar botão "Exportar PNG" no `AssetLabelPrint.tsx` que:
-- Renderiza a etiqueta 50x50mm (aprox. 591x591px a 300dpi) em um `<canvas>` invisível
-- Desenha: logo da empresa, nome do ativo, local, QR Code, rodapé
-- Exporta como arquivo `.png` para download
-- O usuário então importa o PNG no app da Niimbot para imprimir
-
-**Arquivo**: `src/components/assets/AssetLabelPrint.tsx`
-- Nova função `handleExportPNG` que usa Canvas API
-- Canvas 591x591px, fundo branco
-- Desenha logo (topo), nome do ativo (centralizado, negrito), local, QR code (centro), texto rodapé
-- `canvas.toBlob()` → download como `etiqueta-{tag ou id}.png`
-- Botão "📲 Exportar para Niimbot" ao lado do botão "Imprimir"
+### Detalhes técnicos
+- Substituir o bloco `canvas.toBlob` atual por lógica que tenta `navigator.share()` primeiro
+- O `File` precisa ter nome com extensão `.png` para o sistema reconhecer como imagem
+- Renomear botão para "📲 Salvar para Niimbot" para deixar mais claro
 
