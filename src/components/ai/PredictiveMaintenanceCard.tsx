@@ -183,6 +183,7 @@ export function PredictiveMaintenanceCard({ companyId }: PredictiveMaintenanceCa
         .insert({
           company_id: prediction.company_id,
           asset_id: prediction.asset_id,
+          tecnico_id: 'e336e78e-c11a-48b5-8d69-2bb48cf6bb3b',
           numero_os: nextNumero,
           tipo_servico: 'preventivo',
           modalidade: 'presencial',
