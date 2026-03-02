@@ -66,6 +66,33 @@ function inferAssetType(hostname: string): string {
   return 'desktop';
 }
 
+function buildConfigFromPayload(payload: any): Record<string, any> | null {
+  const config: Record<string, any> = {};
+  if (payload?.cpus) config.processador = payload.cpus;
+  if (payload?.memory) config.memoria_ram = payload.memory;
+  if (payload?.disks) config.armazenamento = payload.disks;
+  if (payload?.intIpAddress) config.ip_interno = payload.intIpAddress;
+  if (payload?.extIpAddress) config.ip_externo = payload.extIpAddress;
+  if (payload?.domain) config.dominio = payload.domain;
+  if (payload?.platform) config.plataforma = payload.platform;
+  if (payload?.last_user) config.ultimo_usuario = payload.last_user;
+  if (payload?.antivirus_product) config.antivirus = payload.antivirus_product;
+  if (payload?.patchStatus) config.patch_status = payload.patchStatus;
+  if (payload?.last_reboot) config.ultimo_reboot = payload.last_reboot;
+  if (payload?.device_description) config.descricao_dispositivo = payload.device_description;
+  return Object.keys(config).length > 0 ? config : null;
+}
+
+function buildObsFromPayload(payload: any, siteName: string): string {
+  const parts = [`Ativo cadastrado automaticamente via batch Datto RMM.`];
+  if (siteName) parts.push(`Site: ${siteName}.`);
+  if (payload?.device_os) parts.push(`SO: ${payload.device_os}.`);
+  if (payload?.platform) parts.push(`Plataforma: ${payload.platform}.`);
+  if (payload?.last_user) parts.push(`Último usuário: ${payload.last_user}.`);
+  if (payload?.intIpAddress) parts.push(`IP: ${payload.intIpAddress}.`);
+  return parts.join(' ');
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -77,10 +104,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Get all unique devices without asset_id
+    // Get all unique devices without asset_id, including raw_payload for hardware data
     const { data: unlinkedAlerts } = await supabase
       .from('datto_alerts_log')
-      .select('device_id, device_hostname, site_name')
+      .select('device_id, device_hostname, site_name, raw_payload')
       .is('asset_id', null);
 
     if (!unlinkedAlerts || unlinkedAlerts.length === 0) {
@@ -89,8 +116,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    // Deduplicate by device_id
-    const uniqueDevices = new Map<string, { device_id: string; device_hostname: string; site_name: string }>();
+    // Deduplicate by device_id, keeping the most data-rich alert
+    const uniqueDevices = new Map<string, { device_id: string; device_hostname: string; site_name: string; raw_payload: any }>();
     for (const alert of unlinkedAlerts) {
       if (alert.device_id && !uniqueDevices.has(alert.device_id)) {
         uniqueDevices.set(alert.device_id, alert);
@@ -113,7 +140,36 @@ Deno.serve(async (req: Request): Promise<Response> => {
         .maybeSingle();
 
       if (existingByDeviceId) {
-        // Asset exists, just link alerts
+        // Asset exists, link alerts + enrich missing fields
+        const payload = device.raw_payload || {};
+        const enrichUpdate: Record<string, any> = {
+          datto_last_sync: new Date().toISOString(),
+        };
+        
+        // Check and enrich missing fields
+        const { data: currentAsset } = await supabase
+          .from('assets')
+          .select('sistema_operacional, numero_serie, configuracoes')
+          .eq('id', existingByDeviceId.id)
+          .single();
+
+        if (currentAsset) {
+          if (!currentAsset.sistema_operacional && payload.device_os) {
+            enrichUpdate.sistema_operacional = payload.device_os;
+          }
+          if (!currentAsset.numero_serie && payload.device_serial_number) {
+            enrichUpdate.numero_serie = payload.device_serial_number;
+          }
+          const newConfig = buildConfigFromPayload(payload);
+          if (newConfig) {
+            enrichUpdate.configuracoes = { ...(currentAsset.configuracoes || {}), ...newConfig };
+          }
+        }
+
+        if (Object.keys(enrichUpdate).length > 1) {
+          await supabase.from('assets').update(enrichUpdate).eq('id', existingByDeviceId.id);
+        }
+
         await supabase
           .from('datto_alerts_log')
           .update({ asset_id: existingByDeviceId.id })
@@ -178,8 +234,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
         continue;
       }
 
-      // Create asset
+      // Create asset with enriched data
       const tipo = inferAssetType(device.device_hostname || '');
+      const payload = device.raw_payload || {};
+      const configuracoes = buildConfigFromPayload(payload);
       const { data: newAsset, error: assetError } = await supabase
         .from('assets')
         .insert({
@@ -190,7 +248,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
           datto_device_id: deviceId,
           datto_status: 'online',
           datto_last_sync: new Date().toISOString(),
-          observacoes: `Ativo cadastrado automaticamente via batch Datto RMM. Site: ${device.site_name}`,
+          sistema_operacional: payload.device_os || null,
+          numero_serie: payload.device_serial_number || null,
+          configuracoes: configuracoes,
+          observacoes: buildObsFromPayload(payload, device.site_name),
         })
         .select('id')
         .single();
