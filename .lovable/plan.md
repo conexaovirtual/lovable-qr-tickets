@@ -1,66 +1,27 @@
 
 
-# Plano: Melhorias no Atendimento Automático por IA do WhatsApp
+## Atualização do Número do WhatsApp
 
-## Problemas Identificados
+O número de atendimento da Conexão Virtual para os QR Codes das etiquetas e notificações precisa ser **62 9 8451-5801** (5562984515801), não o número atual (5562999522470).
 
-1. **Respostas genéricas**: A base de conhecimento é carregada com `LIMIT 10` sem relevância — pega artigos aleatórios, não os mais relevantes para a pergunta do cliente.
-2. **Sem contexto de ativos**: A IA não consulta os ativos (equipamentos) da empresa do cliente.
-3. **Sem histórico de atendimentos**: A IA não acessa atendimentos diários anteriores para aprender padrões.
-4. **Modelo desatualizado**: Usa `gemini-2.5-flash` ao invés de `gemini-3-flash-preview` (mais recente e capaz).
-5. **Tools limitadas**: Faltam ferramentas para consultar ativos, listar atendimentos recentes e buscar na base de conhecimento por palavra-chave.
-6. **Escalonamento rígido**: Não há opção de escalonamento parcial (ex: encaminhar mas manter IA ativa para acompanhar).
-7. **Sem confirmação do cliente**: A IA cria tickets sem pedir confirmação ao cliente.
-8. **Sem prioridade inteligente**: Tickets criados pela IA são sempre "novo" sem classificação de urgência.
+### O que será atualizado
 
----
+1. **Plano de implementação das etiquetas** — o QR Code WhatsApp apontará para `wa.me/5562984515801` em vez do número antigo
 
-## Implementação
+2. **`datto-rmm-webhook/index.ts`** — atualizar `TECNICO_PHONE` de `5562999522470` para `5562984515801` (notificações de alerta Datto)
 
-### 1. Context Gathering aprimorado (`waba-ai-agent`)
+3. **`waba-ai-agent/index.ts`** — atualizar `TECNICO_PHONE` de `5562999522470` para `5562984515801` (escalonamento de tickets)
 
-- Buscar artigos da base de conhecimento **relevantes à mensagem** usando busca por texto (`ilike` nos campos `problema`, `solucao`, `tags`)
-- Consultar **ativos da empresa** (últimos 20 ativos com nome, tipo, status)
-- Consultar **últimos 10 atendimentos diários** da empresa para contexto histórico
-- Consultar **nome do técnico** atribuído aos tickets abertos (join com profiles)
+4. **Novo componente `AssetLabelPrint.tsx`** — criar etiqueta 50x50mm com QR Code apontando para `wa.me/5562984515801?text=[ASSET:uuid] Suporte: NomeMaquina - Local`
 
-### 2. Novas tools para a IA
+5. **Detecção de `[ASSET:uuid]` no `waba-ai-agent`** — reconhecer o tag na mensagem recebida, buscar dados do ativo e histórico, contextualizar o atendimento
 
-- `search_knowledge_base`: Busca artigos por palavra-chave (a IA pode buscar ativamente ao invés de depender do contexto estático)
-- `list_company_assets`: Lista ativos da empresa com filtro por tipo/status
-- `update_ticket_priority`: Permite a IA classificar urgência/impacto ao criar tickets
-- `add_ticket_comment`: Permite a IA adicionar comentários de follow-up a tickets existentes
+6. **Botão "Imprimir Etiqueta"** no `AssetCard.tsx`
 
-### 3. System Prompt melhorado
+### Confirmação
 
-- Adicionar contexto de ativos e histórico de atendimentos
-- Instruir IA a **confirmar com o cliente** antes de criar tickets
-- Instruir IA a **classificar urgência** baseada nos sintomas
-- Adicionar fluxo de escalonamento gradual: primeiro tenta resolver, depois sugere ticket, só escalona se necessário
-- Instruir IA a usar `search_knowledge_base` proativamente
+- O número **62 9 8451-5801** é o número de atendimento da Conexão Virtual (o que recebe mensagens dos clientes)
+- O número antigo (62 9 9952-2470) é o do técnico José Pereira — será mantido apenas se houver necessidade de notificação direta ao técnico
 
-### 4. Ticket creation inteligente
-
-- Ao criar ticket, incluir campos `impacto` e `urgencia` baseados na análise da IA
-- Vincular o `contact_name` do WhatsApp como `solicitante_nome`
-- Tentar identificar o ativo mencionado na conversa e vincular ao ticket
-
-### 5. Upgrade do modelo
-
-- Mudar de `gemini-2.5-flash` para `gemini-3-flash-preview`
-
-### 6. Fluxo de escalonamento melhorado
-
-- Novo tool `partial_escalate`: Notifica técnico mas mantém IA ativa como copiloto
-- Ao escalonar, a IA envia resumo estruturado do problema para o técnico (contexto, tentativas, classificação)
-
----
-
-## Arquivos a editar
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `supabase/functions/waba-ai-agent/index.ts` | Reescrever `gatherContext`, `buildSystemPrompt`, `getTools`, `handleToolCalls`; upgrade modelo |
-
-Nenhuma migração de banco necessária — todas as tabelas já existem.
+Preciso confirmar: o número antigo (9 9952-2470) ainda deve ser usado para notificar o técnico nos alertas Datto, ou tudo deve ir para o 9 8451-5801?
 
