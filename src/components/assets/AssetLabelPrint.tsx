@@ -5,6 +5,7 @@ interface AssetLabelPrintProps {
   assets: Array<{
     id: string;
     nome: string;
+    tag_patrimonial?: string | null;
     local?: string | null;
     company?: { nome_fantasia?: string; logo_url?: string | null } | null;
   }>;
@@ -12,10 +13,12 @@ interface AssetLabelPrintProps {
 }
 
 const WHATSAPP_NUMBER = '5562984515801';
+const CANVAS_SIZE = 591; // 50mm at 300dpi
 
 export function AssetLabelPrint({ assets, onClose }: AssetLabelPrintProps) {
   const [qrCodes, setQrCodes] = useState<Record<string, string>>({});
   const printRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const generateQRCodes = async () => {
@@ -24,7 +27,7 @@ export function AssetLabelPrint({ assets, onClose }: AssetLabelPrintProps) {
         const message = `[ASSET:${asset.id}] Suporte: ${asset.nome}${asset.local ? ` - ${asset.local}` : ''}`;
         const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
         codes[asset.id] = await QRCode.toDataURL(url, {
-          width: 200,
+          width: 400,
           margin: 1,
           color: { dark: '#000000', light: '#ffffff' },
         });
@@ -33,6 +36,141 @@ export function AssetLabelPrint({ assets, onClose }: AssetLabelPrintProps) {
     };
     generateQRCodes();
   }, [assets]);
+
+  const loadImage = (src: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+      img.src = src;
+    });
+  };
+
+  const handleExportPNG = async (asset: typeof assets[0]) => {
+    const qr = qrCodes[asset.id];
+    if (!qr) return;
+
+    setExporting(true);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = CANVAS_SIZE;
+      canvas.height = CANVAS_SIZE;
+      const ctx = canvas.getContext('2d')!;
+
+      // Background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+      let yPos = 20;
+
+      // Logo
+      const logoSrc = asset.company?.logo_url || '/logo-conexaovirtual.png';
+      try {
+        const logoImg = await loadImage(logoSrc);
+        const maxLogoW = 200;
+        const maxLogoH = 70;
+        const ratio = Math.min(maxLogoW / logoImg.width, maxLogoH / logoImg.height);
+        const logoW = logoImg.width * ratio;
+        const logoH = logoImg.height * ratio;
+        ctx.drawImage(logoImg, (CANVAS_SIZE - logoW) / 2, yPos, logoW, logoH);
+        yPos += logoH + 15;
+      } catch {
+        // Fallback: try default logo
+        try {
+          const fallback = await loadImage('/logo-conexaovirtual.png');
+          const ratio = Math.min(200 / fallback.width, 70 / fallback.height);
+          const w = fallback.width * ratio;
+          const h = fallback.height * ratio;
+          ctx.drawImage(fallback, (CANVAS_SIZE - w) / 2, yPos, w, h);
+          yPos += h + 15;
+        } catch {
+          yPos += 30;
+        }
+      }
+
+      // Asset name
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 28px Arial, Helvetica, sans-serif';
+      ctx.textAlign = 'center';
+      const name = asset.nome;
+      if (ctx.measureText(name).width > CANVAS_SIZE - 40) {
+        ctx.font = 'bold 22px Arial, Helvetica, sans-serif';
+      }
+      // Wrap text if needed
+      const words = name.split(' ');
+      let line = '';
+      const lines: string[] = [];
+      for (const word of words) {
+        const test = line ? `${line} ${word}` : word;
+        if (ctx.measureText(test).width > CANVAS_SIZE - 40) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+      if (line) lines.push(line);
+
+      for (const l of lines.slice(0, 2)) {
+        ctx.fillText(l, CANVAS_SIZE / 2, yPos + 28);
+        yPos += 32;
+      }
+      yPos += 5;
+
+      // Location
+      if (asset.local) {
+        ctx.font = '20px Arial, Helvetica, sans-serif';
+        ctx.fillStyle = '#555555';
+        ctx.fillText(asset.local, CANVAS_SIZE / 2, yPos + 20);
+        yPos += 30;
+      }
+
+      // QR Code
+      try {
+        const qrImg = await loadImage(qr);
+        const qrSize = 280;
+        const qrX = (CANVAS_SIZE - qrSize) / 2;
+        const qrY = Math.max(yPos + 5, (CANVAS_SIZE - qrSize) / 2 + 20);
+        ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+        yPos = qrY + qrSize + 10;
+      } catch {
+        // QR failed
+      }
+
+      // Footer
+      ctx.font = '16px Arial, Helvetica, sans-serif';
+      ctx.fillStyle = '#666666';
+      ctx.fillText('Escaneie para suporte via WhatsApp', CANVAS_SIZE / 2, Math.min(yPos + 16, CANVAS_SIZE - 10));
+
+      // Export
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const fileName = asset.tag_patrimonial
+          ? `etiqueta-${asset.tag_patrimonial}.png`
+          : `etiqueta-${asset.id.slice(0, 8)}.png`;
+        a.download = fileName;
+        a.href = url;
+        a.click();
+        URL.revokeObjectURL(url);
+        setExporting(false);
+      }, 'image/png');
+    } catch {
+      setExporting(false);
+    }
+  };
+
+  const handleExportAllPNG = async () => {
+    setExporting(true);
+    for (const asset of assets) {
+      await handleExportPNG(asset);
+      // Small delay between downloads
+      await new Promise(r => setTimeout(r, 300));
+    }
+    setExporting(false);
+  };
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
@@ -129,7 +267,6 @@ export function AssetLabelPrint({ assets, onClose }: AssetLabelPrintProps) {
 
     printWindow.document.close();
     
-    // Wait for images to load before printing
     const images = printWindow.document.querySelectorAll('img');
     let loaded = 0;
     const totalImages = images.length;
@@ -146,7 +283,6 @@ export function AssetLabelPrint({ assets, onClose }: AssetLabelPrintProps) {
           setTimeout(() => printWindow.print(), 200);
         }
       };
-      // If already loaded
       if (img.complete) {
         loaded++;
         if (loaded >= totalImages) {
@@ -191,12 +327,19 @@ export function AssetLabelPrint({ assets, onClose }: AssetLabelPrintProps) {
         ))}
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 flex-wrap">
         <button
           onClick={onClose}
           className="px-4 py-2 text-sm border rounded-md hover:bg-muted"
         >
           Fechar
+        </button>
+        <button
+          onClick={handleExportAllPNG}
+          disabled={!allReady || exporting}
+          className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 disabled:opacity-50"
+        >
+          {exporting ? '⏳ Exportando...' : '📲 Exportar para Niimbot'}
         </button>
         <button
           onClick={handlePrint}
