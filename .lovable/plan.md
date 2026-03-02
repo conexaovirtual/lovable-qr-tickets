@@ -1,26 +1,46 @@
 
 
-## Etiqueta de Inventário 50x50mm — Implementado ✅
+## Diagnóstico: Tickets Datto NÃO estão sendo criados
 
-### O que foi feito
+### Causa Raiz
 
-1. **Componente `AssetLabelPrint.tsx`** — etiqueta 50x50mm para impressora Niimbot com:
-   - Logo da empresa (ou logo padrão Conexão Virtual)
-   - Nome do ativo
-   - Local do ativo
-   - QR Code WhatsApp apontando para `wa.me/5562984515801`
-   - Mensagem pré-formatada: `[ASSET:uuid] Suporte: NomeMaquina - Local`
+A tabela `tickets` possui uma constraint CHECK chamada `check_public_request_fields`:
 
-2. **Botão "Imprimir Etiqueta"** (ícone de impressora) no `AssetCard.tsx`
+```text
+Se public_request = false → solicitante_id NÃO PODE ser NULL
+Se public_request = true  → solicitante_nome e solicitante_contato NÃO PODEM ser NULL
+```
 
-3. **Número atualizado para 5562984515801** em:
-   - `datto-rmm-webhook/index.ts` (TECNICO_PHONE)
-   - `waba-ai-agent/index.ts` (TECNICO_PHONE)
+O webhook do Datto insere tickets com `public_request = false` (default), mas **NÃO define `solicitante_id`**. Resultado: **todas as 364 inserções falharam silenciosamente** por violar essa constraint.
 
-4. **Detecção de `[ASSET:uuid]`** no `waba-ai-agent`:
-   - Reconhece o tag na mensagem recebida
-   - Busca dados completos do ativo (nome, tipo, fabricante, modelo, local, etc.)
-   - Busca histórico de chamados do ativo (últimos 10)
-   - Auto-vincula o contato à empresa do ativo
-   - Injeta contexto no system prompt para a IA atender de forma contextualizada
-   - Instrui a IA a vincular automaticamente o `asset_id` ao abrir chamado
+### Evidência
+
+- 364 alertas HIGH/CRITICAL/WARNING registrados, **zero tickets criados** (`ticket_id = NULL` em todos)
+- Nenhum ticket com `canal = 'monitoramento'` existe no banco
+- Os ativos são encontrados/criados corretamente (todos têm `asset_id`)
+
+### Correção
+
+Adicionar `solicitante_id: TECNICO_ID` na inserção do ticket dentro de `datto-rmm-webhook/index.ts` (linha ~418). Como é um ticket gerado automaticamente pelo sistema, o técnico atribuído serve como solicitante.
+
+**Arquivo:** `supabase/functions/datto-rmm-webhook/index.ts`
+
+Na inserção do ticket (linhas 416-430), adicionar o campo `solicitante_id`:
+
+```typescript
+.insert({
+  company_id: asset.company_id,
+  titulo: `[DATTO] ${payload.alert_type || 'Alerta'}: ${payload.device_hostname || 'Dispositivo'}`,
+  descricao,
+  canal: 'monitoramento',
+  status: 'em_atendimento',
+  impacto: mapImpact(payload.alert_priority),
+  urgencia: mapUrgency(payload.alert_priority),
+  asset_id: asset.id,
+  tecnico_id: TECNICO_ID,
+  solicitante_id: TECNICO_ID,  // ← CORREÇÃO: campo obrigatório pela constraint
+})
+```
+
+Após a correção, re-deploy da função.
+
