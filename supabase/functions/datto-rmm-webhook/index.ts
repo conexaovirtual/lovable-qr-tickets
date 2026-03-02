@@ -280,8 +280,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Validate webhook secret
+    // Validate webhook secret (supports Authorization header or x-datto-secret header)
     const authHeader = req.headers.get('authorization');
+    const dattoSecretHeader = req.headers.get('x-datto-secret');
     const webhookSecret = Deno.env.get('DATTO_WEBHOOK_SECRET');
 
     if (!webhookSecret) {
@@ -292,7 +293,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    const token = authHeader?.replace('Bearer ', '');
+    const token = dattoSecretHeader || authHeader?.replace('Bearer ', '');
     if (token !== webhookSecret) {
       console.warn('Invalid webhook token received');
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
