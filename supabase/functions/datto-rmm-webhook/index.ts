@@ -23,6 +23,52 @@ interface DattoPayload {
   alert_priority?: string;
   platform?: string;
   last_user?: string;
+  // Extended hardware fields
+  device_type?: string;
+  device_serial_number?: string;
+  intIpAddress?: string;
+  extIpAddress?: string;
+  domain?: string;
+  patchStatus?: string;
+  cpus?: string;
+  memory?: string;
+  disks?: string;
+  antivirus_product?: string;
+  reboot_required?: boolean;
+  last_reboot?: string;
+}
+
+// Build hardware configuracoes object from payload
+function buildConfiguracoes(payload: DattoPayload): Record<string, any> {
+  const config: Record<string, any> = {};
+  if (payload.cpus) config.processador = payload.cpus;
+  if (payload.memory) config.memoria_ram = payload.memory;
+  if (payload.disks) config.armazenamento = payload.disks;
+  if (payload.intIpAddress) config.ip_interno = payload.intIpAddress;
+  if (payload.extIpAddress) config.ip_externo = payload.extIpAddress;
+  if (payload.domain) config.dominio = payload.domain;
+  if (payload.platform) config.plataforma = payload.platform;
+  if (payload.last_user) config.ultimo_usuario = payload.last_user;
+  if (payload.antivirus_product) config.antivirus = payload.antivirus_product;
+  if (payload.patchStatus) config.patch_status = payload.patchStatus;
+  if (payload.last_reboot) config.ultimo_reboot = payload.last_reboot;
+  if (payload.reboot_required !== undefined) config.reboot_pendente = payload.reboot_required;
+  if (payload.device_description) config.descricao_dispositivo = payload.device_description;
+  return Object.keys(config).length > 0 ? config : null as any;
+}
+
+// Build rich observacoes string
+function buildObservacoes(payload: DattoPayload, siteName: string, autoCreated: boolean): string {
+  const parts = [`Ativo criado automaticamente via Datto RMM.`];
+  if (siteName) parts.push(`Site: ${siteName}.`);
+  if (payload.device_os) parts.push(`SO: ${payload.device_os}.`);
+  if (payload.platform) parts.push(`Plataforma: ${payload.platform}.`);
+  if (payload.last_user) parts.push(`Último usuário: ${payload.last_user}.`);
+  if (payload.intIpAddress) parts.push(`IP interno: ${payload.intIpAddress}.`);
+  if (payload.extIpAddress) parts.push(`IP externo: ${payload.extIpAddress}.`);
+  if (payload.domain) parts.push(`Domínio: ${payload.domain}.`);
+  if (autoCreated) parts.push('(Empresa também criada automaticamente)');
+  return parts.join(' ');
 }
 
 function mapPriority(dattoP: string | undefined): string {
@@ -183,7 +229,8 @@ Responda APENAS com o ID da empresa encontrada, ou "NONE" se nenhuma for compat�
       tipo = 'roteador';
     }
 
-    // Create asset
+    // Create asset with enriched data
+    const configuracoes = buildConfiguracoes(payload);
     const { data: newAsset, error: assetError } = await supabase
       .from('assets')
       .insert({
@@ -197,7 +244,9 @@ Responda APENAS com o ID da empresa encontrada, ou "NONE" se nenhuma for compat�
         datto_status: 'online',
         datto_last_sync: new Date().toISOString(),
         sistema_operacional: payload.device_os || null,
-        observacoes: `Ativo criado automaticamente via Datto RMM. Site: ${siteName}. ${autoCreated ? '(Empresa também criada automaticamente)' : ''}`,
+        numero_serie: payload.device_serial_number || null,
+        configuracoes: configuracoes,
+        observacoes: buildObservacoes(payload, siteName, autoCreated),
       })
       .select('id, company_id, nome, estado')
       .single();
@@ -294,18 +343,42 @@ Deno.serve(async (req: Request): Promise<Response> => {
       asset = await autoLinkOrCreateAsset(supabase, payload);
     }
 
-    // Update asset datto status
+    // Update asset datto status + enrich missing fields
     if (asset) {
       const dattoStatus = payload.alertlevel === 'triggered' ? 'alert' : 'online';
+      const updateData: Record<string, any> = {
+        datto_status: dattoStatus,
+        datto_last_sync: new Date().toISOString(),
+        datto_device_id: payload.device_id || undefined,
+        datto_device_uid: payload.device_uid || undefined,
+        datto_site_id: payload.site_id || undefined,
+      };
+
+      // Enrich existing asset with missing data
+      const { data: currentAsset } = await supabase
+        .from('assets')
+        .select('sistema_operacional, numero_serie, configuracoes')
+        .eq('id', asset.id)
+        .single();
+
+      if (currentAsset) {
+        if (!currentAsset.sistema_operacional && payload.device_os) {
+          updateData.sistema_operacional = payload.device_os;
+        }
+        if (!currentAsset.numero_serie && payload.device_serial_number) {
+          updateData.numero_serie = payload.device_serial_number;
+        }
+        // Merge configuracoes: keep existing, add new fields
+        const newConfig = buildConfiguracoes(payload);
+        if (newConfig) {
+          const merged = { ...(currentAsset.configuracoes || {}), ...newConfig };
+          updateData.configuracoes = merged;
+        }
+      }
+
       await supabase
         .from('assets')
-        .update({
-          datto_status: dattoStatus,
-          datto_last_sync: new Date().toISOString(),
-          datto_device_id: payload.device_id || undefined,
-          datto_device_uid: payload.device_uid || undefined,
-          datto_site_id: payload.site_id || undefined,
-        })
+        .update(updateData)
         .eq('id', asset.id);
     }
 
@@ -356,7 +429,13 @@ Seja conciso (máx 150 palavras). Responda apenas o texto.`
 Categoria: ${payload.alert_category || 'N/A'}
 Mensagem: ${payload.alert_message || 'N/A'}
 Dispositivo: ${payload.device_hostname || 'N/A'} (${payload.device_os || 'N/A'})
-Prioridade: ${payload.alert_priority || 'N/A'}`
+Plataforma: ${payload.platform || 'N/A'}
+IP Interno: ${payload.intIpAddress || 'N/A'}
+IP Externo: ${payload.extIpAddress || 'N/A'}
+Último Usuário: ${payload.last_user || 'N/A'}
+Domínio: ${payload.domain || 'N/A'}
+Prioridade: ${payload.alert_priority || 'N/A'}
+Reboot Pendente: ${payload.reboot_required ? 'Sim' : 'Não'}`
                     }
                   ],
                   temperature: 0.3,
@@ -371,11 +450,15 @@ Prioridade: ${payload.alert_priority || 'N/A'}`
                     `🔔 Alerta automático do Datto RMM`,
                     ``,
                     `**Dispositivo:** ${payload.device_hostname || 'N/A'}`,
-                    `**IP:** ${payload.device_ip || 'N/A'}`,
+                    `**IP Interno:** ${payload.intIpAddress || payload.device_ip || 'N/A'}`,
+                    `**IP Externo:** ${payload.extIpAddress || 'N/A'}`,
                     `**SO:** ${payload.device_os || 'N/A'}`,
+                    `**Plataforma:** ${payload.platform || 'N/A'}`,
                     `**Site:** ${payload.site_name || 'N/A'}`,
+                    `**Domínio:** ${payload.domain || 'N/A'}`,
                     `**Tipo de Alerta:** ${payload.alert_type || 'N/A'}`,
                     `**Categoria:** ${payload.alert_category || 'N/A'}`,
+                    payload.reboot_required ? `⚠️ **Reboot pendente!**` : '',
                     ``,
                     `**Mensagem Original:** ${payload.alert_message || 'Sem detalhes'}`,
                     ``,
@@ -384,7 +467,7 @@ Prioridade: ${payload.alert_priority || 'N/A'}`
                     aiText,
                     ``,
                     `_Último usuário logado: ${payload.last_user || 'N/A'}_`,
-                  ].join('\n');
+                  ].filter(Boolean).join('\n');
                 }
               }
             }
@@ -398,16 +481,20 @@ Prioridade: ${payload.alert_priority || 'N/A'}`
               `🔔 Alerta automático do Datto RMM`,
               ``,
               `**Dispositivo:** ${payload.device_hostname || 'N/A'}`,
-              `**IP:** ${payload.device_ip || 'N/A'}`,
+              `**IP Interno:** ${payload.intIpAddress || payload.device_ip || 'N/A'}`,
+              `**IP Externo:** ${payload.extIpAddress || 'N/A'}`,
               `**SO:** ${payload.device_os || 'N/A'}`,
+              `**Plataforma:** ${payload.platform || 'N/A'}`,
               `**Site:** ${payload.site_name || 'N/A'}`,
+              `**Domínio:** ${payload.domain || 'N/A'}`,
               `**Tipo de Alerta:** ${payload.alert_type || 'N/A'}`,
               `**Categoria:** ${payload.alert_category || 'N/A'}`,
+              payload.reboot_required ? `⚠️ **Reboot pendente!**` : '',
               ``,
               `**Mensagem:** ${payload.alert_message || 'Sem detalhes'}`,
               ``,
               `_Último usuário logado: ${payload.last_user || 'N/A'}_`,
-            ].join('\n');
+            ].filter(Boolean).join('\n');
           }
 
           const TECNICO_ID = 'e336e78e-c11a-48b5-8d69-2bb48cf6bb3b';
