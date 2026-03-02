@@ -388,7 +388,44 @@ async function gatherContext(supabase: any, phone: string, message: string) {
     recentServices = servicesResult.data || [];
   }
 
-  return { articles: allArticles, contact, openTickets, visits, assets, recentServices, companyId, assetFromTag, assetTicketHistory };
+  // ─── Gather today's agenda (global, not company-specific) ──────
+  const todayStr = new Date().toISOString().split("T")[0];
+  let todayAgenda: any[] = [];
+  try {
+    const [todayOsResult, todayVisitsResult] = await Promise.all([
+      supabase
+        .from("service_orders")
+        .select("numero_os, descricao_servicos, hora_agendada, modalidade, tipo_servico, status, prioridade, companies:company_id(nome_fantasia)")
+        .gte("data_agendada", `${todayStr}T00:00:00`)
+        .lte("data_agendada", `${todayStr}T23:59:59`)
+        .order("hora_agendada"),
+      supabase
+        .from("visit_schedules")
+        .select("proxima_visita, motivo, prioridade, companies:company_id(nome_fantasia)")
+        .eq("proxima_visita", todayStr)
+        .eq("status", "pendente"),
+    ]);
+    todayAgenda = [
+      ...(todayOsResult.data || []).map((o: any) => ({
+        type: "OS",
+        hora: o.hora_agendada?.substring(0, 5) || "--:--",
+        descricao: `OS #${o.numero_os} - ${o.companies?.nome_fantasia || "N/A"} (${o.tipo_servico || "corretivo"}, ${o.modalidade || "presencial"})`,
+        status: o.status,
+        prioridade: o.prioridade,
+      })),
+      ...(todayVisitsResult.data || []).map((v: any) => ({
+        type: "Visita",
+        hora: "--:--",
+        descricao: `Visita - ${v.companies?.nome_fantasia || "N/A"} (${v.motivo})`,
+        status: "pendente",
+        prioridade: v.prioridade,
+      })),
+    ].sort((a, b) => a.hora.localeCompare(b.hora));
+  } catch (e) {
+    console.error("Error fetching today's agenda:", e);
+  }
+
+  return { articles: allArticles, contact, openTickets, visits, assets, recentServices, companyId, assetFromTag, assetTicketHistory, todayAgenda };
 }
 
 // ─── System Prompt (Enhanced) ────────────────────────────────────────
@@ -478,7 +515,8 @@ CAPACIDADES:
 9. ADICIONAR COMENTÁRIOS a chamados existentes
 10. INFORMAR sobre visitas agendadas
 11. ESCALONAR para técnico (total ou parcial)
-
+12. CONSULTAR AGENDA: verificar compromissos de qualquer dia (use check_agenda)
+13. CRIAR AGENDAMENTO: agendar atendimentos e compromissos (use create_schedule)
 ═══════════════════════════════════════
 BASE DE CONHECIMENTO (artigos relevantes):
 ═══════════════════════════════════════
@@ -503,6 +541,13 @@ ${servicesText || "Sem atendimentos recentes."}
 VISITAS AGENDADAS:
 ═══════════════════════════════════════
 ${visitsText || "Nenhuma visita agendada."}
+
+═══════════════════════════════════════
+📅 AGENDA DE HOJE:
+═══════════════════════════════════════
+${(context.todayAgenda || []).length > 0
+  ? (context.todayAgenda || []).map((a: any) => `• ${a.hora} - ${a.descricao} (${a.status}, ${a.prioridade})`).join("\n")
+  : "Nenhum compromisso agendado para hoje."}
 
 ═══════════════════════════════════════
 REGRAS DE CONDUTA:
@@ -792,6 +837,40 @@ function getTools() {
             setor: { type: "string", description: "Setor onde o equipamento fica (ex: Recepção, TI, Financeiro) - opcional" },
           },
           required: ["company_id", "nome", "tipo"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "check_agenda",
+        description: "Consulta a agenda de compromissos (OS, tickets, visitas) para uma data específica. Se não informar data, usa hoje.",
+        parameters: {
+          type: "object",
+          properties: {
+            data: { type: "string", description: "Data no formato YYYY-MM-DD (opcional, padrão: hoje)" },
+          },
+          required: [],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "create_schedule",
+        description: "Cria um novo agendamento (ordem de serviço) usando o Smart Scheduler. Útil para agendar atendimentos e compromissos.",
+        parameters: {
+          type: "object",
+          properties: {
+            titulo: { type: "string", description: "Título do agendamento" },
+            descricao: { type: "string", description: "Descrição do que será feito" },
+            data: { type: "string", description: "Data desejada no formato YYYY-MM-DD" },
+            company_id: { type: "string", description: "UUID da empresa (opcional)" },
+            tipo_servico: { type: "string", description: "Tipo: preventivo, corretivo, instalacao, outro" },
+          },
+          required: ["titulo", "descricao", "data"],
           additionalProperties: false,
         },
       },
@@ -1316,6 +1395,131 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
         } else {
           result = { success: true, asset_id: newAsset.id, nome: newAsset.nome, tipo: newAsset.tipo };
           console.log(`Asset "${newAsset.nome}" (${newAsset.tipo}) registered for company ${args.company_id}`);
+        }
+        break;
+      }
+
+      case "check_agenda": {
+        const targetDate = args.data || new Date().toISOString().split("T")[0];
+        const [osRes, visitRes, dailyRes] = await Promise.all([
+          supabase
+            .from("service_orders")
+            .select("numero_os, descricao_servicos, hora_agendada, modalidade, tipo_servico, status, prioridade, companies:company_id(nome_fantasia)")
+            .gte("data_agendada", `${targetDate}T00:00:00`)
+            .lte("data_agendada", `${targetDate}T23:59:59`)
+            .order("hora_agendada"),
+          supabase
+            .from("visit_schedules")
+            .select("proxima_visita, motivo, prioridade, status, companies:company_id(nome_fantasia)")
+            .eq("proxima_visita", targetDate),
+          supabase
+            .from("daily_service_records")
+            .select("titulo, status, hora_inicio, canal, companies:company_id(nome_fantasia)")
+            .eq("data_atendimento", targetDate),
+        ]);
+
+        result = {
+          data: targetDate,
+          os_agendadas: (osRes.data || []).map((o: any) => ({
+            numero: o.numero_os,
+            hora: o.hora_agendada?.substring(0, 5) || "--:--",
+            empresa: o.companies?.nome_fantasia || "N/A",
+            tipo: o.tipo_servico,
+            modalidade: o.modalidade,
+            status: o.status,
+            descricao: o.descricao_servicos?.substring(0, 80),
+          })),
+          visitas: (visitRes.data || []).map((v: any) => ({
+            empresa: v.companies?.nome_fantasia || "N/A",
+            motivo: v.motivo,
+            prioridade: v.prioridade,
+            status: v.status,
+          })),
+          atendimentos: (dailyRes.data || []).map((d: any) => ({
+            titulo: d.titulo,
+            empresa: d.companies?.nome_fantasia || "N/A",
+            hora: d.hora_inicio?.substring(0, 5),
+            status: d.status,
+          })),
+          total: (osRes.data?.length || 0) + (visitRes.data?.length || 0) + (dailyRes.data?.length || 0),
+        };
+        console.log(`check_agenda for ${targetDate}: ${result.total} items`);
+        break;
+      }
+
+      case "create_schedule": {
+        const TECNICO_ID_SCHED = "e336e78e-c11a-48b5-8d69-2bb48cf6bb3b";
+        try {
+          // Use Smart Scheduler to find best slot
+          const schedulerResponse = await fetch(
+            `${Deno.env.get("SUPABASE_URL")}/functions/v1/smart-scheduler`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+              },
+              body: JSON.stringify({
+                tecnico_id: TECNICO_ID_SCHED,
+                description: `${args.titulo} ${args.descricao}`,
+                prioridade: "media",
+                preferred_date: args.data,
+              }),
+            }
+          );
+
+          if (!schedulerResponse.ok) {
+            result = { success: false, error: "Smart Scheduler indisponível" };
+            break;
+          }
+
+          const slot = await schedulerResponse.json();
+          if (!slot.success) {
+            result = { success: false, error: "Nenhum slot disponível para esta data" };
+            break;
+          }
+
+          const { data: lastOs } = await supabase
+            .from("service_orders")
+            .select("numero_os")
+            .order("numero_os", { ascending: false })
+            .limit(1);
+          const nextNumber = (lastOs?.[0]?.numero_os || 0) + 1;
+
+          const companyId = args.company_id || context.companyId || null;
+
+          const { data: os, error: osErr } = await supabase
+            .from("service_orders")
+            .insert({
+              company_id: companyId || "00000000-0000-0000-0000-000000000001",
+              tecnico_id: TECNICO_ID_SCHED,
+              tipo_servico: args.tipo_servico || "corretivo",
+              prioridade: "media",
+              modalidade: slot.modalidade,
+              descricao_servicos: `${args.titulo}\n\n${args.descricao}`,
+              data_agendada: `${slot.data}T${slot.hora_inicio}:00`,
+              hora_agendada: slot.hora_inicio,
+              status: "agendada",
+              numero_os: nextNumber,
+              observacoes: "Agendado via WhatsApp IA",
+            })
+            .select("id, numero_os")
+            .single();
+
+          if (osErr) {
+            result = { success: false, error: osErr.message };
+          } else {
+            result = {
+              success: true,
+              numero_os: os.numero_os,
+              data: slot.data,
+              hora: `${slot.hora_inicio}-${slot.hora_fim}`,
+              modalidade: slot.modalidade,
+            };
+            console.log(`Schedule created: OS #${os.numero_os} on ${slot.data} at ${slot.hora_inicio}`);
+          }
+        } catch (schedErr: any) {
+          result = { success: false, error: schedErr.message };
         }
         break;
       }
