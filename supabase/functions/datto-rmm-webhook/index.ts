@@ -315,6 +315,52 @@ Deno.serve(async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    // ─── Deduplication: skip if same alert_uid was processed in last 5 minutes ───
+    if (payload.alert_uid) {
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const { data: recentDup } = await supabase
+        .from('datto_alerts_log')
+        .select('id')
+        .eq('alert_uid', payload.alert_uid)
+        .gte('created_at', fiveMinAgo)
+        .maybeSingle();
+
+      if (recentDup) {
+        console.log(`Duplicate webhook detected (alert_uid: ${payload.alert_uid}), skipping`);
+        return new Response(JSON.stringify({ ok: true, skipped: true, reason: 'duplicate' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // ─── Log the alert immediately to prevent race conditions ───────────
+    const { data: alertLog } = await supabase
+      .from('datto_alerts_log')
+      .insert({
+        alert_uid: payload.alert_uid || null,
+        device_id: payload.device_id || null,
+        device_hostname: payload.device_hostname || null,
+        device_ip: payload.device_ip || null,
+        site_name: payload.site_name || null,
+        alert_type: payload.alert_type || null,
+        alert_category: payload.alert_category || null,
+        alert_message: payload.alert_message || null,
+        alert_priority: payload.alert_priority || null,
+        raw_payload: payload as any,
+        processed: false,
+      })
+      .select('id')
+      .single();
+
+    if (!alertLog) {
+      console.error('Failed to insert alert log (possible duplicate)');
+      return new Response(JSON.stringify({ ok: true, skipped: true, reason: 'insert_failed' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const alertLogId = alertLog.id;
+
     // ─── Find or auto-create asset + company ───────────────────────────
     let asset = null;
 
@@ -389,19 +435,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const shouldCreateTicket = priority === 'critical' || priority === 'high' || priority === 'warning';
 
     if (shouldCreateTicket && asset) {
-      // Check for duplicate alert (same alert_uid in last hour)
-      if (payload.alert_uid) {
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-        const { data: existing } = await supabase
-          .from('datto_alerts_log')
-          .select('id')
-          .eq('alert_uid', payload.alert_uid)
-          .gte('created_at', oneHourAgo)
-          .maybeSingle();
-
-        if (existing) {
-          console.log('Duplicate alert within 1 hour, skipping ticket creation');
-        } else {
           // Enrich alert with AI
           let descricao = '';
           try {
@@ -661,29 +694,17 @@ Reboot Pendente: ${payload.reboot_required ? 'Sim' : 'Não'}`
               console.error('WhatsApp notification error (non-fatal):', waErr);
             }
           }
-        }
-      }
     } else if (shouldCreateTicket && !asset) {
       // Asset auto-creation failed - log warning
       console.warn('Could not auto-create asset for device:', payload.device_hostname);
     }
 
-    // Log the alert
-    await supabase.from('datto_alerts_log').insert({
-      alert_uid: payload.alert_uid,
-      device_id: payload.device_id,
+    // Update the alert log with asset/ticket references
+    await supabase.from('datto_alerts_log').update({
       asset_id: asset?.id || null,
       ticket_id: ticketId,
-      alert_type: payload.alert_type,
-      alert_category: payload.alert_category,
-      alert_message: payload.alert_message,
-      alert_priority: payload.alert_priority,
-      device_hostname: payload.device_hostname,
-      device_ip: payload.device_ip,
-      site_name: payload.site_name,
-      raw_payload: payload as any,
       processed: true,
-    });
+    }).eq('id', alertLogId);
 
     return new Response(
       JSON.stringify({
