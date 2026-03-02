@@ -927,6 +927,7 @@ export type Database = {
           latitude_inicio: number | null
           longitude_fim: number | null
           longitude_inicio: number | null
+          modalidade: string | null
           notified_at: string | null
           numero_os: number
           observacoes: string | null
@@ -961,6 +962,7 @@ export type Database = {
           latitude_inicio?: number | null
           longitude_fim?: number | null
           longitude_inicio?: number | null
+          modalidade?: string | null
           notified_at?: string | null
           numero_os: number
           observacoes?: string | null
@@ -995,6 +997,7 @@ export type Database = {
           latitude_inicio?: number | null
           longitude_fim?: number | null
           longitude_inicio?: number | null
+          modalidade?: string | null
           notified_at?: string | null
           numero_os?: number
           observacoes?: string | null

@@ -122,6 +122,31 @@ export function useVisitSchedule() {
     return (data?.[0]?.numero_os || 0) + 1;
   };
 
+  const getScheduledSlot = async (desiredDate: string): Promise<{ data: string; hora_inicio: string; hora_fim: string } | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('smart-scheduler', {
+        body: {
+          data_desejada: desiredDate,
+          modalidade: 'presencial', // Visitas preventivas são sempre presenciais
+          prioridade: 'media',
+        },
+      });
+
+      if (error) {
+        console.error('Smart scheduler error:', error);
+        return null;
+      }
+
+      if (data?.success) {
+        return { data: data.data, hora_inicio: data.hora_inicio, hora_fim: data.hora_fim };
+      }
+      return null;
+    } catch (err) {
+      console.error('Smart scheduler call failed:', err);
+      return null;
+    }
+  };
+
   const createServiceOrdersForVisits = async (visits: VisitPlan[]): Promise<{ visitCompanyId: string; osId: string }[]> => {
     const serviceOrders: { visitCompanyId: string; osId: string }[] = [];
     
@@ -133,6 +158,11 @@ export function useVisitSchedule() {
         .eq('id', visit.company_id)
         .single();
 
+      // Usar smart-scheduler para obter próximo slot disponível
+      const slot = await getScheduledSlot(visit.proxima_visita);
+      const scheduledDate = slot?.data || visit.proxima_visita;
+      const scheduledTime = slot?.hora_inicio || '09:00';
+
       const nextNumber = await getNextOsNumber();
 
       // Criar OS
@@ -142,14 +172,15 @@ export function useVisitSchedule() {
           company_id: visit.company_id,
           tipo_servico: 'preventivo',
           prioridade: mapPrioridade(visit.prioridade),
+          modalidade: 'presencial',
           descricao_servicos: `Visita preventiva - ${visit.company_name}`,
-          data_agendada: `${visit.proxima_visita}T09:00:00`,
-          hora_agendada: '09:00',
+          data_agendada: `${scheduledDate}T${scheduledTime}:00`,
+          hora_agendada: scheduledTime,
           status: 'agendada',
           numero_os: nextNumber,
           endereco_atendimento: company?.endereco || null,
           telefone_contato: company?.telefone || null,
-          observacoes: `Visita gerada pelo Planejador de Visitas IA.\n\nJustificativa: ${visit.justificativa_ia}`,
+          observacoes: `Visita gerada pelo Planejador de Visitas IA.\nSlot: ${scheduledDate} ${scheduledTime}${slot ? `-${slot.hora_fim}` : ''}\n\nJustificativa: ${visit.justificativa_ia}`,
         })
         .select()
         .single();

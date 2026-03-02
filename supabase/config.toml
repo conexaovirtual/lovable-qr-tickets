@@ -67,3 +67,6 @@ verify_jwt = false
 
 [functions.datto-batch-provision]
 verify_jwt = false
+
+[functions.smart-scheduler]
+verify_jwt = false
