@@ -218,7 +218,9 @@ Regras:
       },
       body: JSON.stringify({
         number: JOSE_PHONE,
-        text: summary,
+        openTicket: "0",
+        queueId: "0",
+        body: summary,
       }),
     });
 
