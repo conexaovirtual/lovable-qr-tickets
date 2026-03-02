@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Activity, 
@@ -13,15 +11,16 @@ import {
   Building2,
   FileText,
   Loader2,
-  TrendingUp
+  TrendingUp,
+  CheckCircle2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
 
 interface Prediction {
   asset_id: string;
   asset_nome: string;
+  company_id: string;
   company_nome: string;
   probabilidade_falha: number;
   tipo_falha_prevista: string;
@@ -35,10 +34,11 @@ interface PredictiveMaintenanceCardProps {
 }
 
 export function PredictiveMaintenanceCard({ companyId }: PredictiveMaintenanceCardProps) {
-  const navigate = useNavigate();
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [creatingOS, setCreatingOS] = useState<Record<string, boolean>>({});
+  const [createdOS, setCreatedOS] = useState<Record<string, boolean>>({});
   const [stats, setStats] = useState({ criticos: 0, atencao: 0 });
 
   useEffect(() => {
@@ -48,12 +48,11 @@ export function PredictiveMaintenanceCard({ companyId }: PredictiveMaintenanceCa
   const loadPredictions = async () => {
     setLoading(true);
     try {
-      // Buscar previsões do cache
       let query = supabase
         .from('ai_predictions')
         .select(`
           *,
-          assets(nome, companies(nome_fantasia))
+          assets(nome, company_id, companies(id, nome_fantasia))
         `)
         .gte('valido_ate', new Date().toISOString())
         .order('probabilidade_falha', { ascending: false })
@@ -70,6 +69,7 @@ export function PredictiveMaintenanceCard({ companyId }: PredictiveMaintenanceCa
       const formattedPredictions = (data || []).map((p: any) => ({
         asset_id: p.asset_id,
         asset_nome: p.assets?.nome || 'Ativo',
+        company_id: p.assets?.company_id || p.assets?.companies?.id || '',
         company_nome: p.assets?.companies?.nome_fantasia || 'Empresa',
         probabilidade_falha: p.probabilidade_falha,
         tipo_falha_prevista: p.tipo_falha_prevista,
@@ -102,7 +102,6 @@ export function PredictiveMaintenanceCard({ companyId }: PredictiveMaintenanceCa
 
       toast.success(`${data.previsoes?.length || 0} ativos analisados`);
       
-      // Atualizar com dados da IA
       if (data.previsoes) {
         setPredictions(data.previsoes);
         setStats({
@@ -129,14 +128,84 @@ export function PredictiveMaintenanceCard({ companyId }: PredictiveMaintenanceCa
     return 'bg-green-500';
   };
 
-  const handleCreateOS = (prediction: Prediction) => {
-    navigate(`/service-orders/new`, {
-      state: {
-        assetId: prediction.asset_id,
-        tipo: 'preventivo',
-        descricao: `[Manutenção Preventiva - IA]\n\nAtivo: ${prediction.asset_nome}\nEmpresa: ${prediction.company_nome}\nProbabilidade de falha: ${prediction.probabilidade_falha}%\nTipo de falha prevista: ${prediction.tipo_falha_prevista}\nEstimativa: ${prediction.dias_estimados} dias\n\nRecomendação: ${prediction.recomendacao || 'N/A'}\n\nResumo do histórico: ${prediction.historico_resumo || 'N/A'}`,
-      }
-    });
+  const handleCreateOS = async (prediction: Prediction) => {
+    if (!prediction.company_id) {
+      toast.error('Empresa não encontrada para este ativo');
+      return;
+    }
+
+    setCreatingOS(prev => ({ ...prev, [prediction.asset_id]: true }));
+
+    try {
+      // 1. Fetch company details (address, phone)
+      const { data: company } = await supabase
+        .from('companies')
+        .select('endereco, telefone, nome_fantasia')
+        .eq('id', prediction.company_id)
+        .single();
+
+      // 2. Call smart-scheduler for next available slot
+      const { data: scheduleData, error: scheduleError } = await supabase.functions.invoke('smart-scheduler', {
+        body: { modalidade: 'presencial', prioridade: 'media' }
+      });
+
+      if (scheduleError) throw scheduleError;
+      if (!scheduleData?.success) throw new Error(scheduleData?.error || 'Erro ao buscar horário');
+
+      // 3. Build description with full AI context
+      const descricao = [
+        `[Manutenção Preventiva - IA]`,
+        ``,
+        `Ativo: ${prediction.asset_nome}`,
+        `Empresa: ${prediction.company_nome}`,
+        `Probabilidade de falha: ${prediction.probabilidade_falha}%`,
+        `Tipo de falha prevista: ${prediction.tipo_falha_prevista}`,
+        `Estimativa: ${prediction.dias_estimados} dias`,
+        ``,
+        `Recomendação: ${prediction.recomendacao || 'N/A'}`,
+        ``,
+        `Resumo do histórico: ${prediction.historico_resumo || 'N/A'}`,
+      ].join('\n');
+
+      // 4. Get next numero_os
+      const { data: maxOS } = await supabase
+        .from('service_orders')
+        .select('numero_os')
+        .order('numero_os', { ascending: false })
+        .limit(1)
+        .single();
+
+      const nextNumero = (maxOS?.numero_os || 0) + 1;
+
+      // 5. Insert the service order
+      const { error: insertError } = await supabase
+        .from('service_orders')
+        .insert({
+          company_id: prediction.company_id,
+          asset_id: prediction.asset_id,
+          numero_os: nextNumero,
+          tipo_servico: 'preventivo',
+          modalidade: 'presencial',
+          status: 'agendada',
+          prioridade: 'media',
+          descricao_servicos: descricao,
+          data_agendada: `${scheduleData.data}T${scheduleData.hora_inicio}:00`,
+          hora_agendada: scheduleData.hora_inicio,
+          endereco_atendimento: company?.endereco || null,
+          telefone_contato: company?.telefone || null,
+          observacoes: `OS gerada automaticamente pela IA de Manutenção Preditiva. Probabilidade de falha: ${prediction.probabilidade_falha}%.`,
+        });
+
+      if (insertError) throw insertError;
+
+      setCreatedOS(prev => ({ ...prev, [prediction.asset_id]: true }));
+      toast.success(`OS #${nextNumero} criada! Agendada para ${scheduleData.data} às ${scheduleData.hora_inicio}`);
+    } catch (err: any) {
+      console.error('Erro ao criar OS:', err);
+      toast.error('Erro ao criar OS preventiva: ' + (err.message || 'Erro desconhecido'));
+    } finally {
+      setCreatingOS(prev => ({ ...prev, [prediction.asset_id]: false }));
+    }
   };
 
   return (
@@ -248,12 +317,27 @@ export function PredictiveMaintenanceCard({ companyId }: PredictiveMaintenanceCa
                 <div className="flex gap-2 mt-2">
                   <Button
                     onClick={() => handleCreateOS(pred)}
-                    variant="outline"
+                    variant={createdOS[pred.asset_id] ? "default" : "outline"}
                     size="sm"
                     className="flex-1 h-7 text-xs"
+                    disabled={creatingOS[pred.asset_id] || createdOS[pred.asset_id]}
                   >
-                    <FileText className="h-3 w-3 mr-1" />
-                    Criar OS Preventiva
+                    {creatingOS[pred.asset_id] ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Criando...
+                      </>
+                    ) : createdOS[pred.asset_id] ? (
+                      <>
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        OS Criada
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="h-3 w-3 mr-1" />
+                        Criar OS Automática
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
