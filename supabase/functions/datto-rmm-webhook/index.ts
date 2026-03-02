@@ -411,7 +411,7 @@ Prioridade: ${payload.alert_priority || 'N/A'}`
           }
 
           const TECNICO_ID = 'e336e78e-c11a-48b5-8d69-2bb48cf6bb3b';
-          const TECNICO_PHONE = '5562999522470';
+          const TECNICO_PHONE = '5562984515801';
 
           const { data: ticket, error: ticketError } = await supabase
             .from('tickets')

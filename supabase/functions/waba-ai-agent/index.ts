@@ -251,8 +251,57 @@ serve(async (req: Request) => {
 // ─── Context Gathering (Enriched) ────────────────────────────────────
 
 async function gatherContext(supabase: any, phone: string, message: string) {
+  // ─── Detect [ASSET:uuid] tag from QR code labels ─────────────────
+  let assetFromTag: any = null;
+  let assetTicketHistory: any[] = [];
+  const assetTagMatch = message.match(/\[ASSET:([a-f0-9-]{36})\]/i);
+  
+  if (assetTagMatch) {
+    const assetId = assetTagMatch[1];
+    console.log("Asset tag detected:", assetId);
+    
+    const [assetResult, ticketHistoryResult] = await Promise.all([
+      supabase
+        .from("assets")
+        .select("id, nome, tipo, estado, fabricante, modelo, numero_serie, setor, local, sistema_operacional, company_id, companies:company_id(id, nome_fantasia, tipo_contrato, sla_primeiro_atendimento_horas, sla_solucao_horas)")
+        .eq("id", assetId)
+        .maybeSingle(),
+      supabase
+        .from("tickets")
+        .select("numero, titulo, descricao, solucao, status, prioridade, created_at, data_solucao")
+        .eq("asset_id", assetId)
+        .order("created_at", { ascending: false })
+        .limit(10),
+    ]);
+    
+    if (assetResult.data) {
+      assetFromTag = assetResult.data;
+      assetTicketHistory = ticketHistoryResult.data || [];
+      console.log(`Asset found: ${assetFromTag.nome}, company: ${assetFromTag.companies?.nome_fantasia}, history: ${assetTicketHistory.length} tickets`);
+      
+      // Auto-link contact to asset's company if not linked yet
+      const { data: existingContact } = await supabase
+        .from("whatsapp_contacts")
+        .select("company_id")
+        .eq("phone_number", phone)
+        .maybeSingle();
+      
+      if (!existingContact?.company_id && assetFromTag.company_id) {
+        await supabase
+          .from("whatsapp_contacts")
+          .upsert({
+            phone_number: phone,
+            company_id: assetFromTag.company_id,
+            last_message_at: new Date().toISOString(),
+          }, { onConflict: "phone_number" });
+        console.log(`Auto-linked contact ${phone} to company ${assetFromTag.company_id} via asset tag`);
+      }
+    }
+  }
+
   // Extract keywords from message for relevant search
-  const keywords = message
+  const cleanMessage = message.replace(/\[ASSET:[a-f0-9-]+\]/i, "").trim();
+  const keywords = cleanMessage
     .toLowerCase()
     .replace(/[^\w\sáéíóúãõâêô]/g, "")
     .split(/\s+/)
@@ -284,7 +333,8 @@ async function gatherContext(supabase: any, phone: string, message: string) {
   ]);
 
   const contact = contactResult.data;
-  const companyId = contact?.company_id;
+  // Use asset's company if contact has no company
+  const companyId = contact?.company_id || assetFromTag?.company_id || null;
 
   // Merge relevant + fallback articles (deduplicated)
   const allArticles = relevantArticles.data || [];
@@ -338,7 +388,7 @@ async function gatherContext(supabase: any, phone: string, message: string) {
     recentServices = servicesResult.data || [];
   }
 
-  return { articles: allArticles, contact, openTickets, visits, assets, recentServices, companyId };
+  return { articles: allArticles, contact, openTickets, visits, assets, recentServices, companyId, assetFromTag, assetTicketHistory };
 }
 
 // ─── System Prompt (Enhanced) ────────────────────────────────────────
@@ -367,10 +417,37 @@ function buildSystemPrompt(context: any) {
     .map((s: any) => `• [${s.data_atendimento}] ${s.titulo}: ${s.descricao?.substring(0, 80)}${s.solucao ? ` → Solução: ${s.solucao.substring(0, 80)}` : ""}`)
     .join("\n");
 
-  const companyName = context.contact?.companies?.nome_fantasia || "não identificada";
+  const companyName = context.assetFromTag?.companies?.nome_fantasia || context.contact?.companies?.nome_fantasia || "não identificada";
   const companyId = context.companyId || null;
-  const contractType = context.contact?.companies?.tipo_contrato || "N/A";
+  const contractType = context.assetFromTag?.companies?.tipo_contrato || context.contact?.companies?.tipo_contrato || "N/A";
   const contactName = context.contact?.contact_name || "não identificado";
+
+  // Build asset-from-tag context section
+  let assetTagSection = "";
+  if (context.assetFromTag) {
+    const a = context.assetFromTag;
+    const historyText = (context.assetTicketHistory || [])
+      .map((t: any) => `  - #${t.numero} "${t.titulo}" (${t.status}) ${t.solucao ? `→ Solução: ${t.solucao.substring(0, 100)}` : ""}`)
+      .join("\n");
+    
+    assetTagSection = `
+═══════════════════════════════════════
+🏷️ ATIVO IDENTIFICADO VIA QR CODE (ETIQUETA):
+═══════════════════════════════════════
+Nome: ${a.nome}
+Tipo: ${a.tipo} | Estado: ${a.estado}
+Fabricante: ${a.fabricante || "N/A"} | Modelo: ${a.modelo || "N/A"}
+Nº Série: ${a.numero_serie || "N/A"}
+Setor: ${a.setor || "N/A"} | Local: ${a.local || "N/A"}
+SO: ${a.sistema_operacional || "N/A"}
+Asset ID: ${a.id}
+
+HISTÓRICO DE CHAMADOS DESTE ATIVO (${(context.assetTicketHistory || []).length}):
+${historyText || "  Nenhum chamado anterior para este ativo."}
+
+⚡ INSTRUÇÃO ESPECIAL: O cliente escaneou a etiqueta QR deste equipamento. Você JÁ SABE qual é o ativo. Ao abrir chamado, vincule AUTOMATICAMENTE o asset_id "${a.id}". Pergunte apenas o problema.
+`;
+  }
 
   return `Você é o assistente virtual de suporte técnico da **Conexão Virtual**. Responda SEMPRE em português brasileiro de forma profissional, amigável e objetiva.
 
@@ -384,6 +461,7 @@ FLUXO OBRIGATÓRIO:
 3. Se encontrar: use link_contact IMEDIATAMENTE para vincular o número do contato à empresa (isso é automático, não precisa pedir permissão)
 4. Se NÃO encontrar: pergunte os dados básicos e use register_company para cadastrar
 IMPORTANTE: O vínculo via link_contact é SILENCIOSO — faça automaticamente após identificar a empresa, apenas informe ao cliente que ele foi identificado.`}
+${assetTagSection}
 
 ═══════════════════════════════════════
 CAPACIDADES:
@@ -734,7 +812,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
       case "create_ticket": {
         const contactName = context.contact?.contact_name || phone;
         const TECNICO_ID = "e336e78e-c11a-48b5-8d69-2bb48cf6bb3b";
-        const TECNICO_PHONE = "5562999522470";
+        const TECNICO_PHONE = "5562984515801";
 
         const { data: ticket, error } = await supabase
           .from("tickets")
