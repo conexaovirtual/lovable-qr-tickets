@@ -144,17 +144,27 @@ export function AssetLabelPrint({ assets, onClose }: AssetLabelPrintProps) {
       ctx.fillText('Escaneie para suporte via WhatsApp', CANVAS_SIZE / 2, Math.min(yPos + 16, CANVAS_SIZE - 10));
 
       // Export
-      canvas.toBlob((blob) => {
+      canvas.toBlob(async (blob) => {
         if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
         const fileName = asset.tag_patrimonial
           ? `etiqueta-${asset.tag_patrimonial}.png`
           : `etiqueta-${asset.id.slice(0, 8)}.png`;
-        a.download = fileName;
-        a.href = url;
-        a.click();
-        URL.revokeObjectURL(url);
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file], title: `Etiqueta - ${asset.nome}` });
+          } catch (e) {
+            // User cancelled share - ignore
+          }
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.download = fileName;
+          a.href = url;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
         setExporting(false);
       }, 'image/png');
     } catch {
@@ -339,7 +349,7 @@ export function AssetLabelPrint({ assets, onClose }: AssetLabelPrintProps) {
           disabled={!allReady || exporting}
           className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 disabled:opacity-50"
         >
-          {exporting ? '⏳ Exportando...' : '📲 Exportar para Niimbot'}
+          {exporting ? '⏳ Exportando...' : '📲 Salvar para Niimbot'}
         </button>
         <button
           onClick={handlePrint}
