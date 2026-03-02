@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, User, LogOut, LayoutDashboard, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList, FileText, Ticket, BarChart3, BookOpen, MessageSquare } from 'lucide-react';
+import { Menu, User, LogOut, LayoutDashboard, Package, Building2, Wrench, FileBarChart, PackageSearch, ClipboardList, FileText, Ticket, BarChart3, BookOpen, MessageSquare, CalendarDays } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,6 +58,12 @@ export function AppHeader() {
                 <Button variant="ghost" size="sm">
                   <LayoutDashboard className="h-4 w-4 mr-2" />
                   Dashboard
+                </Button>
+              </Link>
+              <Link to="/agenda">
+                <Button variant="ghost" size="sm">
+                  <CalendarDays className="h-4 w-4 mr-2" />
+                  Agenda
                 </Button>
               </Link>
               {(profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')) && (
@@ -163,6 +169,10 @@ export function AppHeader() {
                 <DropdownMenuItem onClick={() => navigate('/dashboard')}>
                   <LayoutDashboard className="h-4 w-4 mr-2" />
                   Dashboard
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/agenda')}>
+                  <CalendarDays className="h-4 w-4 mr-2" />
+                  Agenda
                 </DropdownMenuItem>
                 {(profile.roles?.includes('admin_provedor') || profile.roles?.includes('tecnico')) && (
                   <>
