@@ -425,6 +425,7 @@ Prioridade: ${payload.alert_priority || 'N/A'}`
               urgencia: mapUrgency(payload.alert_priority),
               asset_id: asset.id,
               tecnico_id: TECNICO_ID,
+              solicitante_id: TECNICO_ID,
             })
             .select('id, numero')
             .single();
