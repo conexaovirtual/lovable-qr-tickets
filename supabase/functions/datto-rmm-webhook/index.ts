@@ -444,6 +444,77 @@ Prioridade: ${payload.alert_priority || 'N/A'}`
                 .eq('id', asset.id);
             }
 
+            // ─── Smart Scheduler: classify modality & create OS ───────
+            try {
+              const schedulerResponse = await fetch(
+                `${Deno.env.get('SUPABASE_URL')}/functions/v1/smart-scheduler`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+                  },
+                  body: JSON.stringify({
+                    tecnico_id: TECNICO_ID,
+                    alert_type: payload.alert_type,
+                    alert_category: payload.alert_category,
+                    description: payload.alert_message,
+                    prioridade: mapPriority(payload.alert_priority),
+                  }),
+                }
+              );
+
+              if (schedulerResponse.ok) {
+                const slot = await schedulerResponse.json();
+                if (slot.success) {
+                  // Get next OS number
+                  const { data: lastOs } = await supabase
+                    .from('service_orders')
+                    .select('numero_os')
+                    .order('numero_os', { ascending: false })
+                    .limit(1);
+                  const nextNumber = (lastOs?.[0]?.numero_os || 0) + 1;
+
+                  // Get company details
+                  const { data: company } = await supabase
+                    .from('companies')
+                    .select('endereco, telefone')
+                    .eq('id', asset.company_id)
+                    .single();
+
+                  const { data: os, error: osError } = await supabase
+                    .from('service_orders')
+                    .insert({
+                      company_id: asset.company_id,
+                      ticket_id: ticket.id,
+                      asset_id: asset.id,
+                      tecnico_id: TECNICO_ID,
+                      tipo_servico: slot.modalidade === 'remoto' ? 'remoto' : 'corretivo',
+                      prioridade: mapPriority(payload.alert_priority),
+                      modalidade: slot.modalidade,
+                      descricao_servicos: `[DATTO] ${payload.alert_type || 'Alerta'}: ${payload.device_hostname || 'Dispositivo'}\n\n${payload.alert_message || 'Sem detalhes'}`,
+                      data_agendada: `${slot.data}T${slot.hora_inicio}:00`,
+                      hora_agendada: slot.hora_inicio,
+                      status: 'agendada',
+                      numero_os: nextNumber,
+                      endereco_atendimento: slot.modalidade === 'presencial' ? (company?.endereco || null) : null,
+                      telefone_contato: company?.telefone || null,
+                      observacoes: `OS criada automaticamente pelo Datto RMM.\nModalidade: ${slot.modalidade}\nSlot: ${slot.data} ${slot.hora_inicio}-${slot.hora_fim}`,
+                    })
+                    .select('id, numero_os')
+                    .single();
+
+                  if (osError) {
+                    console.error('Error creating OS from Datto:', osError);
+                  } else {
+                    console.log(`OS #${os.numero_os} created (${slot.modalidade}) for ticket #${ticket.numero} at ${slot.data} ${slot.hora_inicio}`);
+                  }
+                }
+              }
+            } catch (schedErr) {
+              console.error('Smart scheduler error (non-fatal):', schedErr);
+            }
+
             // Send push notification to technicians
             try {
               await fetch(

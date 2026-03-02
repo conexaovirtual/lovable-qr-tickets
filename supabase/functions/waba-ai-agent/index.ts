@@ -840,6 +840,76 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
           result = { success: true, numero: ticket.numero, id: ticket.id };
           console.log(`Ticket #${ticket.numero} created and assigned to Jose Pereira`);
 
+          // ─── Smart Scheduler: auto-create OS with slot ───────
+          let osInfo = "";
+          try {
+            const schedulerResponse = await fetch(
+              `${Deno.env.get("SUPABASE_URL")}/functions/v1/smart-scheduler`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+                },
+                body: JSON.stringify({
+                  tecnico_id: TECNICO_ID,
+                  description: `${args.titulo} ${args.descricao}`,
+                  prioridade: args.urgencia === "alta" ? "alta" : "media",
+                }),
+              }
+            );
+
+            if (schedulerResponse.ok) {
+              const slot = await schedulerResponse.json();
+              if (slot.success) {
+                const { data: lastOs } = await supabase
+                  .from("service_orders")
+                  .select("numero_os")
+                  .order("numero_os", { ascending: false })
+                  .limit(1);
+                const nextNumber = (lastOs?.[0]?.numero_os || 0) + 1;
+
+                const { data: company } = await supabase
+                  .from("companies")
+                  .select("endereco, telefone")
+                  .eq("id", args.company_id)
+                  .single();
+
+                const { data: os, error: osErr } = await supabase
+                  .from("service_orders")
+                  .insert({
+                    company_id: args.company_id,
+                    ticket_id: ticket.id,
+                    asset_id: args.asset_id || null,
+                    tecnico_id: TECNICO_ID,
+                    tipo_servico: slot.modalidade === "remoto" ? "remoto" : "corretivo",
+                    prioridade: args.urgencia === "alta" ? "alta" : "media",
+                    modalidade: slot.modalidade,
+                    descricao_servicos: `${args.titulo}\n\n${args.descricao}`,
+                    data_agendada: `${slot.data}T${slot.hora_inicio}:00`,
+                    hora_agendada: slot.hora_inicio,
+                    status: "agendada",
+                    numero_os: nextNumber,
+                    endereco_atendimento: slot.modalidade === "presencial" ? (company?.endereco || null) : null,
+                    telefone_contato: company?.telefone || null,
+                    observacoes: `OS criada automaticamente via WhatsApp.\nModalidade: ${slot.modalidade}`,
+                  })
+                  .select("id, numero_os")
+                  .single();
+
+                if (!osErr && os) {
+                  const modalLabel = slot.modalidade === "remoto" ? "remoto" : "presencial";
+                  osInfo = `\n📅 OS #${os.numero_os} agendada (${modalLabel}): ${slot.data} às ${slot.hora_inicio}`;
+                  result.os_numero = os.numero_os;
+                  result.agendamento = `${slot.data} ${slot.hora_inicio}-${slot.hora_fim} (${modalLabel})`;
+                  console.log(`OS #${os.numero_os} created (${slot.modalidade}) for ticket #${ticket.numero}`);
+                }
+              }
+            }
+          } catch (schedErr) {
+            console.error("Smart scheduler error (non-fatal):", schedErr);
+          }
+
           // Notify technician via WhatsApp
           try {
             const companyName = context.contact?.company?.nome_fantasia || "Empresa não identificada";
@@ -850,7 +920,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
               `📞 *Contato:* ${phone}\n` +
               `⚡ *Urgência:* ${args.urgencia || "media"}\n` +
               `💥 *Impacto:* ${args.impacto || "medio"}\n\n` +
-              `📝 *Descrição:*\n${args.descricao}\n\n` +
+              `📝 *Descrição:*\n${args.descricao}${osInfo}\n\n` +
               `${args.asset_id ? `🖥️ *Ativo vinculado:* Sim` : `🖥️ *Ativo:* Não vinculado`}`;
 
             const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
@@ -871,7 +941,6 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
             }
           } catch (notifErr) {
             console.error("Failed to notify technician:", notifErr);
-            // Don't fail the ticket creation if notification fails
           }
         }
         break;
