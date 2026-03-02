@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { QrCode, Edit, Package, Building2, Eye, Download } from 'lucide-react';
+import { QrCode, Edit, Package, Building2, Eye, Download, Printer } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import QRCode from 'qrcode';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useState } from 'react';
+import { AssetLabelPrint } from './AssetLabelPrint';
 
 interface AssetCardProps {
   asset: any;
@@ -24,6 +25,7 @@ export function AssetCard({ asset, onEdit }: AssetCardProps) {
   const { toast } = useToast();
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [showLabelPrint, setShowLabelPrint] = useState(false);
   const canManage = profile?.roles?.some(r => ['admin_provedor', 'tecnico', 'gestor_cliente'].includes(r)) || false;
   const canViewDetails = profile?.roles?.some(r => ['admin_provedor', 'gestor_cliente'].includes(r)) || false;
 
@@ -134,6 +136,14 @@ export function AssetCard({ asset, onEdit }: AssetCardProps) {
             <QrCode className="h-4 w-4 mr-1" />
             QR Code
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowLabelPrint(true)}
+            title="Imprimir Etiqueta"
+          >
+            <Printer className="h-4 w-4" />
+          </Button>
           {canManage && (
             <Button
               variant="outline"
@@ -203,6 +213,17 @@ export function AssetCard({ asset, onEdit }: AssetCardProps) {
             Baixar
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    <Dialog open={showLabelPrint} onOpenChange={setShowLabelPrint}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Imprimir Etiqueta 50x50mm</DialogTitle>
+        </DialogHeader>
+        <AssetLabelPrint
+          assets={[asset]}
+          onClose={() => setShowLabelPrint(false)}
+        />
       </DialogContent>
     </Dialog>
     </>
