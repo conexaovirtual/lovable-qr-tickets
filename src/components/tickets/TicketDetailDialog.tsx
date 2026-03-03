@@ -32,22 +32,29 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: TicketDetai
   const loadTicket = async () => {
     if (!ticketId) return;
     setLoading(true);
-    const { data } = await supabase
-      .from('tickets')
-      .select(`
-        *,
-        companies:company_id(nome_fantasia),
-        categories(nome, cor),
-        subcategories(nome),
-        assets(tipo, tag_patrimonial, numero_serie, fabricante, modelo),
-        profiles!tickets_solicitante_id_fkey(nome, telefone),
-        tecnico:profiles!tickets_tecnico_id_fkey(nome)
-      `)
-      .eq('id', ticketId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('tickets')
+        .select(`
+          *,
+          companies:company_id(nome_fantasia),
+          categories(nome, cor),
+          subcategories(nome),
+          assets(tipo, tag_patrimonial, numero_serie, fabricante, modelo),
+          tecnico:profiles!tickets_tecnico_id_fkey(nome)
+        `)
+        .eq('id', ticketId)
+        .single();
 
-    if (data) setTicket(data);
-    setLoading(false);
+      if (error) {
+        console.error('Erro ao carregar chamado:', error);
+      }
+      if (data) setTicket(data);
+    } catch (err) {
+      console.error('Erro inesperado ao carregar chamado:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getSLAStatus = () => {
@@ -136,7 +143,7 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: TicketDetai
 
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
-                  <span>{ticket.profiles?.nome || ticket.solicitante_nome || 'N/A'}</span>
+                  <span>{ticket.solicitante_nome || 'N/A'}</span>
                 </div>
 
                 {ticket.tecnico && (
