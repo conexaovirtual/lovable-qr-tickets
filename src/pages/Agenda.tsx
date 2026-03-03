@@ -13,6 +13,7 @@ import { ptBR } from 'date-fns/locale';
 import { CalendarDays, Ticket, ClipboardList, MapPin, Plus, FileText } from 'lucide-react';
 import { ServiceOrderDetailDialog } from '@/components/service-orders/ServiceOrderDetailDialog';
 import { DailyServiceRecordDialog } from '@/components/daily-records/DailyServiceRecordDialog';
+import { TicketDetailDialog } from '@/components/tickets/TicketDetailDialog';
 
 type AgendaItem = {
   id: string;
@@ -41,6 +42,7 @@ export default function Agenda() {
   const [selectedOS, setSelectedOS] = useState<any>(null);
   const [osDetailOpen, setOsDetailOpen] = useState(false);
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
 
   const monthStart = startOfMonth(selectedDate);
   const monthEnd = endOfMonth(selectedDate);
@@ -229,7 +231,7 @@ export default function Agenda() {
     } else if (item.type === 'atendimento') {
       setSelectedRecordId(item.rawId);
     } else if (item.type === 'ticket') {
-      navigate(`/tickets/${item.rawId}`);
+      setSelectedTicketId(item.rawId);
     }
   };
 
@@ -435,6 +437,15 @@ export default function Agenda() {
           setSelectedRecordId(null);
           refetchDaily();
         }}
+      />
+
+      {/* Ticket Detail Dialog */}
+      <TicketDetailDialog
+        open={!!selectedTicketId}
+        onOpenChange={(open) => {
+          if (!open) setSelectedTicketId(null);
+        }}
+        ticketId={selectedTicketId}
       />
     </div>
   );
