@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Camera, X, Upload, Loader2, ImageOff } from "lucide-react";
 import { Button } from "./button";
 import { Card } from "./card";
@@ -68,25 +68,35 @@ export function ImageUpload({
 }: ImageUploadProps) {
   const [images, setImages] = useState<UploadedImage[]>(existingImages);
   const [uploading, setUploading] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const compressImage = async (file: File): Promise<File> => {
     const options = {
       maxSizeMB: 1,
       maxWidthOrHeight: 1920,
       useWebWorker: true,
+      fileType: 'image/jpeg' as const, // Always output JPEG for compatibility
     };
     
     try {
-      return await imageCompression(file, options);
+      const compressed = await imageCompression(file, options);
+      console.log(`[ImageUpload] Compressed ${file.name}: ${(file.size/1024).toFixed(0)}KB -> ${(compressed.size/1024).toFixed(0)}KB`);
+      return compressed;
     } catch (error) {
-      console.error('Erro ao comprimir imagem:', error);
-      return file; // Retorna original se houver erro
+      console.error('[ImageUpload] Compression error:', error);
+      return file;
     }
   };
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+  const processFiles = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) {
+      console.log('[ImageUpload] No files selected');
+      return;
+    }
+
+    console.log(`[ImageUpload] Processing ${files.length} file(s):`, 
+      Array.from(files).map(f => `${f.name} (${f.type}, ${(f.size/1024).toFixed(0)}KB)`));
 
     const remainingSlots = maxImages - images.length;
     if (remainingSlots <= 0) {
@@ -105,41 +115,90 @@ export function ImageUpload({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      const uploadPromises = filesToUpload.map(async (file) => {
-        // Comprimir imagem antes do upload
-        const compressedFile = await compressImage(file);
-        const result = await uploadImageToStorage(compressedFile, bucketName, user.id);
-        
-        if (result.error) {
+      const uploadedImages: UploadedImage[] = [];
+
+      for (const file of filesToUpload) {
+        try {
+          // Check if file is an image (accept broad types including HEIC from mobile)
+          if (!file.type.startsWith('image/') && file.type !== '' && file.type !== 'application/octet-stream') {
+            console.warn(`[ImageUpload] Skipping non-image file: ${file.name} (${file.type})`);
+            toast({
+              title: "Arquivo ignorado",
+              description: `${file.name} não é uma imagem válida.`,
+              variant: "destructive"
+            });
+            continue;
+          }
+
+          // Check size (max 10MB before compression, will be compressed down)
+          if (file.size > 10 * 1024 * 1024) {
+            toast({
+              title: "Arquivo muito grande",
+              description: `${file.name} excede 10MB.`,
+              variant: "destructive"
+            });
+            continue;
+          }
+
+          // Compress image (handles HEIC conversion too via browser-image-compression)
+          const compressedFile = await compressImage(file);
+          
+          // Upload directly to storage (skip the validation in imageUtils that rejects HEIC)
+          const timestamp = Date.now();
+          const random = Math.random().toString(36).substring(7);
+          const fileName = `${user.id}/${timestamp}_${random}.jpg`;
+
+          const { data, error } = await supabase.storage
+            .from(bucketName)
+            .upload(fileName, compressedFile, {
+              cacheControl: '3600',
+              upsert: false,
+              contentType: 'image/jpeg',
+            });
+
+          if (error) {
+            console.error(`[ImageUpload] Storage upload error for ${file.name}:`, error);
+            toast({
+              title: "Erro no upload",
+              description: `Falha ao enviar ${file.name}: ${error.message}`,
+              variant: "destructive"
+            });
+            continue;
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from(bucketName)
+            .getPublicUrl(data.path);
+
+          console.log(`[ImageUpload] Upload success: ${file.name} -> ${publicUrl}`);
+
+          uploadedImages.push({
+            url: publicUrl,
+            name: file.name,
+            uploaded_at: new Date().toISOString()
+          });
+        } catch (fileErr) {
+          console.error(`[ImageUpload] Error processing ${file.name}:`, fileErr);
           toast({
-            title: "Erro no upload",
-            description: result.error,
+            title: "Erro",
+            description: `Erro ao processar ${file.name}.`,
             variant: "destructive"
           });
-          return null;
         }
+      }
 
-        return {
-          url: result.url,
-          name: file.name,
-          uploaded_at: new Date().toISOString()
-        };
-      });
+      if (uploadedImages.length > 0) {
+        const newImages = [...images, ...uploadedImages];
+        setImages(newImages);
+        onImagesChange(newImages);
 
-      const uploadedImages = (await Promise.all(uploadPromises)).filter(
-        (img): img is UploadedImage => img !== null
-      );
-
-      const newImages = [...images, ...uploadedImages];
-      setImages(newImages);
-      onImagesChange(newImages);
-
-      toast({
-        title: "Fotos adicionadas",
-        description: `${uploadedImages.length} foto(s) adicionada(s) com sucesso.`
-      });
+        toast({
+          title: "Fotos adicionadas",
+          description: `${uploadedImages.length} foto(s) adicionada(s) com sucesso.`
+        });
+      }
     } catch (error) {
-      console.error('Erro ao fazer upload:', error);
+      console.error('[ImageUpload] General upload error:', error);
       toast({
         title: "Erro",
         description: "Erro ao fazer upload das fotos.",
@@ -147,24 +206,39 @@ export function ImageUpload({
       });
     } finally {
       setUploading(false);
-      // Resetar input
-      event.target.value = '';
     }
-  };
+  }, [images, maxImages, bucketName, onImagesChange]);
+
+  const handleCameraClick = useCallback(() => {
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = '';
+      cameraInputRef.current.click();
+    }
+  }, []);
+
+  const handleGalleryClick = useCallback(() => {
+    if (galleryInputRef.current) {
+      galleryInputRef.current.value = '';
+      galleryInputRef.current.click();
+    }
+  }, []);
+
+  const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    console.log('[ImageUpload] Input change event, files:', files?.length);
+    processFiles(files);
+    // Reset input value to allow re-selecting same file
+    event.target.value = '';
+  }, [processFiles]);
 
   const handleRemoveImage = async (index: number) => {
     const imageToRemove = images[index];
     
-    // Deletar do storage
     const { success, error } = await deleteImageFromStorage(imageToRemove.url, bucketName);
     
     if (!success) {
-      toast({
-        title: "Erro ao remover",
-        description: error || "Não foi possível remover a foto.",
-        variant: "destructive"
-      });
-      return;
+      console.warn('[ImageUpload] Delete from storage failed (might be already deleted):', error);
+      // Still remove from UI even if storage delete fails
     }
 
     const newImages = images.filter((_, i) => i !== index);
@@ -179,6 +253,26 @@ export function ImageUpload({
 
   return (
     <div className="space-y-4">
+      {/* Hidden file inputs - separated from UI to avoid gesture issues on mobile */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+        disabled={disabled || uploading}
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*,.heic,.heif"
+        multiple
+        className="hidden"
+        onChange={handleFileChange}
+        disabled={disabled || uploading}
+      />
+
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium">
           Fotos do Atendimento
@@ -192,7 +286,7 @@ export function ImageUpload({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
         {images.map((image, index) => (
           <ImageThumbnail
-            key={index}
+            key={`${image.url}-${index}`}
             image={image}
             onRemove={() => handleRemoveImage(index)}
             disabled={disabled || uploading}
@@ -202,64 +296,46 @@ export function ImageUpload({
         {/* Botões de adicionar - Câmera e Galeria */}
         {images.length < maxImages && (
           <>
-            {/* Botão Câmera */}
-            <label className="cursor-pointer">
-              <Card className="h-32 flex flex-col items-center justify-center border-2 border-dashed hover:border-primary transition-colors">
-                {uploading ? (
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                ) : (
-                  <>
-                    <Camera className="h-8 w-8 text-muted-foreground mb-2" />
-                    <span className="text-xs text-muted-foreground">
-                      Câmera
-                    </span>
-                  </>
-                )}
-              </Card>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={handleFileSelect}
-                disabled={disabled || uploading}
-                capture="environment"
-              />
-            </label>
+            {/* Botão Câmera - uses onClick for direct user gesture */}
+            <Card 
+              className="h-32 flex flex-col items-center justify-center border-2 border-dashed hover:border-primary transition-colors cursor-pointer"
+              onClick={handleCameraClick}
+            >
+              {uploading ? (
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              ) : (
+                <>
+                  <Camera className="h-8 w-8 text-muted-foreground mb-2" />
+                  <span className="text-xs text-muted-foreground">
+                    Câmera
+                  </span>
+                </>
+              )}
+            </Card>
 
-            {/* Botão Galeria */}
-            <label className="cursor-pointer">
-              <Card className="h-32 flex flex-col items-center justify-center border-2 border-dashed hover:border-primary transition-colors">
-                {uploading ? (
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                ) : (
-                  <>
-                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                    <span className="text-xs text-muted-foreground">
-                      Galeria
-                    </span>
-                  </>
-                )}
-              </Card>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  console.log('[ImageUpload] Galeria input triggered, files:', e.target.files);
-                  handleFileSelect(e);
-                }}
-                disabled={disabled || uploading}
-              />
-            </label>
+            {/* Botão Galeria - uses onClick for direct user gesture */}
+            <Card 
+              className="h-32 flex flex-col items-center justify-center border-2 border-dashed hover:border-primary transition-colors cursor-pointer"
+              onClick={handleGalleryClick}
+            >
+              {uploading ? (
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              ) : (
+                <>
+                  <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                  <span className="text-xs text-muted-foreground">
+                    Galeria
+                  </span>
+                </>
+              )}
+            </Card>
           </>
         )}
       </div>
 
       <p className="text-xs text-muted-foreground">
         <Upload className="h-3 w-3 inline mr-1" />
-        Formatos aceitos: JPG, PNG, WEBP • Tamanho máximo: 5MB por foto
+        Formatos aceitos: JPG, PNG, WEBP, HEIC • Máx: 10MB por foto
       </p>
     </div>
   );
