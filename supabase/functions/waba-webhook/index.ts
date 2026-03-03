@@ -181,19 +181,45 @@ interface InboundMessageData {
 async function saveInboundMessage(supabase: any, data: InboundMessageData) {
   const { phoneNumber, contactName, content, messageType, mediaUrl, wamid, rawPayload, isGroup } = data;
 
-  // Deduplicate: check if a message with same phone + content arrived in last 15 seconds
-  const dedupeWindow = new Date(Date.now() - 15000).toISOString();
-  const { data: existing } = await supabase
+  // Layer 1: Deduplicate by wamid (unique message ID from WhatsApp)
+  if (wamid && wamid.length > 0 && !wamid.startsWith("mabbix_")) {
+    const { data: existingByWamid } = await supabase
+      .from("waba_messages")
+      .select("id")
+      .eq("wamid", wamid)
+      .limit(1);
+    if (existingByWamid && existingByWamid.length > 0) {
+      console.log(`Duplicate by wamid skipped: ${wamid} from ${phoneNumber}`);
+      return;
+    }
+  }
+
+  // Layer 2: Deduplicate by phone + content in last 30 seconds
+  const dedupeWindow = new Date(Date.now() - 30000).toISOString();
+  const { data: existingByContent } = await supabase
     .from("waba_messages")
-    .select("id")
+    .select("id, conversation_id")
     .eq("direction", "inbound")
     .eq("content", content)
     .gte("created_at", dedupeWindow)
-    .limit(1);
+    .limit(5);
 
-  if (existing && existing.length > 0) {
-    console.log(`Duplicate message skipped: "${content?.substring(0, 50)}" from ${phoneNumber}`);
-    return;
+  if (existingByContent && existingByContent.length > 0) {
+    // Check if any of these belong to the same phone number's conversation
+    const { data: conv } = await supabase
+      .from("waba_conversations")
+      .select("id")
+      .eq("phone_number", phoneNumber)
+      .limit(1);
+    
+    if (conv && conv.length > 0) {
+      const convId = conv[0].id;
+      const isDupe = existingByContent.some((m: any) => m.conversation_id === convId);
+      if (isDupe) {
+        console.log(`Duplicate by content+phone skipped: "${content?.substring(0, 50)}" from ${phoneNumber}`);
+        return;
+      }
+    }
   }
 
   // Upsert conversation
@@ -216,8 +242,8 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
     return;
   }
 
-  // Save message
-  await supabase.from("waba_messages").insert({
+  // Save message (with DB-level wamid uniqueness as final safety net)
+  const { error: insertError } = await supabase.from("waba_messages").insert({
     conversation_id: conversation.id,
     wamid: wamid || null,
     direction: "inbound",
@@ -228,6 +254,15 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
     raw_payload: rawPayload,
     sender_type: "user",
   });
+
+  if (insertError) {
+    if (insertError.code === "23505") {
+      console.log(`DB-level duplicate prevented for wamid: ${wamid}`);
+      return;
+    }
+    console.error("Insert message error:", insertError);
+    return;
+  }
 
   console.log(`Message saved from ${phoneNumber}: ${content.substring(0, 80)}`);
 
