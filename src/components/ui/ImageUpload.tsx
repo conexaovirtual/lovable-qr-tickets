@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react"; // v2
 import { Camera, X, Upload, Loader2, ImageOff } from "lucide-react";
 import { Button } from "./button";
 import { Card } from "./card";
