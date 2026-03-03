@@ -8,13 +8,15 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { format, isSameDay, startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, Ticket, ClipboardList, MapPin, Plus, FileText, Filter } from 'lucide-react';
+import { CalendarDays, Ticket, ClipboardList, MapPin, Plus, FileText } from 'lucide-react';
+import { ServiceOrderDetailDialog } from '@/components/service-orders/ServiceOrderDetailDialog';
+import { DailyServiceRecordDialog } from '@/components/daily-records/DailyServiceRecordDialog';
 
 type AgendaItem = {
   id: string;
+  rawId: string;
   type: 'os' | 'ticket' | 'atendimento' | 'visita';
   title: string;
   company: string;
@@ -22,7 +24,6 @@ type AgendaItem = {
   status: string;
   priority?: string;
   details?: string;
-  link?: string;
 };
 
 const typeConfig = {
@@ -37,12 +38,15 @@ export default function Agenda() {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [selectedOS, setSelectedOS] = useState<any>(null);
+  const [osDetailOpen, setOsDetailOpen] = useState(false);
+  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
 
   const monthStart = startOfMonth(selectedDate);
   const monthEnd = endOfMonth(selectedDate);
 
   // Fetch service orders for the month
-  const { data: serviceOrders = [] } = useQuery({
+  const { data: serviceOrders = [], refetch: refetchOS } = useQuery({
     queryKey: ['agenda-os', monthStart.toISOString()],
     queryFn: async () => {
       const { data } = await supabase
@@ -72,7 +76,7 @@ export default function Agenda() {
   });
 
   // Fetch daily service records for the month
-  const { data: dailyRecords = [] } = useQuery({
+  const { data: dailyRecords = [], refetch: refetchDaily } = useQuery({
     queryKey: ['agenda-daily', monthStart.toISOString()],
     queryFn: async () => {
       const { data } = await supabase
@@ -108,6 +112,7 @@ export default function Agenda() {
     serviceOrders.forEach((os: any) => {
       items.push({
         id: `os-${os.id}`,
+        rawId: os.id,
         type: 'os',
         title: `OS #${os.numero_os} - ${os.descricao_servicos?.substring(0, 60)}`,
         company: os.companies?.nome_fantasia || 'N/A',
@@ -115,39 +120,39 @@ export default function Agenda() {
         status: os.status,
         priority: os.prioridade,
         details: `${os.tipo_servico || 'corretivo'} / ${os.modalidade || 'presencial'}`,
-        link: `/reports?tab=service-orders`,
       });
     });
 
     tickets.forEach((t: any) => {
       items.push({
         id: `ticket-${t.id}`,
+        rawId: t.id,
         type: 'ticket',
         title: `#${t.numero} - ${t.titulo}`,
         company: t.companies?.nome_fantasia || 'N/A',
         status: t.status,
         priority: t.prioridade,
         details: `Urgência: ${t.urgencia}`,
-        link: `/tickets/${t.id}`,
       });
     });
 
     dailyRecords.forEach((r: any) => {
       items.push({
         id: `daily-${r.id}`,
+        rawId: r.id,
         type: 'atendimento',
         title: r.titulo,
         company: r.companies?.nome_fantasia || 'N/A',
         time: r.hora_inicio?.substring(0, 5) || undefined,
         status: r.status,
         details: `Canal: ${r.canal}`,
-        link: '/daily-services',
       });
     });
 
     visitSchedules.forEach((v: any) => {
       items.push({
         id: `visit-${v.id}`,
+        rawId: v.id,
         type: 'visita',
         title: `Visita - ${v.motivo}`,
         company: v.companies?.nome_fantasia || 'N/A',
@@ -192,10 +197,8 @@ export default function Agenda() {
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
     return allItems.filter((item) => {
-      // Type filter
       if (activeFilter !== 'all' && item.type !== activeFilter) return false;
 
-      // Date filter
       if (item.type === 'os') {
         const os = serviceOrders.find((o: any) => `os-${o.id}` === item.id);
         return os?.data_agendada && format(parseISO(os.data_agendada), 'yyyy-MM-dd') === dateStr;
@@ -208,7 +211,6 @@ export default function Agenda() {
         const v = visitSchedules.find((vs: any) => `visit-${vs.id}` === item.id);
         return v?.proxima_visita === dateStr;
       }
-      // Tickets show on their creation date
       if (item.type === 'ticket') {
         const t = tickets.find((tk: any) => `ticket-${tk.id}` === item.id);
         return t?.created_at && format(parseISO(t.created_at), 'yyyy-MM-dd') === dateStr;
@@ -216,6 +218,20 @@ export default function Agenda() {
       return false;
     }).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
   }, [allItems, selectedDate, activeFilter, serviceOrders, dailyRecords, visitSchedules, tickets]);
+
+  const handleItemClick = (item: AgendaItem) => {
+    if (item.type === 'os') {
+      const os = serviceOrders.find((o: any) => o.id === item.rawId);
+      if (os) {
+        setSelectedOS(os);
+        setOsDetailOpen(true);
+      }
+    } else if (item.type === 'atendimento') {
+      setSelectedRecordId(item.rawId);
+    } else if (item.type === 'ticket') {
+      navigate(`/tickets/${item.rawId}`);
+    }
+  };
 
   if (loading) return null;
   if (!profile) {
@@ -349,7 +365,7 @@ export default function Agenda() {
                       <div
                         key={item.id}
                         className="flex items-start gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
-                        onClick={() => item.link && navigate(item.link)}
+                        onClick={() => handleItemClick(item)}
                       >
                         <div className={`p-2 rounded-lg ${cfg.color} text-white shrink-0`}>
                           <Icon className="h-4 w-4" />
@@ -397,6 +413,29 @@ export default function Agenda() {
           </Card>
         </div>
       </main>
+
+      {/* OS Detail Dialog */}
+      {selectedOS && (
+        <ServiceOrderDetailDialog
+          open={osDetailOpen}
+          onOpenChange={setOsDetailOpen}
+          serviceOrder={selectedOS}
+          onUpdate={() => refetchOS()}
+        />
+      )}
+
+      {/* Daily Record Dialog */}
+      <DailyServiceRecordDialog
+        open={!!selectedRecordId}
+        onOpenChange={(open) => {
+          if (!open) setSelectedRecordId(null);
+        }}
+        recordId={selectedRecordId || undefined}
+        onSuccess={() => {
+          setSelectedRecordId(null);
+          refetchDaily();
+        }}
+      />
     </div>
   );
 }
