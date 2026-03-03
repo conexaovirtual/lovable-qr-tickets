@@ -221,12 +221,30 @@ export default function Agenda() {
     }).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
   }, [allItems, selectedDate, activeFilter, serviceOrders, dailyRecords, visitSchedules, tickets]);
 
-  const handleItemClick = (item: AgendaItem) => {
+  const handleItemClick = async (item: AgendaItem) => {
     if (item.type === 'os') {
-      const os = serviceOrders.find((o: any) => o.id === item.rawId);
-      if (os) {
-        setSelectedOS(os);
-        setOsDetailOpen(true);
+      try {
+        const { data: fullOS, error } = await supabase
+          .from('service_orders')
+          .select(`
+            *,
+            companies:company_id(nome_fantasia),
+            profiles:tecnico_id(nome),
+            tickets:ticket_id(numero, titulo)
+          `)
+          .eq('id', item.rawId)
+          .single();
+
+        if (error) {
+          console.error('Erro ao carregar OS:', error);
+          return;
+        }
+        if (fullOS) {
+          setSelectedOS(fullOS);
+          setOsDetailOpen(true);
+        }
+      } catch (err) {
+        console.error('Erro inesperado ao carregar OS:', err);
       }
     } else if (item.type === 'atendimento') {
       setSelectedRecordId(item.rawId);
