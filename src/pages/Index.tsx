@@ -82,6 +82,8 @@ const Index = () => {
                 alt="Conexão Virtual" 
                 className="h-24 md:h-32 w-auto drop-shadow-lg"
                 style={{ objectFit: 'contain' }}
+                loading="lazy"
+                decoding="async"
               />
             </div>
             

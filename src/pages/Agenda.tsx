@@ -56,7 +56,9 @@ export default function Agenda() {
         .select('id, numero_os, descricao_servicos, status, prioridade, data_agendada, hora_agendada, modalidade, tipo_servico, companies:company_id(nome_fantasia)')
         .gte('data_agendada', monthStart.toISOString())
         .lte('data_agendada', monthEnd.toISOString())
-        .order('data_agendada');
+        .in('status', ['agendada', 'confirmada', 'em_execucao'])
+        .order('data_agendada')
+        .limit(100);
       return data || [];
     },
     enabled: !!profile,
@@ -71,7 +73,7 @@ export default function Agenda() {
         .select('id, numero, titulo, status, prioridade, urgencia, created_at, companies:company_id(nome_fantasia)')
         .in('status', ['novo', 'em_atendimento'])
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(30);
       return data || [];
     },
     enabled: !!profile,

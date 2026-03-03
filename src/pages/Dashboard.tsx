@@ -50,22 +50,9 @@ export default function Dashboard() {
   const [isRemoteServiceDialogOpen, setIsRemoteServiceDialogOpen] = useState(false);
 
   useEffect(() => {
-    // DEBUG: Log detalhado das roles para diagnóstico
-    console.log('[Dashboard] ===== DEBUG ROLES =====');
-    console.log('[Dashboard] Auth loading:', authLoading);
-    console.log('[Dashboard] Profile:', profile);
-    console.log('[Dashboard] Profile roles:', profile?.roles);
-    console.log('[Dashboard] Is admin_provedor?:', profile?.roles?.includes('admin_provedor'));
-    console.log('[Dashboard] Is tecnico?:', profile?.roles?.includes('tecnico'));
-    console.log('[Dashboard] Should show DATTO card?:', 
-      profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico'));
-    console.log('[Dashboard] ===== END DEBUG =====');
-    
     if (!authLoading && !profile) {
-      console.log('[Dashboard] No profile found, redirecting to /auth');
       navigate('/auth');
     } else if (profile) {
-      console.log('[Dashboard] Profile loaded, loading dashboard data');
       loadDashboardData();
     }
   }, [profile, authLoading, navigate]);
@@ -98,10 +85,10 @@ export default function Dashboard() {
       profile?.roles?.includes('admin_provedor') 
         ? supabase.from('companies').select('id', { count: 'exact', head: true })
         : Promise.resolve({ count: 0 }),
-      supabase.from('service_orders').select('id').gte('data_agendada', today.toISOString()).lt('data_agendada', tomorrow.toISOString()).in('status', ['agendada', 'confirmada', 'em_execucao']),
-      supabase.from('service_orders').select('id').in('status', ['agendada', 'confirmada']),
-      supabase.from('service_orders').select('id').eq('status', 'finalizada'),
-      supabase.from('service_orders').select('*, companies(nome_fantasia), profiles!service_orders_tecnico_id_fkey(nome)').gte('data_agendada', today.toISOString()).lte('data_agendada', nextWeek.toISOString()).in('status', ['agendada', 'confirmada']).order('data_agendada', { ascending: true }).limit(5),
+      supabase.from('service_orders').select('id', { count: 'exact', head: true }).gte('data_agendada', today.toISOString()).lt('data_agendada', tomorrow.toISOString()).in('status', ['agendada', 'confirmada', 'em_execucao']),
+      supabase.from('service_orders').select('id', { count: 'exact', head: true }).in('status', ['agendada', 'confirmada']),
+      supabase.from('service_orders').select('id', { count: 'exact', head: true }).eq('status', 'finalizada'),
+      supabase.from('service_orders').select('id, numero_os, data_agendada, hora_agendada, status, companies(nome_fantasia), profiles!service_orders_tecnico_id_fkey(nome)').gte('data_agendada', today.toISOString()).lte('data_agendada', nextWeek.toISOString()).in('status', ['agendada', 'confirmada']).order('data_agendada', { ascending: true }).limit(5),
       supabase.from('daily_service_records').select('id, titulo, data_atendimento, status, companies(nome_fantasia)').gte('data_atendimento', firstDayOfMonth.toISOString().split('T')[0]).order('data_atendimento', { ascending: false }).limit(5),
       (profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico'))
         ? supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('public_request', true).eq('status', 'novo')
@@ -112,9 +99,9 @@ export default function Dashboard() {
     setStats({
       ativos: assetsResult.count || 0,
       empresas: companiesResult.count || 0,
-      os_agendadas_hoje: osHojeResult.data?.length || 0,
-      os_pendentes: osPendentesResult.data?.length || 0,
-      os_finalizadas: osFinalizadasResult.data?.length || 0,
+      os_agendadas_hoje: osHojeResult.count || 0,
+      os_pendentes: osPendentesResult.count || 0,
+      os_finalizadas: osFinalizadasResult.count || 0,
       atendimentos_mes: atendimentosMesResult.data?.length || 0,
       chamados_qrcode: qrcodeTicketsResult.count || 0,
       atendimentos_remotos_hoje: remotosHojeResult.count || 0
@@ -127,20 +114,17 @@ export default function Dashboard() {
   };
 
   const handleViewServiceOrder = async (osId: string) => {
-    console.log('[Dashboard] Opening service order:', osId);
     const { data, error } = await supabase
       .from("service_orders")
       .select(`
         *,
         tickets (numero, titulo),
-        companies:companies_safe (nome_fantasia, cnpj, endereco),
+        companies:company_id (nome_fantasia, cnpj, endereco),
         profiles:tecnico_id (nome)
       `)
       .eq("id", osId)
       .single();
 
-    console.log('[Dashboard] Service order data:', data, 'error:', error);
-    
     if (!error && data) {
       setSelectedServiceOrder(data);
       setIsDetailDialogOpen(true);
