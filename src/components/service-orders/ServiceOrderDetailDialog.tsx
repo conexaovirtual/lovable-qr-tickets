@@ -5,8 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+const safeFormat = (dateStr: string | null | undefined, fmt: string) => {
+  if (!dateStr) return "N/A";
+  const d = new Date(dateStr);
+  return isValid(d) ? format(d, fmt, { locale: ptBR }) : "N/A";
+};
 import { CheckCircle, XCircle, PlayCircle, FileText, Clock, Calendar, Edit, Loader2 } from "lucide-react";
 import { generateServiceOrderPDF } from "./ServiceOrderPDF";
 import { ServiceOrderEditDialog } from "./ServiceOrderEditDialog";
@@ -145,7 +151,7 @@ export function ServiceOrderDetailDialog({
             </Badge>
           </div>
           <DialogDescription>
-            Criada em {format(new Date(serviceOrder.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+            Criada em {safeFormat(serviceOrder.created_at, "dd/MM/yyyy 'às' HH:mm")}
           </DialogDescription>
         </DialogHeader>
 
@@ -186,7 +192,7 @@ export function ServiceOrderDetailDialog({
                 <Calendar className="h-4 w-4" />
                 <span>
                   {serviceOrder.data_agendada 
-                    ? format(new Date(serviceOrder.data_agendada), "dd/MM/yyyy", { locale: ptBR })
+                    ? safeFormat(serviceOrder.data_agendada, "dd/MM/yyyy")
                     : "Não agendada"}
                 </span>
               </div>
@@ -246,7 +252,7 @@ export function ServiceOrderDetailDialog({
                     <p className="text-xs text-muted-foreground">Data de Execução</p>
                     <p className="text-sm font-medium">
                       {serviceOrder.data_execucao 
-                        ? format(new Date(serviceOrder.data_execucao), "dd/MM/yyyy", { locale: ptBR })
+                        ? safeFormat(serviceOrder.data_execucao, "dd/MM/yyyy")
                         : "Não informada"}
                     </p>
                   </div>
@@ -336,7 +342,7 @@ export function ServiceOrderDetailDialog({
                         <div className="flex items-center gap-2 mt-2 pt-2 border-t text-xs text-muted-foreground">
                           <span>👤 {item.profiles?.nome}</span>
                           <span>•</span>
-                          <span>📅 {format(new Date(item.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+                          <span>📅 {safeFormat(item.created_at, "dd/MM/yyyy 'às' HH:mm")}</span>
                         </div>
                       </div>
                     );
