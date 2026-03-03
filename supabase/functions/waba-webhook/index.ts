@@ -181,6 +181,21 @@ interface InboundMessageData {
 async function saveInboundMessage(supabase: any, data: InboundMessageData) {
   const { phoneNumber, contactName, content, messageType, mediaUrl, wamid, rawPayload, isGroup } = data;
 
+  // Deduplicate: check if a message with same phone + content arrived in last 15 seconds
+  const dedupeWindow = new Date(Date.now() - 15000).toISOString();
+  const { data: existing } = await supabase
+    .from("waba_messages")
+    .select("id")
+    .eq("direction", "inbound")
+    .eq("content", content)
+    .gte("created_at", dedupeWindow)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    console.log(`Duplicate message skipped: "${content?.substring(0, 50)}" from ${phoneNumber}`);
+    return;
+  }
+
   // Upsert conversation
   const { data: conversation } = await supabase
     .from("waba_conversations")
