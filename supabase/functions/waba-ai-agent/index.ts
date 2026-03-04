@@ -1281,6 +1281,77 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
           sender_type: "system",
         });
 
+        // === NOTIFICAÇÕES AO ESCALONAR ===
+        const escalateContactName = context.contact?.contact_name || phone;
+        const escalateCompanyName = context.contact?.company?.nome_fantasia || "Não identificada";
+
+        // 1. Push notification para admins e técnicos
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push-notification`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+            },
+            body: JSON.stringify({
+              role: "admin_provedor",
+              title: "🔔 Cliente aguardando atendimento",
+              body: `${escalateContactName} (${escalateCompanyName}) solicitou falar com um técnico`,
+              data: { type: "escalation", conversation_id: args.conversation_id },
+              tag: `escalation-${args.conversation_id}`,
+            }),
+          });
+          // Also notify technicians
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push-notification`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+            },
+            body: JSON.stringify({
+              role: "tecnico",
+              title: "🔔 Cliente aguardando atendimento",
+              body: `${escalateContactName} (${escalateCompanyName}) solicitou falar com um técnico`,
+              data: { type: "escalation", conversation_id: args.conversation_id },
+              tag: `escalation-${args.conversation_id}`,
+            }),
+          });
+          console.log("Push notifications sent for escalation");
+        } catch (pushErr) {
+          console.error("Failed to send push notification for escalation:", pushErr);
+        }
+
+        // 2. WhatsApp notification para técnico via Mabbix
+        try {
+          const TECNICO_PHONE_ESCALATE = "5562984515801";
+          const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
+          const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
+          if (MABBIX_URL && MABBIX_TOKEN) {
+            const escalateMsg = `🚨 *Transferência de Atendimento*\n\n` +
+              `👤 *Cliente:* ${escalateContactName}\n` +
+              `📞 *Telefone:* ${phone}\n` +
+              `🏢 *Empresa:* ${escalateCompanyName}\n\n` +
+              `📋 *Motivo:* ${args.reason}\n\n` +
+              `📝 *Resumo da IA:*\n${args.resumo}\n\n` +
+              `⚡ Acesse a plataforma WhatsApp para atender este cliente.`;
+
+            await fetch(`${MABBIX_URL}/api/messages/send`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${MABBIX_TOKEN}`,
+              },
+              body: JSON.stringify({
+                number: TECNICO_PHONE_ESCALATE,
+                text: escalateMsg,
+              }),
+            });
+            console.log(`WhatsApp escalation notification sent to ${TECNICO_PHONE_ESCALATE}`);
+          }
+        } catch (waMsgErr) {
+          console.error("Failed to send WhatsApp escalation notification:", waMsgErr);
+        }
+
         result = { success: true, reason: args.reason };
         console.log(`Conversation ${args.conversation_id} fully escalated: ${args.reason}`);
         break;
@@ -1309,6 +1380,43 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
           status: "delivered",
           sender_type: "system",
         });
+
+        // Push notification para equipe (partial escalate)
+        const partialContactName = context.contact?.contact_name || phone;
+        const partialCompanyName = context.contact?.company?.nome_fantasia || "Não identificada";
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push-notification`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+            },
+            body: JSON.stringify({
+              role: "admin_provedor",
+              title: `⚡ Atenção: ${args.urgencia?.toUpperCase() || "MEDIA"}`,
+              body: `${partialContactName} (${partialCompanyName}): ${args.reason}`,
+              data: { type: "partial_escalation", conversation_id: args.conversation_id },
+              tag: `partial-escalation-${args.conversation_id}`,
+            }),
+          });
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push-notification`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+            },
+            body: JSON.stringify({
+              role: "tecnico",
+              title: `⚡ Atenção: ${args.urgencia?.toUpperCase() || "MEDIA"}`,
+              body: `${partialContactName} (${partialCompanyName}): ${args.reason}`,
+              data: { type: "partial_escalation", conversation_id: args.conversation_id },
+              tag: `partial-escalation-${args.conversation_id}`,
+            }),
+          });
+          console.log("Push notifications sent for partial escalation");
+        } catch (pushErr) {
+          console.error("Failed to send push for partial escalation:", pushErr);
+        }
 
         result = { success: true, mode: "ai_copilot", urgencia: args.urgencia };
         console.log(`Conversation ${args.conversation_id} partially escalated (copilot mode): ${args.reason}`);
