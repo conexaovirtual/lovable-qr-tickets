@@ -1,115 +1,63 @@
 
 
-## Análise e Sugestões para Melhorar a Usabilidade da IA no WhatsApp
+## Plano: Transformar a IA Interna em Assistente Pessoal com Ações no Sistema
 
-Após analisar sua implementação atual do agente de IA no WhatsApp, identifiquei que o sistema já é bastante robusto — com identificação de cliente, base de conhecimento, criação de chamados, agendamento e escalonamento. O desafio real é fazer o cliente **sentir que está falando com alguém**, não com um bot. Aqui estão as melhorias que sugiro:
+### Situação Atual
 
----
+A IA interna do sistema (`ai-support-chat`) é apenas um chat conversacional simples -- ela responde perguntas mas **não executa nenhuma ação** no sistema. Já o agente de WhatsApp (`waba-ai-agent`) possui 15+ ferramentas integradas (criar chamados, consultar agenda, criar OS, cadastrar ativos, etc.) com acesso completo ao banco de dados.
 
-### 1. Mensagem de Boas-Vindas Humanizada (Quick Win)
+### O Que Será Feito
 
-**Problema**: O primeiro contato define a percepção. Se parecer robótico, o cliente já cria resistência.
-
-**Solução**: Alterar o prompt do sistema para que a IA se apresente como "assistente da equipe" ao invés de "assistente virtual/IA". Incluir o nome do técnico responsável quando possível.
-
-- No `buildSystemPrompt`, adicionar instrução: "Nunca se apresente como IA, chatbot ou assistente virtual. Diga apenas 'Olá! Aqui é da equipe de suporte da Conexão Virtual'."
-- Remover emojis mecânicos (✅ ⚠️) do estilo e usar linguagem mais coloquial.
-
-**Impacto**: Baixo esforço, alto impacto na percepção.
+Transformar a IA interna em uma **assistente pessoal do técnico/admin** que pode executar ações reais no sistema por comando de voz ou texto. Basicamente, trazer o mesmo motor de ferramentas do WhatsApp para dentro do sistema, adaptado para o contexto do usuário logado.
 
 ---
 
-### 2. Respostas Mais Curtas e Conversacionais
+### Fase 1 -- Edge Function com Tool Calling
 
-**Problema**: A IA tende a dar respostas longas e estruturadas (com bullets, listas), que parecem geradas por máquina.
+**Arquivo:** `supabase/functions/ai-support-chat/index.ts` (reescrever)
 
-**Solução**: Adicionar regras no prompt para:
-- Limitar respostas a 2-3 frases curtas quando possível
-- Nunca usar listas com bullets na primeira interação
-- Quebrar informações longas em múltiplas mensagens curtas (simular digitação humana)
-- Usar linguagem informal-profissional ("beleza", "entendi", "vou verificar pra você")
+- Adicionar autenticação do usuário (extrair `user_id` do token JWT)
+- Novo system prompt orientado a "assistente pessoal do gestor/técnico"
+- Adicionar `tools` e `tool_choice: "auto"` na chamada ao AI Gateway
+- Implementar loop multi-round de tool calls (igual ao `waba-ai-agent`, até 3 rounds)
+- Ferramentas iniciais:
+  - `check_agenda` -- consultar agenda de hoje ou data específica
+  - `create_service_order` -- criar OS com Smart Scheduler
+  - `create_ticket` -- abrir chamado
+  - `list_tickets` -- listar chamados abertos (filtro por empresa, status)
+  - `update_ticket_status` -- atualizar status de chamado
+  - `search_knowledge_base` -- buscar na base de conhecimento
+  - `list_companies` -- listar empresas
+  - `list_assets` -- listar ativos de uma empresa
+- Cada ferramenta executa queries no banco via Supabase client com service role
+- Resposta continua sendo streaming SSE (texto final da IA após processar tools)
 
----
+### Fase 2 -- Frontend com Voz e UI Melhorada
 
-### 3. Delay Simulado de Digitação
+**Arquivo:** `src/pages/AISupportChat.tsx` (atualizar)
 
-**Problema**: Resposta instantânea é o maior indicador de bot. Humanos demoram alguns segundos para digitar.
+- Integrar o `VoiceInputButton` existente para entrada por voz
+- Enviar token de autenticação do usuário logado nas requisições
+- Adicionar sugestões rápidas contextuais ("Qual minha agenda de hoje?", "Criar OS para...", "Chamados abertos")
+- Manter streaming de resposta existente
 
-**Solução**: No `waba-webhook`, antes de chamar o `waba-ai-agent`, adicionar um delay proporcional ao tamanho da resposta (2-5 segundos). Opcionalmente, enviar o indicador "typing" via API do Mabbix antes da resposta.
+**Arquivo:** `src/lib/ai-support-chat.ts` (atualizar)
 
-**Implementação**: Adicionar `await new Promise(r => setTimeout(r, 2000 + Math.random() * 3000))` antes do envio da resposta no agente.
+- Incluir token JWT do usuário logado no header `Authorization`
 
----
+### Fase 3 -- Contexto Enriquecido
 
-### 4. Menu de Ações Rápidas (Botões Interativos)
-
-**Problema**: O cliente não sabe o que pode pedir e fica perdido.
-
-**Solução**: Após identificar o cliente, enviar opções claras:
-- "Tenho um problema técnico"
-- "Quero saber o status do meu chamado"  
-- "Preciso agendar uma visita"
-- "Falar com um técnico"
-
-**Implementação**: Se a API Mabbix suportar mensagens com botões/listas (WhatsApp Business API suporta), usar esse formato. Se não, enviar como texto formatado simples.
-
----
-
-### 5. Proatividade e Follow-up Automático
-
-**Problema**: A IA só reage; não demonstra cuidado proativo.
-
-**Solução**: 
-- Após criar um chamado, agendar uma mensagem automática de follow-up (ex: 2h depois): "Oi [nome], tudo bem? Alguma novidade sobre o problema do [equipamento]?"
-- Quando um chamado for resolvido pelo técnico, notificar o cliente via WhatsApp automaticamente: "Seu chamado #XXX foi resolvido! Pode confirmar se está tudo ok?"
-
-**Implementação**: Criar uma edge function `waba-followup` acionada por cron ou trigger de atualização de ticket.
+- A edge function busca automaticamente o perfil do usuário, sua role e empresa
+- Injeta agenda do dia e chamados pendentes no system prompt
+- A IA sabe quem é o usuário e pode agir em nome dele
 
 ---
 
-### 6. Reconhecimento de Contexto Emocional
+### Detalhes Técnicos
 
-**Problema**: Quando o cliente está frustrado ("isso nunca funciona!", "de novo?!"), a IA responde de forma genérica.
+**Streaming com Tool Calls:** O streaming SSE só é possível na resposta final (texto). Durante o processamento de tools, a edge function faz chamadas síncronas internas e só retorna o stream quando a IA gera a resposta textual final. Isso já funciona no `waba-ai-agent`.
 
-**Solução**: Adicionar no prompt instruções de empatia contextual:
-- Detectar frustração e responder com empatia primeiro ("Entendo sua frustração, vou priorizar isso")
-- Detectar urgência e agir mais rápido (escalonar parcialmente de imediato)
-- Se o cliente mencionar que é a segunda/terceira vez, reconhecer e priorizar
+**Segurança:** O `user_id` vem do JWT validado no edge function. Todas as ações são executadas com o contexto do usuário logado, respeitando as permissões existentes.
 
----
-
-### 7. Integração com Horário Comercial
-
-**Problema**: Se o cliente manda mensagem fora do expediente e recebe resposta imediata da IA, sabe que é bot.
-
-**Solução**: Fora do horário comercial, a IA pode:
-- Responder que o time não está disponível, mas registrar o chamado
-- Informar o horário de atendimento e quando terá retorno
-- Dar uma solução da base de conhecimento se aplicável
-
-**Implementação**: Verificar o horário atual (timezone BRT) no agente e ajustar o comportamento.
-
----
-
-### Resumo de Prioridades
-
-| Melhoria | Esforço | Impacto |
-|---|---|---|
-| 1. Boas-vindas humanizadas | Baixo | Alto |
-| 2. Respostas curtas | Baixo | Alto |
-| 3. Delay de digitação | Baixo | Médio |
-| 4. Menu de ações rápidas | Médio | Alto |
-| 5. Follow-up automático | Alto | Alto |
-| 6. Empatia contextual | Baixo | Médio |
-| 7. Horário comercial | Médio | Médio |
-
-### Plano de Implementação
-
-Sugiro implementar em 2 fases:
-
-**Fase 1 (ajustes no prompt + delay)**: Itens 1, 2, 3, 6 — modificações no `waba-ai-agent/index.ts` (prompt e lógica de envio). Sem mudança de banco.
-
-**Fase 2 (novas funcionalidades)**: Itens 4, 5, 7 — nova edge function de follow-up, lógica de horário comercial, e mensagens interativas.
-
-Deseja que eu implemente a Fase 1 primeiro?
+**Estimativa:** 3 etapas de implementação, sendo a Fase 1 a mais complexa (reescrever a edge function com ~800 linhas).
 
