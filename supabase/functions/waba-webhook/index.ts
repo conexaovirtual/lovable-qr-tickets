@@ -40,7 +40,12 @@ serve(async (req: Request) => {
       const msg = body.mensagem;
       
       if (msg.fromMe === true) {
-        console.log("Outbound message echo, skipping");
+        // When the business sends from phone, sender = recipient (customer) phone
+        const recipientPhone = extractPhone(body.sender || msg.participant || "");
+        console.log(`Outbound echo detected, recipient phone: ${recipientPhone}, raw sender: ${body.sender}`);
+        if (recipientPhone) {
+          await disableAIForPhoneConversation(supabase, recipientPhone);
+        }
         return okResponse();
       }
 
@@ -82,7 +87,11 @@ serve(async (req: Request) => {
     // Handle message array format
     if (hasMensagem && Array.isArray(body.mensagem) && hasSender) {
       if (body.fromMe === true) {
-        console.log("Outbound message array, skipping");
+        console.log("Outbound message array echo — checking if AI should be disabled");
+        const senderPhone = extractPhone(body.sender || "");
+        if (senderPhone) {
+          await disableAIForPhoneConversation(supabase, senderPhone);
+        }
         return okResponse();
       }
 
@@ -263,5 +272,38 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
     } catch (aiErr) {
       console.error("AI Agent invocation failed:", aiErr);
     }
+  }
+}
+
+async function disableAIForPhoneConversation(supabase: any, phoneNumber: string) {
+  try {
+    // Find conversation by phone number where AI is still enabled
+    const { data: conv } = await supabase
+      .from("waba_conversations")
+      .select("id, ai_enabled")
+      .eq("phone_number", phoneNumber)
+      .eq("ai_enabled", true)
+      .limit(1);
+
+    if (conv && conv.length > 0) {
+      await supabase
+        .from("waba_conversations")
+        .update({ ai_enabled: false })
+        .eq("id", conv[0].id);
+
+      // Insert system message to log the handover
+      await supabase.from("waba_messages").insert({
+        conversation_id: conv[0].id,
+        direction: "outbound",
+        message_type: "system",
+        content: "Técnico assumiu pelo telefone — IA desativada automaticamente",
+        sender_type: "system",
+        status: "delivered",
+      });
+
+      console.log(`AI disabled for conversation ${conv[0].id} — human sent from phone`);
+    }
+  } catch (err) {
+    console.error("Error disabling AI for phone conversation:", err);
   }
 }
