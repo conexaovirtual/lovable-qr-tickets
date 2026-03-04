@@ -91,6 +91,14 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
       if (error) throw error;
       if (data?.error) throw new Error(data.error.message || data.error);
       setNewMessage("");
+      // Auto-disable AI when human agent intervenes
+      if (conversation.ai_enabled) {
+        await supabase
+          .from("waba_conversations")
+          .update({ ai_enabled: false })
+          .eq("id", conversation.id);
+        toast.success("IA desativada — você assumiu o atendimento");
+      }
     } catch (err: any) {
       toast.error("Erro ao enviar: " + err.message);
     } finally {
