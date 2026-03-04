@@ -70,3 +70,6 @@ verify_jwt = false
 
 [functions.smart-scheduler]
 verify_jwt = false
+
+[functions.ai-support-chat]
+verify_jwt = false

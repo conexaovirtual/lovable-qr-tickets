@@ -6,8 +6,17 @@ import { streamAISupportChat } from "@/lib/ai-support-chat";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
+import { VoiceInputButton } from "@/components/ui/VoiceInputButton";
 
 type Msg = { role: "user" | "assistant"; content: string };
+
+const QUICK_SUGGESTIONS = [
+  "Qual minha agenda de hoje?",
+  "Chamados pendentes",
+  "Criar OS para...",
+  "Listar empresas",
+  "Buscar na base de conhecimento",
+];
 
 const AISupportChat = () => {
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -21,8 +30,8 @@ const AISupportChat = () => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (overrideText?: string) => {
+    const text = (overrideText || input).trim();
     if (!text || isLoading) return;
 
     const userMsg: Msg = { role: "user", content: text };
@@ -65,10 +74,10 @@ const AISupportChat = () => {
         </div>
         <div>
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-            Assistente de Suporte IA
+            Assistente Pessoal IA
             <Sparkles className="w-3.5 h-3.5 text-primary" />
           </h3>
-          <p className="text-xs text-muted-foreground">Triagem automatizada • Conexão Virtual</p>
+          <p className="text-xs text-muted-foreground">Agenda • Chamados • OS • Base de Conhecimento</p>
         </div>
       </div>
 
@@ -80,22 +89,17 @@ const AISupportChat = () => {
               <Bot className="w-8 h-8 text-primary" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Assistente Virtual</h3>
+              <h3 className="text-lg font-semibold text-foreground">Assistente Pessoal</h3>
               <p className="text-sm text-muted-foreground max-w-md mt-1">
-                Olá! Sou o assistente da Conexão Virtual. Posso ajudar com triagem de problemas,
-                agendamento de visitas e suporte técnico básico.
+                Olá! Sou sua assistente pessoal. Posso consultar sua agenda, criar ordens de serviço,
+                gerenciar chamados e muito mais — por texto ou voz.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 justify-center max-w-lg">
-              {[
-                "Meu computador está lento",
-                "Notebook não liga",
-                "Preciso formatar meu PC",
-                "Problema com impressora",
-              ].map((suggestion) => (
+              {QUICK_SUGGESTIONS.map((suggestion) => (
                 <button
                   key={suggestion}
-                  onClick={() => setInput(suggestion)}
+                  onClick={() => send(suggestion)}
                   className="text-xs px-3 py-2 rounded-full bg-card border border-border hover:bg-primary/5 hover:border-primary/30 text-foreground transition-colors"
                 >
                   {suggestion}
@@ -150,8 +154,13 @@ const AISupportChat = () => {
       {/* Input */}
       <div className="p-4 border-t border-border bg-card">
         <div className="flex items-center gap-2">
+          <VoiceInputButton
+            onFinalResult={(text) => send(text)}
+            disabled={isLoading}
+            size="icon"
+          />
           <Input
-            placeholder="Descreva o problema do cliente..."
+            placeholder="Fale ou digite um comando..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
@@ -160,7 +169,7 @@ const AISupportChat = () => {
           />
           <Button
             size="icon"
-            onClick={send}
+            onClick={() => send()}
             disabled={isLoading || !input.trim()}
             className="shrink-0"
           >
