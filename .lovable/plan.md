@@ -1,63 +1,37 @@
 
 
-## Plano: Transformar a IA Interna em Assistente Pessoal com Ações no Sistema
+## Plano: Implementar Transferência Real para Técnico no WhatsApp
 
-### Situação Atual
+### Problema Identificado
 
-A IA interna do sistema (`ai-support-chat`) é apenas um chat conversacional simples -- ela responde perguntas mas **não executa nenhuma ação** no sistema. Já o agente de WhatsApp (`waba-ai-agent`) possui 15+ ferramentas integradas (criar chamados, consultar agenda, criar OS, cadastrar ativos, etc.) com acesso completo ao banco de dados.
+Quando o `escalate_to_human` é chamado, ele apenas:
+1. Desativa a IA (`ai_enabled: false`)
+2. Muda o status para `waiting`
+3. Insere uma mensagem de sistema no banco
 
-### O Que Será Feito
+**Mas ninguém é notificado.** A conversa fica parada na fila sem que nenhum técnico saiba que precisa atender. Não há push notification nem mensagem WhatsApp para a equipe.
 
-Transformar a IA interna em uma **assistente pessoal do técnico/admin** que pode executar ações reais no sistema por comando de voz ou texto. Basicamente, trazer o mesmo motor de ferramentas do WhatsApp para dentro do sistema, adaptado para o contexto do usuário logado.
+### Solução
 
----
+Adicionar notificação ativa aos técnicos quando ocorre escalonamento, usando os mesmos mecanismos já existentes no sistema (push notification + WhatsApp para técnico).
 
-### Fase 1 -- Edge Function com Tool Calling
+### Alterações
 
-**Arquivo:** `supabase/functions/ai-support-chat/index.ts` (reescrever)
+**Arquivo:** `supabase/functions/waba-ai-agent/index.ts`
 
-- Adicionar autenticação do usuário (extrair `user_id` do token JWT)
-- Novo system prompt orientado a "assistente pessoal do gestor/técnico"
-- Adicionar `tools` e `tool_choice: "auto"` na chamada ao AI Gateway
-- Implementar loop multi-round de tool calls (igual ao `waba-ai-agent`, até 3 rounds)
-- Ferramentas iniciais:
-  - `check_agenda` -- consultar agenda de hoje ou data específica
-  - `create_service_order` -- criar OS com Smart Scheduler
-  - `create_ticket` -- abrir chamado
-  - `list_tickets` -- listar chamados abertos (filtro por empresa, status)
-  - `update_ticket_status` -- atualizar status de chamado
-  - `search_knowledge_base` -- buscar na base de conhecimento
-  - `list_companies` -- listar empresas
-  - `list_assets` -- listar ativos de uma empresa
-- Cada ferramenta executa queries no banco via Supabase client com service role
-- Resposta continua sendo streaming SSE (texto final da IA após processar tools)
+No case `escalate_to_human` (linha ~1269), após atualizar a conversa, adicionar:
 
-### Fase 2 -- Frontend com Voz e UI Melhorada
+1. **Push notification** para todos os admins/técnicos via `send-push-notification` (mesmo padrão usado em `notify-ticket-created` e `check-service-orders-reminder`)
+2. **Mensagem WhatsApp** para o técnico responsável (mesmo padrão já usado na criação de tickets, linhas ~1054-1085), informando o nome do cliente, resumo do problema e link/instrução para atender
+3. **Mesmo tratamento para `partial_escalate`** -- enviar notificação push (sem desativar a IA)
 
-**Arquivo:** `src/pages/AISupportChat.tsx` (atualizar)
+O código já tem o padrão de notificação WhatsApp para técnico na ferramenta `create_ticket` -- será replicado para o escalonamento.
 
-- Integrar o `VoiceInputButton` existente para entrada por voz
-- Enviar token de autenticação do usuário logado nas requisições
-- Adicionar sugestões rápidas contextuais ("Qual minha agenda de hoje?", "Criar OS para...", "Chamados abertos")
-- Manter streaming de resposta existente
+### Resultado Esperado
 
-**Arquivo:** `src/lib/ai-support-chat.ts` (atualizar)
-
-- Incluir token JWT do usuário logado no header `Authorization`
-
-### Fase 3 -- Contexto Enriquecido
-
-- A edge function busca automaticamente o perfil do usuário, sua role e empresa
-- Injeta agenda do dia e chamados pendentes no system prompt
-- A IA sabe quem é o usuário e pode agir em nome dele
-
----
-
-### Detalhes Técnicos
-
-**Streaming com Tool Calls:** O streaming SSE só é possível na resposta final (texto). Durante o processamento de tools, a edge function faz chamadas síncronas internas e só retorna o stream quando a IA gera a resposta textual final. Isso já funciona no `waba-ai-agent`.
-
-**Segurança:** O `user_id` vem do JWT validado no edge function. Todas as ações são executadas com o contexto do usuário logado, respeitando as permissões existentes.
-
-**Estimativa:** 3 etapas de implementação, sendo a Fase 1 a mais complexa (reescrever a edge function com ~800 linhas).
+Quando o cliente pedir para falar com um técnico:
+- A IA desativa o modo automático para aquela conversa
+- Todos os técnicos/admins recebem push notification no navegador/celular
+- O técnico designado (ou todos) recebe uma mensagem no WhatsApp avisando que há um cliente aguardando
+- A conversa aparece na fila "Aguardando" na plataforma WhatsApp
 
