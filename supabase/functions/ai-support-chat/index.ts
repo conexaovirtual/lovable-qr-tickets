@@ -38,9 +38,12 @@ serve(async (req) => {
     const userId = user.id;
     const { messages } = await req.json();
 
-    // ─── Gather user context (Fase 3) ─────────────────────────────
-    const context = await gatherUserContext(supabaseAdmin, userId);
-    const systemPrompt = buildSystemPrompt(context);
+    // ─── Gather user context + memory (Fase 3 + Memória) ──────────
+    const [context, memories] = await Promise.all([
+      gatherUserContext(supabaseAdmin, userId),
+      loadUserMemory(supabaseAdmin, userId),
+    ]);
+    const systemPrompt = buildSystemPrompt(context, memories);
 
     // ─── First AI call with tools ─────────────────────────────────
     const aiResponse = await fetch(AI_GATEWAY_URL, {
@@ -132,12 +135,16 @@ serve(async (req) => {
       if (!currentMessage) break;
     }
 
+    // ─── Extract and save memory from conversation ────────────────
+    // Fire and forget - don't block the response
+    extractAndSaveMemory(supabaseAdmin, userId, messages, currentMessage).catch(
+      (err) => console.error("Memory save error:", err)
+    );
+
     // ─── Final streaming response ─────────────────────────────────
-    // If we went through tool rounds, make a final streaming call
     if (round > 0) {
       const finalContent = currentMessage?.content?.trim();
       if (!finalContent) {
-        // Generate final response after tool calls
         conversationMessages.push(currentMessage || { role: "assistant", content: "" });
       }
 
@@ -158,7 +165,6 @@ serve(async (req) => {
       });
 
       if (!streamResponse.ok) {
-        // Fallback: return non-streamed content
         const fallbackText = finalContent || "Pronto! Ação executada com sucesso.";
         return new Response(
           `data: ${JSON.stringify({ choices: [{ delta: { content: fallbackText } }] })}\n\ndata: [DONE]\n\n`,
@@ -173,7 +179,6 @@ serve(async (req) => {
 
     // No tool calls — stream directly
     if (currentMessage?.content) {
-      // Re-do the call with streaming enabled
       const streamResponse = await fetch(AI_GATEWAY_URL, {
         method: "POST",
         headers: {
@@ -191,7 +196,6 @@ serve(async (req) => {
       });
 
       if (!streamResponse.ok) {
-        // Return the non-streamed content as SSE
         const text = currentMessage.content;
         return new Response(
           `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\ndata: [DONE]\n\n`,
@@ -217,6 +221,115 @@ serve(async (req) => {
     });
   }
 });
+
+// ─── Memory System ───────────────────────────────────────────────────
+
+async function loadUserMemory(supabase: any, userId: string) {
+  const { data } = await supabase
+    .from("ai_assistant_memory")
+    .select("tipo, chave, valor, vezes_usado")
+    .eq("user_id", userId)
+    .order("vezes_usado", { ascending: false })
+    .limit(50);
+
+  return data || [];
+}
+
+async function extractAndSaveMemory(supabase: any, userId: string, userMessages: any[], aiResponse: any) {
+  // Only process if there are meaningful messages
+  const lastUserMsg = [...userMessages].reverse().find((m: any) => m.role === "user");
+  if (!lastUserMsg?.content || lastUserMsg.content.length < 10) return;
+
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) return;
+
+  try {
+    const extractionResponse = await fetch(AI_GATEWAY_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          {
+            role: "system",
+            content: `Você é um extrator de memória. Analise a conversa e extraia informações que devem ser lembradas sobre o usuário para futuras interações.
+
+Categorias de memória:
+- "preferencia": preferências do usuário (ex: "gosta de agendar OS pela manhã", "prefere modalidade remota")
+- "padrao": padrões de comportamento (ex: "sempre cria OS preventiva nas sextas", "costuma checar agenda no início do dia")
+- "contexto": informações contextuais relevantes (ex: "trabalha principalmente com a empresa X", "especialista em redes")
+- "instrucao": instruções explícitas do usuário (ex: "me chame de João", "sempre priorize chamados da empresa Y")
+
+Retorne APENAS um JSON array (pode ser vazio []) com objetos:
+[{"tipo": "preferencia|padrao|contexto|instrucao", "chave": "identificador_curto", "valor": "descrição da memória"}]
+
+REGRAS:
+- Só extraia informações realmente úteis e duradouras
+- Ignore perguntas simples ou informações transitórias
+- Máximo 3 memórias por interação
+- Retorne [] se não houver nada relevante para memorizar`
+          },
+          {
+            role: "user",
+            content: `Mensagem do usuário: "${lastUserMsg.content}"\n\nResposta da IA: "${aiResponse?.content || ""}"`,
+          },
+        ],
+      }),
+    });
+
+    if (!extractionResponse.ok) return;
+
+    const extraction = await extractionResponse.json();
+    const content = extraction.choices?.[0]?.message?.content || "[]";
+
+    // Parse JSON from response (handle markdown code blocks)
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return;
+
+    const memories = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(memories) || memories.length === 0) return;
+
+    for (const mem of memories.slice(0, 3)) {
+      if (!mem.tipo || !mem.chave || !mem.valor) continue;
+
+      // Upsert: increment counter if exists, insert if new
+      const { data: existing } = await supabase
+        .from("ai_assistant_memory")
+        .select("id, vezes_usado")
+        .eq("user_id", userId)
+        .eq("tipo", mem.tipo)
+        .eq("chave", mem.chave)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from("ai_assistant_memory")
+          .update({
+            valor: mem.valor,
+            vezes_usado: (existing.vezes_usado || 1) + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+      } else {
+        await supabase
+          .from("ai_assistant_memory")
+          .insert({
+            user_id: userId,
+            tipo: mem.tipo,
+            chave: mem.chave,
+            valor: mem.valor,
+          });
+      }
+    }
+
+    console.log(`Saved ${memories.length} memories for user ${userId}`);
+  } catch (err) {
+    console.error("Memory extraction failed:", err);
+  }
+}
 
 // ─── Context Gathering (Fase 3) ──────────────────────────────────────
 
@@ -280,7 +393,7 @@ async function gatherUserContext(supabase: any, userId: string) {
 
 // ─── System Prompt ───────────────────────────────────────────────────
 
-function buildSystemPrompt(context: any) {
+function buildSystemPrompt(context: any, memories: any[]) {
   const userName = context.profile?.nome || "Usuário";
   const rolesText = context.roles.join(", ") || "sem role";
 
@@ -296,6 +409,28 @@ function buildSystemPrompt(context: any) {
   const brtHour = (now.getUTCHours() - 3 + 24) % 24;
   const timeStr = `${String(brtHour).padStart(2, "0")}:${String(now.getUTCMinutes()).padStart(2, "0")}`;
 
+  // Build memory section
+  let memorySection = "";
+  if (memories.length > 0) {
+    const grouped: Record<string, string[]> = {};
+    for (const m of memories) {
+      if (!grouped[m.tipo]) grouped[m.tipo] = [];
+      grouped[m.tipo].push(`  - ${m.valor} (usado ${m.vezes_usado}x)`);
+    }
+
+    const typeLabels: Record<string, string> = {
+      preferencia: "🎯 Preferências",
+      padrao: "🔄 Padrões de Comportamento",
+      contexto: "📋 Contexto Pessoal",
+      instrucao: "📌 Instruções do Usuário",
+    };
+
+    memorySection = "\n\nMEMÓRIA PESSOAL (aprendida ao longo do uso):\n" +
+      Object.entries(grouped)
+        .map(([tipo, items]) => `${typeLabels[tipo] || tipo}:\n${items.join("\n")}`)
+        .join("\n");
+  }
+
   return `Você é a assistente pessoal de ${userName} na Conexão Virtual Soluções Tecnológicas.
 Horário atual: ${timeStr} (BRT)
 Data: ${new Date().toISOString().split("T")[0]}
@@ -310,12 +445,14 @@ SUAS CAPACIDADES:
 - Listar ativos de empresas
 - Buscar na base de conhecimento
 - Atualizar status de chamados
+- Salvar preferências e aprender com o usuário
 
 AGENDA DE HOJE:
 ${agendaText}
 
 CHAMADOS PENDENTES:
 ${ticketsText}
+${memorySection}
 
 REGRAS:
 - Responda SEMPRE em português brasileiro
@@ -326,6 +463,8 @@ REGRAS:
 - Se não tiver certeza sobre parâmetros, pergunte antes de executar
 - Ao criar OS, use o Smart Scheduler para encontrar o melhor horário
 - Ao listar empresas, mostre nome e ID para referência
+- Use a ferramenta save_memory para salvar explicitamente quando o usuário pedir para lembrar algo
+- Respeite as preferências e instruções salvas na memória pessoal
 
 IMPORTANTE: Você é uma assistente INTERNA do sistema. O usuário logado é um técnico/gestor, não um cliente externo.`;
 }
@@ -466,6 +605,23 @@ function getTools() {
             tipo: { type: "string", description: "Filtrar por tipo (desktop, notebook, impressora, etc.)" },
           },
           required: ["company_id"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "save_memory",
+        description: "Salva uma preferência, instrução ou informação pessoal do usuário para lembrar em futuras conversas.",
+        parameters: {
+          type: "object",
+          properties: {
+            tipo: { type: "string", enum: ["preferencia", "padrao", "contexto", "instrucao"], description: "Tipo de memória" },
+            chave: { type: "string", description: "Identificador curto (ex: 'horario_preferido', 'empresa_principal')" },
+            valor: { type: "string", description: "O que deve ser lembrado" },
+          },
+          required: ["tipo", "chave", "valor"],
           additionalProperties: false,
         },
       },
@@ -696,7 +852,6 @@ async function handleToolCalls(supabase: any, toolCalls: any[], userId: string, 
           if (updateError) {
             result = { success: false, error: updateError.message };
           } else {
-            // Add comment
             await supabase.from("ticket_comments").insert({
               ticket_id: ticket.id,
               user_id: userId,
@@ -788,6 +943,44 @@ async function handleToolCalls(supabase: any, toolCalls: any[], userId: string, 
             local: a.local,
           })),
         };
+        break;
+      }
+
+      case "save_memory": {
+        try {
+          const { data: existing } = await supabase
+            .from("ai_assistant_memory")
+            .select("id, vezes_usado")
+            .eq("user_id", userId)
+            .eq("tipo", args.tipo)
+            .eq("chave", args.chave)
+            .maybeSingle();
+
+          if (existing) {
+            await supabase
+              .from("ai_assistant_memory")
+              .update({
+                valor: args.valor,
+                vezes_usado: (existing.vezes_usado || 1) + 1,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", existing.id);
+            result = { success: true, action: "atualizado" };
+          } else {
+            await supabase
+              .from("ai_assistant_memory")
+              .insert({
+                user_id: userId,
+                tipo: args.tipo,
+                chave: args.chave,
+                valor: args.valor,
+              });
+            result = { success: true, action: "salvo" };
+          }
+          console.log(`Memory saved: ${args.tipo}/${args.chave} for user ${userId}`);
+        } catch (err: any) {
+          result = { success: false, error: err.message };
+        }
         break;
       }
 

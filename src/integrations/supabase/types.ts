@@ -53,6 +53,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_assistant_memory: {
+        Row: {
+          chave: string
+          contexto: Json | null
+          created_at: string | null
+          id: string
+          tipo: string
+          updated_at: string | null
+          user_id: string
+          valor: string
+          vezes_usado: number | null
+        }
+        Insert: {
+          chave: string
+          contexto?: Json | null
+          created_at?: string | null
+          id?: string
+          tipo: string
+          updated_at?: string | null
+          user_id: string
+          valor: string
+          vezes_usado?: number | null
+        }
+        Update: {
+          chave?: string
+          contexto?: Json | null
+          created_at?: string | null
+          id?: string
+          tipo?: string
+          updated_at?: string | null
+          user_id?: string
+          valor?: string
+          vezes_usado?: number | null
+        }
+        Relationships: []
+      }
       ai_predictions: {
         Row: {
           asset_id: string | null
