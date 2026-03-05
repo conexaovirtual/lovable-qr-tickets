@@ -3,8 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, MessageSquare, Bot, Wifi, WifiOff, BarChart3 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  ArrowLeft, MessageSquare, Bot, Wifi, WifiOff, BarChart3,
+  Headphones, Users, Clock, CheckCircle2
+} from "lucide-react";
 import { ConversationList, type Conversation } from "@/components/whatsapp-platform/ConversationList";
 import { ChatArea } from "@/components/whatsapp-platform/ChatArea";
 import { ContactInfoPanel } from "@/components/whatsapp-platform/ContactInfoPanel";
@@ -62,6 +65,12 @@ const WhatsAppPlatform = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
+  // Quick stats
+  const activeCount = conversations.filter(c => c.status === "active").length;
+  const waitingCount = conversations.filter(c => c.queue_status === "waiting").length;
+  const aiCount = conversations.filter(c => c.ai_enabled).length;
+  const resolvedCount = conversations.filter(c => c.queue_status === "resolved").length;
+
   const handleSelectConversation = (conv: Conversation) => {
     setSelectedConversation(conv);
     setActiveTab("inbox");
@@ -77,43 +86,120 @@ const WhatsAppPlatform = () => {
 
   return (
     <div className="h-[100dvh] flex flex-col bg-background">
-      {/* Top Bar */}
-      <div className="h-12 border-b px-2 sm:px-4 flex items-center gap-2 bg-card shrink-0">
-        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigate("/dashboard")}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <MessageSquare className="h-3.5 w-3.5 text-primary" />
+      {/* Top Bar - Dark professional header like Infradesk */}
+      <div className="bg-[hsl(220,25%,16%)] text-white shrink-0">
+        <div className="h-12 px-3 sm:px-4 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-white/70 hover:text-white hover:bg-white/10"
+            onClick={() => navigate("/dashboard")}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+              <Headphones className="h-4 w-4 text-white" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-sm font-semibold leading-tight truncate tracking-wide">
+                PLATAFORMA DE ATENDIMENTO
+              </h1>
+              <p className="text-[10px] text-white/50 leading-tight hidden sm:block">
+                WhatsApp Business • Atendimento inteligente com IA
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-sm font-semibold leading-tight truncate">WhatsApp</h1>
-            <p className="text-[10px] text-muted-foreground leading-tight hidden sm:block">Atendimento inteligente com IA</p>
+
+          <div className="ml-auto flex items-center gap-3 shrink-0">
+            {/* Connection status */}
+            <div className="flex items-center gap-1.5">
+              {isConnected ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                  </span>
+                  <span className="text-xs text-white/60 hidden md:inline">Online</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <WifiOff className="h-3.5 w-3.5 text-red-400" />
+                  <span className="text-xs text-red-400 hidden md:inline">Offline</span>
+                </div>
+              )}
+            </div>
+
+            {/* Tab switches */}
+            <div className="flex items-center bg-white/10 rounded-lg p-0.5">
+              <button
+                onClick={() => setActiveTab("inbox")}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  activeTab === "inbox"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-white/60 hover:text-white"
+                }`}
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Inbox</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("metrics")}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  activeTab === "metrics"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-white/60 hover:text-white"
+                }`}
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Métricas</span>
+              </button>
+            </div>
+
+            {/* User avatar */}
+            <div className="h-8 w-8 rounded-full bg-primary/30 border border-primary/50 flex items-center justify-center text-xs font-semibold text-white">
+              {user?.email?.slice(0, 1).toUpperCase() || "U"}
+            </div>
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-1 sm:gap-2 shrink-0">
-          <div className="flex items-center gap-1">
-            {isConnected ? (
-              <Wifi className="h-3.5 w-3.5 text-success" />
-            ) : (
-              <WifiOff className="h-3.5 w-3.5 text-destructive" />
-            )}
-            <span className="text-xs text-muted-foreground hidden md:inline">
-              {isConnected ? "Conectado" : "Desconectado"}
-            </span>
+
+        {/* Quick Stats Bar - colored metric cards like InfraChat */}
+        <div className="px-3 sm:px-4 pb-2 flex gap-2 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center gap-2 bg-emerald-600/90 rounded-lg px-3 py-1.5 shrink-0">
+            <Users className="h-3.5 w-3.5 text-white/80" />
+            <div>
+              <p className="text-[10px] text-white/70 leading-tight uppercase tracking-wider">Ativos</p>
+              <p className="text-sm font-bold text-white leading-tight">{activeCount}</p>
+            </div>
           </div>
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "inbox" | "metrics")} className="border-l pl-1 sm:pl-2 ml-0.5 sm:ml-1">
-            <TabsList className="h-7 p-0.5">
-              <TabsTrigger value="inbox" className="text-xs h-6 px-1.5 sm:px-2 gap-1">
-                <MessageSquare className="h-3 w-3" />
-                <span className="hidden sm:inline">Inbox</span>
-              </TabsTrigger>
-              <TabsTrigger value="metrics" className="text-xs h-6 px-1.5 sm:px-2 gap-1">
-                <BarChart3 className="h-3 w-3" />
-                <span className="hidden sm:inline">Métricas</span>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex items-center gap-2 bg-blue-600/90 rounded-lg px-3 py-1.5 shrink-0">
+            <Bot className="h-3.5 w-3.5 text-white/80" />
+            <div>
+              <p className="text-[10px] text-white/70 leading-tight uppercase tracking-wider">IA Ativa</p>
+              <p className="text-sm font-bold text-white leading-tight">{aiCount}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-amber-600/90 rounded-lg px-3 py-1.5 shrink-0">
+            <Clock className="h-3.5 w-3.5 text-white/80" />
+            <div>
+              <p className="text-[10px] text-white/70 leading-tight uppercase tracking-wider">Na Fila</p>
+              <p className="text-sm font-bold text-white leading-tight">{waitingCount}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-teal-600/90 rounded-lg px-3 py-1.5 shrink-0">
+            <CheckCircle2 className="h-3.5 w-3.5 text-white/80" />
+            <div>
+              <p className="text-[10px] text-white/70 leading-tight uppercase tracking-wider">Resolvidos</p>
+              <p className="text-sm font-bold text-white leading-tight">{resolvedCount}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-indigo-600/90 rounded-lg px-3 py-1.5 shrink-0">
+            <MessageSquare className="h-3.5 w-3.5 text-white/80" />
+            <div>
+              <p className="text-[10px] text-white/70 leading-tight uppercase tracking-wider">Total</p>
+              <p className="text-sm font-bold text-white leading-tight">{conversations.length}</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -147,7 +233,6 @@ const WhatsAppPlatform = () => {
             {/* Contact Info Panel - overlay on mobile, sidebar on desktop */}
             {showInfo && selectedConversation && (
               <>
-                {/* Mobile overlay backdrop */}
                 <div
                   className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 md:hidden"
                   onClick={() => setShowInfo(false)}
