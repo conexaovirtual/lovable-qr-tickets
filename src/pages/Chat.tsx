@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Send, Hash, Users, MessageCircle } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   Dialog,
   DialogContent,
@@ -161,7 +162,24 @@ const Chat = () => {
   const canCreateChannel = isAdmin || isTech;
 
   return (
-    <div className="flex h-[calc(100dvh-3rem)] overflow-hidden">
+    <div className="bg-background min-h-screen flex flex-col">
+      <PageHeader
+        icon={MessageCircle}
+        title="Chat Interno"
+        subtitle="Comunicação da equipe em tempo real"
+        metrics={[
+          { icon: Hash, label: "Canais", value: channels.length, color: "bg-blue-600/90" },
+          { icon: Users, label: "Mensagens", value: messages.length, color: "bg-emerald-600/90" },
+        ]}
+        actions={
+          canCreateChannel ? (
+            <Button size="sm" className="h-8 text-xs gap-1 bg-white/10 hover:bg-white/20 text-white border-0" onClick={() => setDialogOpen(true)}>
+              <Plus className="h-3.5 w-3.5" /><span className="hidden sm:inline">Novo Canal</span>
+            </Button>
+          ) : undefined
+        }
+      />
+      <div className="flex flex-1 overflow-hidden">
       {/* Channel List */}
       <div className={`w-full md:w-72 lg:w-80 border-r bg-card flex flex-col shrink-0 ${selectedChannel ? "hidden md:flex" : "flex"}`}>
         <div className="p-3 border-b flex items-center justify-between gap-2">
@@ -313,6 +331,7 @@ const Chat = () => {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

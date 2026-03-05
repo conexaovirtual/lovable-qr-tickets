@@ -13,6 +13,7 @@ import {
 import {
   Plus, DollarSign, TrendingUp, TrendingDown, Wallet, Loader2, Building2,
 } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -91,99 +92,67 @@ const CostCenter = () => {
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Wallet className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold">Centro de Custo</h1>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-auto h-8 text-xs" />
-          <Select value={filterCompany} onValueChange={setFilterCompany}>
-            <SelectTrigger className="h-8 text-xs w-[180px]"><SelectValue placeholder="Empresa" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_fantasia}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          {isAdmin && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="h-8 text-xs gap-1"><Plus className="h-3 w-3" /> Lançamento</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Novo Lançamento</DialogTitle></DialogHeader>
-                <div className="space-y-3 mt-2">
-                  <Select value={form.company_id} onValueChange={(v) => setForm({ ...form, company_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Empresa *" /></SelectTrigger>
-                    <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_fantasia}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="receita">Receita</SelectItem>
-                      <SelectItem value="despesa">Despesa</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                    <SelectTrigger><SelectValue placeholder="Categoria *" /></SelectTrigger>
-                    <SelectContent>{categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Input placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-                  <Input type="number" step="0.01" placeholder="Valor (R$) *" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-                  <Input type="date" value={form.reference_date} onChange={(e) => setForm({ ...form, reference_date: e.target.value })} />
-                  <Button
-                    onClick={() => createEntry.mutate()}
-                    disabled={!form.company_id || !form.category || !form.amount || createEntry.isPending}
-                    className="w-full"
-                  >
-                    {createEntry.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Receitas</p>
-              <p className="text-lg font-bold text-green-600">{formatCurrency(totalReceita)}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-              <TrendingDown className="h-5 w-5 text-destructive" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Despesas</p>
-              <p className="text-lg font-bold text-destructive">{formatCurrency(totalDespesa)}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Saldo</p>
-              <p className={`text-lg font-bold ${saldo >= 0 ? "text-green-600" : "text-destructive"}`}>{formatCurrency(saldo)}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Table */}
+    <div className="bg-background min-h-screen">
+      <PageHeader
+        icon={Wallet}
+        title="Centro de Custo"
+        subtitle="Controle financeiro por empresa"
+        metrics={[
+          { icon: TrendingUp, label: "Receitas", value: formatCurrency(totalReceita), color: "bg-emerald-600/90" },
+          { icon: TrendingDown, label: "Despesas", value: formatCurrency(totalDespesa), color: "bg-red-600/90" },
+          { icon: DollarSign, label: "Saldo", value: formatCurrency(saldo), color: saldo >= 0 ? "bg-blue-600/90" : "bg-amber-600/90" },
+        ]}
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-auto h-8 text-xs bg-white/10 border-0 text-white" />
+            <Select value={filterCompany} onValueChange={setFilterCompany}>
+              <SelectTrigger className="h-8 text-xs w-[180px] bg-white/10 border-0 text-white"><SelectValue placeholder="Empresa" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_fantasia}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {isAdmin && (
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="h-8 text-xs gap-1 bg-white/10 hover:bg-white/20 text-white border-0"><Plus className="h-3 w-3" /> Lançamento</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Novo Lançamento</DialogTitle></DialogHeader>
+                  <div className="space-y-3 mt-2">
+                    <Select value={form.company_id} onValueChange={(v) => setForm({ ...form, company_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Empresa *" /></SelectTrigger>
+                      <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_fantasia}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="receita">Receita</SelectItem>
+                        <SelectItem value="despesa">Despesa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                      <SelectTrigger><SelectValue placeholder="Categoria *" /></SelectTrigger>
+                      <SelectContent>{categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Input placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                    <Input type="number" step="0.01" placeholder="Valor (R$) *" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+                    <Input type="date" value={form.reference_date} onChange={(e) => setForm({ ...form, reference_date: e.target.value })} />
+                    <Button
+                      onClick={() => createEntry.mutate()}
+                      disabled={!form.company_id || !form.category || !form.amount || createEntry.isPending}
+                      className="w-full"
+                    >
+                      {createEntry.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+        }
+      />
+      <main className="container mx-auto px-4 py-4 space-y-4">
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
@@ -229,6 +198,7 @@ const CostCenter = () => {
           )}
         </CardContent>
       </Card>
+      </main>
     </div>
   );
 };

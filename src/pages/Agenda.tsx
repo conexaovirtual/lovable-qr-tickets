@@ -244,8 +244,8 @@ export default function Agenda() {
       </main>
 
       {osDetailOpen && selectedOS && (
-        <ServiceOrderDetailDialog order={selectedOS} open={osDetailOpen} onOpenChange={setOsDetailOpen}
-          onRefresh={() => { refetchOS(); setOsDetailOpen(false); setSelectedOS(null); }} />
+        <ServiceOrderDetailDialog serviceOrder={selectedOS} open={osDetailOpen} onOpenChange={setOsDetailOpen}
+          onUpdate={() => { refetchOS(); setOsDetailOpen(false); setSelectedOS(null); }} />
       )}
       {selectedRecordId && (
         <DailyServiceRecordDialog open={true} onOpenChange={(open) => { if (!open) setSelectedRecordId(null); }}
