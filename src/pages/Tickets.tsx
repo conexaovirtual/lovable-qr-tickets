@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Plus, Filter, List, Columns3 } from 'lucide-react';
+import { Plus, Filter, List, Columns3, Ticket } from 'lucide-react';
 import { TicketList } from '@/components/tickets/TicketList';
 import { TicketKanban } from '@/components/tickets/TicketKanban';
 import { TicketFilters } from '@/components/tickets/TicketFilters';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { PageHeader } from '@/components/layout/PageHeader';
 import {
   Sheet,
   SheetContent,
@@ -58,60 +58,66 @@ export default function Tickets() {
   }
 
   return (
-    <div className="bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Chamados</h1>
-              <p className="text-muted-foreground">Gerencie todos os chamados técnicos</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <ToggleGroup
-                type="single"
-                value={viewMode}
-                onValueChange={(val) => val && setViewMode(val as 'list' | 'kanban')}
-                className="border rounded-md"
+    <div className="bg-background min-h-screen">
+      <PageHeader
+        icon={Ticket}
+        title="Chamados"
+        subtitle="Gerencie todos os chamados técnicos"
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-white/10 rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('kanban')}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'kanban' ? 'bg-primary text-white shadow-sm' : 'text-white/60 hover:text-white'
+                }`}
               >
-                <ToggleGroupItem value="kanban" aria-label="Kanban" className="px-3">
-                  <Columns3 className="h-4 w-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="list" aria-label="Lista" className="px-3">
-                  <List className="h-4 w-4" />
-                </ToggleGroupItem>
-              </ToggleGroup>
-
-              {viewMode === 'list' && (
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="icon">
-                      <Filter className="h-4 w-4" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent>
-                    <SheetHeader>
-                      <SheetTitle>Filtros</SheetTitle>
-                      <SheetDescription>
-                        Filtre os chamados por status, prioridade e categoria
-                      </SheetDescription>
-                    </SheetHeader>
-                    <TicketFilters filters={filters} setFilters={setFilters} />
-                  </SheetContent>
-                </Sheet>
-              )}
-
-              {profile && (
-                <Button onClick={() => navigate('/tickets/new')}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Chamado
-                </Button>
-              )}
+                <Columns3 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'list' ? 'bg-primary text-white shadow-sm' : 'text-white/60 hover:text-white'
+                }`}
+              >
+                <List className="h-3.5 w-3.5" />
+              </button>
             </div>
-          </div>
-        </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-6">
+            {viewMode === 'list' && (
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Filtros</SheetTitle>
+                    <SheetDescription>
+                      Filtre os chamados por status, prioridade e categoria
+                    </SheetDescription>
+                  </SheetHeader>
+                  <TicketFilters filters={filters} setFilters={setFilters} />
+                </SheetContent>
+              </Sheet>
+            )}
+
+            {profile && (
+              <Button
+                onClick={() => navigate('/tickets/new')}
+                size="sm"
+                className="h-8 text-xs gap-1 bg-white/10 hover:bg-white/20 text-white border-0"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Novo Chamado</span>
+              </Button>
+            )}
+          </div>
+        }
+      />
+
+      <main className="container mx-auto px-4 py-4">
         {viewMode === 'kanban' ? (
           <TicketKanban />
         ) : (
