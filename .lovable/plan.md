@@ -1,37 +1,97 @@
 
 
-## Plano: Implementar Transferência Real para Técnico no WhatsApp
+## Plano: Redesign Inspirado no Infradesk Service Desk
 
-### Problema Identificado
+Esse projeto envolve muitas mudanças. Recomendo dividir em **fases incrementais** para evitar quebrar funcionalidades existentes. Abaixo está o plano completo.
 
-Quando o `escalate_to_human` é chamado, ele apenas:
-1. Desativa a IA (`ai_enabled: false`)
-2. Muda o status para `waiting`
-3. Insere uma mensagem de sistema no banco
+---
 
-**Mas ninguém é notificado.** A conversa fica parada na fila sem que nenhum técnico saiba que precisa atender. Não há push notification nem mensagem WhatsApp para a equipe.
+### O que o Infradesk tem (e comparação com o que voce ja tem)
 
-### Solução
+| Funcionalidade | Infradesk | Conexao Help Desk | Status |
+|---|---|---|---|
+| Chamados/Tickets | Kanban (arrastar entre colunas) | Lista com filtros | Precisa criar |
+| Gestao de Ativos/Patrimonios | Sim | Sim | Ja tem |
+| Dashboard com metricas | Sim | Sim | Melhorar visual |
+| Chat Corporativo interno | Sim | Nao tem | Precisa criar |
+| Projetos | Sim | Nao tem | Precisa criar |
+| Centro de Custo | Sim | Nao tem | Precisa criar |
+| Sidebar fixa com icones | Sim (lateral escura) | Header horizontal | Precisa migrar |
+| Base de Conhecimento | Sim | Sim | Ja tem |
+| App/PWA | Sim | Sim (PWA) | Ja tem |
 
-Adicionar notificação ativa aos técnicos quando ocorre escalonamento, usando os mesmos mecanismos já existentes no sistema (push notification + WhatsApp para técnico).
+---
 
-### Alterações
+### Fase 1 -- Layout e Navegacao (prioridade)
 
-**Arquivo:** `supabase/functions/waba-ai-agent/index.ts`
+**Migrar de header horizontal para sidebar lateral** igual ao Infradesk:
 
-No case `escalate_to_human` (linha ~1269), após atualizar a conversa, adicionar:
+- Criar `AppSidebar` com Shadcn Sidebar (`collapsible="icon"`)
+- Sidebar escura com logo no topo, icones para cada modulo
+- Remover `AppHeader` e substituir por sidebar + header compacto com perfil/notificacoes
+- Layout wrapper com `SidebarProvider` envolvendo todas as paginas autenticadas
+- Mobile: sidebar offcanvas com trigger no header
 
-1. **Push notification** para todos os admins/técnicos via `send-push-notification` (mesmo padrão usado em `notify-ticket-created` e `check-service-orders-reminder`)
-2. **Mensagem WhatsApp** para o técnico responsável (mesmo padrão já usado na criação de tickets, linhas ~1054-1085), informando o nome do cliente, resumo do problema e link/instrução para atender
-3. **Mesmo tratamento para `partial_escalate`** -- enviar notificação push (sem desativar a IA)
+**Arquivos afetados:**
+- Criar `src/components/layout/AppSidebar.tsx`
+- Criar `src/components/layout/AppLayout.tsx` (wrapper com SidebarProvider)
+- Atualizar `src/App.tsx` para usar AppLayout nas rotas autenticadas
+- Deprecar `src/components/layout/AppHeader.tsx`
 
-O código já tem o padrão de notificação WhatsApp para técnico na ferramenta `create_ticket` -- será replicado para o escalonamento.
+---
 
-### Resultado Esperado
+### Fase 2 -- Kanban de Chamados
 
-Quando o cliente pedir para falar com um técnico:
-- A IA desativa o modo automático para aquela conversa
-- Todos os técnicos/admins recebem push notification no navegador/celular
-- O técnico designado (ou todos) recebe uma mensagem no WhatsApp avisando que há um cliente aguardando
-- A conversa aparece na fila "Aguardando" na plataforma WhatsApp
+**Adicionar visao Kanban na pagina de Tickets**, com colunas:
+- Aberto | Em Atendimento | Aguardando Cliente | Resolvido | Fechado
+
+- Cada chamado como card arrastavel com: numero, empresa, prioridade, tecnico, tempo
+- Toggle entre visao Lista (atual) e Kanban
+- Arrastar para mudar status (update no banco)
+- Usa os dados ja existentes da tabela `tickets`
+
+**Arquivos afetados:**
+- Criar `src/components/tickets/TicketKanban.tsx`
+- Atualizar `src/pages/Tickets.tsx` para toggle Lista/Kanban
+
+---
+
+### Fase 3 -- Dashboard Redesign
+
+- Redesenhar o dashboard com cards mais visuais e coloridos
+- Graficos de desempenho (tickets por status, SLA, tempo medio)
+- Secao de "Meus Atendimentos" com contadores por status
+- Widget de agenda do dia integrado
+
+**Arquivos afetados:**
+- Atualizar `src/pages/Dashboard.tsx`
+
+---
+
+### Fase 4 -- Chat Corporativo Interno
+
+- Chat em tempo real entre tecnicos e gestores
+- Usar tabelas novas: `chat_channels`, `chat_messages`
+- Realtime via Supabase
+- Sidebar ou pagina dedicada `/chat`
+
+**Novas tabelas necessarias** (migracao):
+- `chat_channels` (id, name, type, created_at)
+- `chat_messages` (id, channel_id, user_id, content, created_at)
+
+---
+
+### Fase 5 -- Projetos e Centro de Custo
+
+- Modulo de projetos com tarefas e acompanhamento
+- Centro de custo por empresa/contrato
+- Tabelas novas necessarias
+
+---
+
+### Recomendacao
+
+Sugiro comecar pela **Fase 1 (Sidebar)** pois muda toda a base visual e ja deixa a plataforma com a cara do Infradesk. Depois seguimos fase por fase.
+
+Quer que eu comece pela Fase 1?
 
