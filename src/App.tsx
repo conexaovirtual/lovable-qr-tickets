@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import { AppLayout } from "./components/layout/AppLayout";
 
 // Lazy load páginas pesadas
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -29,11 +30,12 @@ const WABAChat = lazy(() => import("./pages/WABAChat"));
 const AISupportChat = lazy(() => import("./pages/AISupportChat"));
 const WhatsAppPlatform = lazy(() => import("./pages/WhatsAppPlatform"));
 const Agenda = lazy(() => import("./pages/Agenda"));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutos
-      gcTime: 10 * 60 * 1000, // 10 minutos (anteriormente cacheTime)
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
       retry: 1,
     },
@@ -54,27 +56,33 @@ const App = () => (
       <BrowserRouter>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
+            {/* Public routes */}
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/public/ticket" element={<PublicTicket />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/tickets" element={<Tickets />} />
-            <Route path="/tickets/:id" element={<TicketDetail />} />
-            <Route path="/assets" element={<Assets />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/companies" element={<Companies />} />
-            <Route path="/companies/:id" element={<CompanyDetail />} />
-            <Route path="/technicians" element={<Technicians />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/daily-services" element={<DailyServices />} />
-            <Route path="/service-orders/new" element={<ServiceOrderPage />} />
-            <Route path="/profile/settings" element={<ProfileSettings />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/knowledge-base" element={<KnowledgeBase />} />
-            <Route path="/waba-chat" element={<WABAChat />} />
-            <Route path="/ai-support" element={<AISupportChat />} />
-            <Route path="/whatsapp-platform" element={<WhatsAppPlatform />} />
-            <Route path="/agenda" element={<Agenda />} />
+
+            {/* Authenticated routes with sidebar */}
+            <Route element={<AppLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/tickets" element={<Tickets />} />
+              <Route path="/tickets/:id" element={<TicketDetail />} />
+              <Route path="/assets" element={<Assets />} />
+              <Route path="/inventory" element={<Inventory />} />
+              <Route path="/companies" element={<Companies />} />
+              <Route path="/companies/:id" element={<CompanyDetail />} />
+              <Route path="/technicians" element={<Technicians />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/daily-services" element={<DailyServices />} />
+              <Route path="/service-orders/new" element={<ServiceOrderPage />} />
+              <Route path="/profile/settings" element={<ProfileSettings />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/knowledge-base" element={<KnowledgeBase />} />
+              <Route path="/waba-chat" element={<WABAChat />} />
+              <Route path="/ai-support" element={<AISupportChat />} />
+              <Route path="/whatsapp-platform" element={<WhatsAppPlatform />} />
+              <Route path="/agenda" element={<Agenda />} />
+            </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
