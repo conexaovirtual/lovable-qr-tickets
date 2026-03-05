@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { AppHeader } from '@/components/layout/AppHeader';
+
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -82,8 +82,7 @@ export default function CompanyDetail() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <AppHeader />
+      <div className="bg-background">
         <div className="container mx-auto px-4 py-6">
           <Skeleton className="h-8 w-64 mb-4" />
           <Skeleton className="h-96 w-full" />
@@ -97,8 +96,7 @@ export default function CompanyDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div className="bg-background">
       
       {/* Header da Empresa */}
       <header className="border-b bg-card">

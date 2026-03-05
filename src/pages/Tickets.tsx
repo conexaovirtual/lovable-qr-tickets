@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Plus, Filter } from 'lucide-react';
-import { AppHeader } from '@/components/layout/AppHeader';
+
 import { TicketList } from '@/components/tickets/TicketList';
 import { TicketFilters } from '@/components/tickets/TicketFilters';
 import {
@@ -43,8 +43,7 @@ export default function Tickets() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <AppHeader />
+      <div className="bg-background">
         <div className="container mx-auto px-4 py-6">
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
@@ -57,8 +56,7 @@ export default function Tickets() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div className="bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">

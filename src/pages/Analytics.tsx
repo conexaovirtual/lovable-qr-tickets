@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useAnalyticsData } from '@/hooks/useAnalyticsData';
-import { AppHeader } from '@/components/layout/AppHeader';
+
 import { StatsCards } from '@/components/analytics/StatsCards';
 import { TrendChart } from '@/components/analytics/TrendChart';
 import { CategoryPieChart } from '@/components/analytics/CategoryPieChart';
@@ -52,8 +52,7 @@ export default function Analytics() {
     : 100;
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div className="bg-background">
       
       <main className="container mx-auto px-4 py-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">

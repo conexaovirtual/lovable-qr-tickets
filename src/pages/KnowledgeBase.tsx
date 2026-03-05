@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { AppHeader } from '@/components/layout/AppHeader';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -66,11 +66,10 @@ export default function KnowledgeBase() {
     setArticles(prev => prev.map(a => a.id === articleId ? { ...a, util_count: a.util_count + 1 } : a));
   };
 
-  if (authLoading) return <div className="min-h-screen bg-background"><AppHeader /><Skeleton className="h-96 m-4" /></div>;
+  if (authLoading) return <div className="bg-background"><Skeleton className="h-96 m-4" /></div>;
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div className="bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <Button variant="ghost" onClick={() => navigate(-1)} className="mb-2">

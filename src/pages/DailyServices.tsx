@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { AppHeader } from "@/components/layout/AppHeader";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,8 +40,7 @@ export default function DailyServices() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div className="bg-background">
       
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">

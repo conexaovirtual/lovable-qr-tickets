@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { AppHeader } from '@/components/layout/AppHeader';
+
 import { AssetList } from '@/components/assets/AssetList';
 import { AssetDialog } from '@/components/assets/AssetDialog';
 
@@ -41,8 +41,7 @@ export default function Assets() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div className="bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">

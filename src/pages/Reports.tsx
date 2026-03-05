@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AppHeader } from '@/components/layout/AppHeader';
+
 import { CompanyReportList } from '@/components/reports/CompanyReportList';
 import { ReportPrintDialog } from '@/components/reports/ReportPrintDialog';
 import { InventoryReport } from '@/components/reports/InventoryReport';
@@ -87,8 +87,7 @@ export default function Reports() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div className="bg-background">
       
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">

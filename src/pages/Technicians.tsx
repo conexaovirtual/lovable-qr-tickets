@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { AppHeader } from '@/components/layout/AppHeader';
+
 import { TechnicianList } from '@/components/technicians/TechnicianList';
 import { TechnicianDialog } from '@/components/technicians/TechnicianDialog';
 import { Button } from '@/components/ui/button';
@@ -94,8 +94,7 @@ export default function Technicians() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div className="bg-background">
       
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
