@@ -8,7 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Send, Bot, UserRound, Phone, CheckCheck, Check, Clock,
-  MessageSquare, Info, Ticket, ArrowLeft, AlertTriangle, CheckCircle2
+  MessageSquare, Info, Ticket, ArrowLeft, AlertTriangle, CheckCircle2,
+  Sparkles, Headphones, Shield
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -40,7 +41,6 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch messages
   useEffect(() => {
     if (!conversation) { setMessages([]); return; }
 
@@ -91,7 +91,6 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
       if (error) throw error;
       if (data?.error) throw new Error(data.error.message || data.error);
       setNewMessage("");
-      // Auto-disable AI when human agent intervenes
       if (conversation.ai_enabled) {
         await supabase
           .from("waba_conversations")
@@ -128,10 +127,10 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
 
   const getStatusIcon = (status: string | null) => {
     switch (status) {
-      case "read": return <CheckCheck className="h-3 w-3 text-primary" />;
-      case "delivered": return <CheckCheck className="h-3 w-3 text-muted-foreground" />;
-      case "sent": return <Check className="h-3 w-3 text-muted-foreground" />;
-      case "pending": return <Clock className="h-3 w-3 text-muted-foreground" />;
+      case "read": return <CheckCheck className="h-3 w-3 text-blue-400" />;
+      case "delivered": return <CheckCheck className="h-3 w-3 text-white/50" />;
+      case "sent": return <Check className="h-3 w-3 text-white/50" />;
+      case "pending": return <Clock className="h-3 w-3 text-white/50" />;
       default: return null;
     }
   };
@@ -139,22 +138,32 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
   // Empty state
   if (!conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-muted/30 p-6">
-        <div className="text-center space-y-3">
-          <div className="relative mx-auto w-16 h-16 sm:w-20 sm:h-20">
-            <MessageSquare className="h-full w-full text-muted-foreground/20" />
-            <Bot className="h-6 w-6 sm:h-8 sm:w-8 absolute -bottom-1 -right-1 text-primary" />
+      <div className="flex-1 flex items-center justify-center bg-muted/20 p-6">
+        <div className="text-center space-y-4">
+          <div className="relative mx-auto w-20 h-20">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+              <Headphones className="h-10 w-10 text-primary/40" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-lg">
+              <Sparkles className="h-4 w-4 text-primary-foreground" />
+            </div>
           </div>
           <div>
-            <p className="text-base sm:text-lg font-semibold text-foreground">Plataforma WhatsApp</p>
+            <p className="text-lg font-semibold text-foreground">Plataforma de Atendimento</p>
             <p className="text-sm text-muted-foreground mt-1">
               Selecione uma conversa para iniciar o atendimento
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground pt-2">
-            <span className="flex items-center gap-1"><Bot className="h-3.5 w-3.5 text-primary" /> IA Autônoma</span>
-            <span className="flex items-center gap-1"><Ticket className="h-3.5 w-3.5 text-primary" /> Auto Tickets</span>
-            <span className="flex items-center gap-1"><UserRound className="h-3.5 w-3.5 text-primary" /> Híbrido</span>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
+              <Bot className="h-3.5 w-3.5 text-primary" /> IA Autônoma
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
+              <Ticket className="h-3.5 w-3.5 text-primary" /> Auto Tickets
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
+              <Shield className="h-3.5 w-3.5 text-primary" /> Híbrido
+            </div>
           </div>
         </div>
       </div>
@@ -175,61 +184,82 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
-      {/* Chat Header */}
-      <div className="h-13 sm:h-14 border-b px-2 sm:px-4 flex items-center gap-2 sm:gap-3 bg-card shrink-0">
+      {/* Chat Header - Professional Infradesk style */}
+      <div className="h-14 border-b px-3 sm:px-4 flex items-center gap-3 bg-card shrink-0">
         {onBack && (
           <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden shrink-0" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
         )}
-        <Avatar className="h-8 w-8 sm:h-9 sm:w-9 shrink-0">
-          <AvatarFallback className="bg-primary/10 text-primary text-xs sm:text-sm font-semibold">
+        <Avatar className="h-9 w-9 shrink-0">
+          <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-sm font-semibold">
             {(conversation.contact_name || conversation.phone_number).slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate">
-            {conversation.contact_name || conversation.phone_number}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-sm truncate">
+              {conversation.contact_name || conversation.phone_number}
+            </p>
+            {conversation.queue_status === "resolved" && (
+              <Badge className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                RESOLVIDO
+              </Badge>
+            )}
+          </div>
           <p className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
-            <Phone className="h-3 w-3 shrink-0" />
+            <Phone className="h-2.5 w-2.5 shrink-0" />
             <span className="truncate">{conversation.phone_number}</span>
+            <span className="mx-1 text-border">•</span>
+            <span className="text-emerald-600 font-medium">WhatsApp</span>
           </p>
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {conversation.queue_status !== "resolved" && (
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1 px-2" onClick={resolveConversation}>
-              <CheckCircle2 className="h-3 w-3" />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5 px-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+              onClick={resolveConversation}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Resolver</span>
             </Button>
           )}
-          {conversation.queue_status === "resolved" && (
-            <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/30 px-1.5">✓</Badge>
-          )}
-          <div className="flex items-center gap-1.5">
+          {/* AI Toggle */}
+          <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-2.5 py-1.5">
             <Switch
               checked={conversation.ai_enabled}
               onCheckedChange={toggleAI}
-              className="scale-90 sm:scale-100"
+              className="scale-90"
             />
-            <Bot className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${conversation.ai_enabled ? "text-primary" : "text-muted-foreground"}`} />
+            <div className="flex items-center gap-1">
+              <Bot className={`h-3.5 w-3.5 ${conversation.ai_enabled ? "text-primary" : "text-muted-foreground"}`} />
+              <span className={`text-[11px] font-medium hidden sm:inline ${conversation.ai_enabled ? "text-primary" : "text-muted-foreground"}`}>
+                {conversation.ai_enabled ? "IA ON" : "Manual"}
+              </span>
+            </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onToggleInfo}
-            className={`h-8 w-8 ${showInfo ? "bg-accent" : ""}`}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleInfo}
+            className={`h-8 w-8 ${showInfo ? "bg-accent text-accent-foreground" : ""}`}
+          >
             <Info className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 bg-muted/20">
+      <ScrollArea className="flex-1 bg-[hsl(var(--muted)/0.3)]">
         <div className="p-3 sm:p-4 space-y-1 max-w-3xl mx-auto">
           {groupedMessages.map((group) => (
             <div key={group.date}>
               <div className="flex justify-center my-3">
-                <Badge variant="secondary" className="text-[10px] font-normal px-3">
+                <span className="text-[10px] font-medium text-muted-foreground bg-card border rounded-full px-3 py-1 shadow-sm">
                   {format(new Date(group.date), "dd 'de' MMMM", { locale: undefined })}
-                </Badge>
+                </span>
               </div>
               <div className="space-y-1.5">
                 {group.msgs.map((msg) => {
@@ -239,8 +269,12 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
                     const isResolved = msg.content?.includes("resolvida");
                     return (
                       <div key={msg.id} className="flex justify-center my-2">
-                        <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs max-w-[90%] ${
-                          isEscalation ? "bg-warning/15 text-warning" : isResolved ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
+                        <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs max-w-[90%] shadow-sm ${
+                          isEscalation
+                            ? "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800"
+                            : isResolved
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800"
+                            : "bg-card text-muted-foreground border"
                         }`}>
                           {isEscalation ? <AlertTriangle className="h-3 w-3 shrink-0" /> : isResolved ? <CheckCircle2 className="h-3 w-3 shrink-0" /> : <Info className="h-3 w-3 shrink-0" />}
                           <span className="truncate">{msg.content}</span>
@@ -249,34 +283,35 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
                     );
                   }
 
+                  const isOutbound = msg.direction === "outbound";
+                  const isAI = msg.sender_type === "ai";
+
                   return (
-                  <div key={msg.id} className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-3 py-2 shadow-sm ${
-                      msg.direction === "outbound"
-                        ? msg.sender_type === "ai"
-                          ? "bg-primary/85 text-primary-foreground rounded-br-sm"
-                          : "bg-primary text-primary-foreground rounded-br-sm"
-                        : "bg-card rounded-bl-sm border"
-                    }`}>
-                      {msg.direction === "outbound" && msg.sender_type !== "user" && (
-                        <div className="flex items-center gap-1 mb-0.5 opacity-70">
-                          {msg.sender_type === "ai" ? <Bot className="h-3 w-3" /> : <UserRound className="h-3 w-3" />}
-                          <span className="text-[10px] font-medium">
-                            {msg.sender_type === "ai" ? "IA" : "Técnico"}
-                          </span>
-                        </div>
-                      )}
-                      <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
-                      <div className={`flex items-center gap-1 mt-0.5 ${
-                        msg.direction === "outbound" ? "justify-end" : "justify-start"
+                    <div key={msg.id} className={`flex ${isOutbound ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
+                        isOutbound
+                          ? isAI
+                            ? "bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground rounded-br-sm"
+                            : "bg-primary text-primary-foreground rounded-br-sm"
+                          : "bg-card rounded-bl-sm border"
                       }`}>
-                        <span className="text-[10px] opacity-60">
-                          {format(new Date(msg.created_at), "HH:mm")}
-                        </span>
-                        {msg.direction === "outbound" && getStatusIcon(msg.status)}
+                        {isOutbound && msg.sender_type !== "user" && (
+                          <div className={`flex items-center gap-1 mb-1 ${isAI ? "text-white/70" : "text-white/70"}`}>
+                            {isAI ? <Sparkles className="h-3 w-3" /> : <UserRound className="h-3 w-3" />}
+                            <span className="text-[10px] font-semibold tracking-wide">
+                              {isAI ? "ASSISTENTE IA" : "TÉCNICO"}
+                            </span>
+                          </div>
+                        )}
+                        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                        <div className={`flex items-center gap-1 mt-1 ${isOutbound ? "justify-end" : "justify-start"}`}>
+                          <span className={`text-[10px] ${isOutbound ? "text-white/50" : "text-muted-foreground"}`}>
+                            {format(new Date(msg.created_at), "HH:mm")}
+                          </span>
+                          {isOutbound && getStatusIcon(msg.status)}
+                        </div>
                       </div>
                     </div>
-                  </div>
                   );
                 })}
               </div>
@@ -286,26 +321,31 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
         </div>
       </ScrollArea>
 
-      {/* Input */}
-      <div className="border-t p-2 sm:p-3 bg-card shrink-0 pb-[env(safe-area-inset-bottom,8px)]">
+      {/* Input - Professional bottom bar */}
+      <div className="border-t bg-card shrink-0 pb-[env(safe-area-inset-bottom,4px)]">
         {conversation.ai_enabled && (
-          <div className="flex items-center gap-2 mb-1.5 px-1 max-w-3xl mx-auto">
-            <Bot className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="text-[11px] text-muted-foreground truncate">
-              IA respondendo • Envie para intervir
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-primary/5 border-b border-primary/10">
+            <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-[11px] text-primary font-medium truncate">
+              IA respondendo automaticamente • Envie uma mensagem para intervir
             </span>
           </div>
         )}
-        <div className="flex gap-2 max-w-3xl mx-auto">
+        <div className="flex gap-2 p-3 max-w-3xl mx-auto">
           <Input
             placeholder={conversation.ai_enabled ? "Intervir manualmente..." : "Digite uma mensagem..."}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
             disabled={sending}
-            className="flex-1 h-10"
+            className="flex-1 h-10 bg-muted/50 border-0 focus-visible:ring-1"
           />
-          <Button onClick={handleSend} disabled={!newMessage.trim() || sending} size="icon" className="h-10 w-10 shrink-0">
+          <Button
+            onClick={handleSend}
+            disabled={!newMessage.trim() || sending}
+            size="icon"
+            className="h-10 w-10 shrink-0 rounded-lg"
+          >
             <Send className="h-4 w-4" />
           </Button>
         </div>

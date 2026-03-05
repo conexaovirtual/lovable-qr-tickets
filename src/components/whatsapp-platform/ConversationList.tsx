@@ -3,8 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Bot, Clock, MessageSquare, Users, UserCheck } from "lucide-react";
+import { Search, Bot, Clock, MessageSquare, Users, UserCheck, Phone, Sparkles } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -36,6 +35,24 @@ function formatTime(dateStr: string) {
   return format(date, "dd/MM", { locale: ptBR });
 }
 
+function getQueueColor(status: string) {
+  switch (status) {
+    case "waiting": return "bg-amber-500";
+    case "assigned": return "bg-blue-500";
+    case "resolved": return "bg-emerald-500";
+    default: return "bg-muted-foreground";
+  }
+}
+
+function getQueueLabel(status: string) {
+  switch (status) {
+    case "waiting": return "NA FILA";
+    case "assigned": return "ATRIBUÍDO";
+    case "resolved": return "RESOLVIDO";
+    default: return status?.toUpperCase();
+  }
+}
+
 export function ConversationList({ conversations, selectedId, onSelect }: ConversationListProps) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -55,41 +72,58 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
     return matchesSearch && matchesFilter;
   });
 
+  const counts = {
+    all: conversations.length,
+    ai: conversations.filter(c => c.ai_enabled).length,
+    waiting: conversations.filter(c => c.queue_status === "waiting").length,
+    assigned: conversations.filter(c => c.queue_status === "assigned").length,
+  };
+
+  const tabs = [
+    { key: "all", label: "Todos", icon: Users, count: counts.all },
+    { key: "ai", label: "IA", icon: Bot, count: counts.ai },
+    { key: "waiting", label: "Fila", icon: Clock, count: counts.waiting },
+    { key: "assigned", label: "Atribuídos", icon: UserCheck, count: counts.assigned },
+  ];
+
   return (
     <div className="flex flex-col h-full bg-card border-r">
-      {/* Header */}
-      <div className="p-3 sm:p-4 border-b space-y-2.5 sm:space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-base">Conversas</h2>
-          <Badge variant="secondary" className="text-xs">
-            {conversations.length}
-          </Badge>
-        </div>
+      {/* Search */}
+      <div className="p-3 border-b space-y-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar..."
+            placeholder="Buscar contato ou número..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9 text-sm"
+            className="pl-9 h-9 text-sm bg-muted/50 border-0 focus-visible:ring-1"
           />
         </div>
-        <Tabs value={filter} onValueChange={setFilter}>
-          <TabsList className="w-full h-8">
-            <TabsTrigger value="all" className="text-[11px] sm:text-xs flex-1 gap-1">
-              <Users className="h-3 w-3" /> Todas
-            </TabsTrigger>
-            <TabsTrigger value="ai" className="text-[11px] sm:text-xs flex-1 gap-1">
-              <Bot className="h-3 w-3" /> IA
-            </TabsTrigger>
-            <TabsTrigger value="waiting" className="text-[11px] sm:text-xs flex-1 gap-1">
-              <Clock className="h-3 w-3" /> Fila
-            </TabsTrigger>
-            <TabsTrigger value="assigned" className="text-[11px] sm:text-xs flex-1 gap-1">
-              <UserCheck className="h-3 w-3" /> Atrib.
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+
+        {/* Filter Tabs - Infradesk style horizontal pills */}
+        <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-all ${
+                filter === tab.key
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              <tab.icon className="h-3 w-3" />
+              {tab.label}
+              <span className={`text-[10px] rounded-full px-1.5 py-0 min-w-[18px] text-center ${
+                filter === tab.key
+                  ? "bg-white/20 text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* List */}
@@ -101,46 +135,69 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
             <p className="text-xs mt-1">As conversas aparecerão quando clientes enviarem mensagens</p>
           </div>
         ) : (
-          <div className="divide-y">
+          <div>
             {filtered.map((conv) => (
               <button
                 key={conv.id}
                 onClick={() => onSelect(conv)}
-                className={`w-full flex items-center gap-3 px-3 sm:px-4 py-3.5 sm:py-3 text-left transition-colors hover:bg-accent/50 active:bg-accent/70 ${
-                  selectedId === conv.id ? "bg-accent border-l-2 border-l-primary" : ""
+                className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-all hover:bg-accent/50 active:bg-accent/70 border-b border-border/50 ${
+                  selectedId === conv.id
+                    ? "bg-accent border-l-[3px] border-l-primary"
+                    : "border-l-[3px] border-l-transparent"
                 }`}
               >
+                {/* Avatar with online/AI indicator */}
                 <div className="relative shrink-0">
                   <Avatar className="h-11 w-11">
-                    <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
+                    <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-semibold text-sm">
                       {(conv.contact_name || conv.phone_number).slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
+                  {/* AI indicator dot */}
                   {conv.ai_enabled && (
-                    <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary flex items-center justify-center">
-                      <Bot className="h-2.5 w-2.5 text-primary-foreground" />
+                    <div className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-primary border-2 border-card flex items-center justify-center">
+                      <Sparkles className="h-2.5 w-2.5 text-primary-foreground" />
                     </div>
                   )}
+                  {/* Online status dot */}
+                  {!conv.ai_enabled && conv.status === "active" && (
+                    <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-card" />
+                  )}
                 </div>
+
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-baseline">
-                    <p className="font-medium text-sm truncate">
+                  {/* Name + time */}
+                  <div className="flex justify-between items-baseline gap-2">
+                    <p className="font-semibold text-[13px] truncate">
                       {conv.contact_name || conv.phone_number}
                     </p>
-                    <span className="text-[11px] text-muted-foreground ml-2 whitespace-nowrap">
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap font-medium">
                       {formatTime(conv.last_message_at)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <p className="text-xs text-muted-foreground truncate">
-                      {conv.phone_number}
-                    </p>
-                    {conv.queue_status === "waiting" && (
-                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 border-warning text-warning shrink-0">Fila</Badge>
+
+                  {/* Phone number */}
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                    <Phone className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate">{conv.phone_number}</span>
+                  </p>
+
+                  {/* Tags row */}
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    {/* Queue status tag */}
+                    <span className={`inline-flex items-center text-[9px] font-bold tracking-wider text-white rounded px-1.5 py-0.5 leading-none ${getQueueColor(conv.queue_status)}`}>
+                      {getQueueLabel(conv.queue_status)}
+                    </span>
+                    {/* AI tag */}
+                    {conv.ai_enabled && (
+                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold tracking-wider text-primary bg-primary/10 rounded px-1.5 py-0.5 leading-none">
+                        <Bot className="h-2.5 w-2.5" /> IA
+                      </span>
                     )}
-                    {conv.queue_status === "resolved" && (
-                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 border-success text-success shrink-0">✓</Badge>
-                    )}
+                    {/* Channel tag */}
+                    <span className="inline-flex items-center text-[9px] font-medium text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/40 rounded px-1.5 py-0.5 leading-none">
+                      WhatsApp
+                    </span>
                   </div>
                 </div>
               </button>
