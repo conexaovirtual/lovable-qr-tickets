@@ -25,6 +25,7 @@ import {
   PackageSearch,
   BookOpen,
   MessageSquare,
+  MessageCircle,
   BarChart3,
   Wrench,
   CalendarDays,
@@ -84,6 +85,7 @@ export function AppSidebar() {
     { title: 'Ativos', url: '/assets', icon: Package, show: true },
     { title: 'Inventário', url: '/inventory', icon: PackageSearch, show: true },
     { title: 'Base de Conhecimento', url: '/knowledge-base', icon: BookOpen, show: true },
+    { title: 'Chat Interno', url: '/chat', icon: MessageCircle, show: true },
   ];
 
   const adminItems = [

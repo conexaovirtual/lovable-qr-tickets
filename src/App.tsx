@@ -30,6 +30,7 @@ const WABAChat = lazy(() => import("./pages/WABAChat"));
 const AISupportChat = lazy(() => import("./pages/AISupportChat"));
 const WhatsAppPlatform = lazy(() => import("./pages/WhatsAppPlatform"));
 const Agenda = lazy(() => import("./pages/Agenda"));
+const Chat = lazy(() => import("./pages/Chat"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -81,6 +82,7 @@ const App = () => (
               <Route path="/ai-support" element={<AISupportChat />} />
               <Route path="/whatsapp-platform" element={<WhatsAppPlatform />} />
               <Route path="/agenda" element={<Agenda />} />
+              <Route path="/chat" element={<Chat />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
