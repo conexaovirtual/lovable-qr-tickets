@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
-
+import { Plus, Package } from 'lucide-react';
 import { AssetList } from '@/components/assets/AssetList';
 import { AssetDialog } from '@/components/assets/AssetDialog';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function Assets() {
   const navigate = useNavigate();
@@ -15,9 +15,7 @@ export default function Assets() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    if (!loading && !profile) {
-      navigate('/auth');
-    }
+    if (!loading && !profile) navigate('/auth');
   }, [profile, navigate, loading]);
 
   const canManageAssets = isAdmin() || hasRole('tecnico') || hasRole('gestor_cliente');
@@ -36,30 +34,29 @@ export default function Assets() {
     setRefreshTrigger(prev => prev + 1);
   };
 
-  if (loading) {
-    return null;
-  }
+  if (loading) return null;
 
   return (
-    <div className="bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Ativos</h1>
-              <p className="text-muted-foreground">Gerencie equipamentos e patrimônio</p>
-            </div>
-            {canManageAssets && (
-              <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Ativo
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
+    <div className="bg-background min-h-screen">
+      <PageHeader
+        icon={Package}
+        title="Ativos"
+        subtitle="Gerencie equipamentos e patrimônio"
+        actions={
+          canManageAssets ? (
+            <Button
+              onClick={() => setDialogOpen(true)}
+              size="sm"
+              className="h-8 text-xs gap-1 bg-white/10 hover:bg-white/20 text-white border-0"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Novo Ativo</span>
+            </Button>
+          ) : undefined
+        }
+      />
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-4">
         <AssetList onEdit={handleEdit} refreshTrigger={refreshTrigger} />
       </main>
 
