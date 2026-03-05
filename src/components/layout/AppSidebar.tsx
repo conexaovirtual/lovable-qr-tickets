@@ -31,6 +31,8 @@ import {
   CalendarDays,
   LogOut,
   User,
+  FolderKanban,
+  Wallet,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
@@ -86,6 +88,8 @@ export function AppSidebar() {
     { title: 'Inventário', url: '/inventory', icon: PackageSearch, show: true },
     { title: 'Base de Conhecimento', url: '/knowledge-base', icon: BookOpen, show: true },
     { title: 'Chat Interno', url: '/chat', icon: MessageCircle, show: true },
+    { title: 'Projetos', url: '/projects', icon: FolderKanban, show: true },
+    { title: 'Centro de Custo', url: '/cost-center', icon: Wallet, show: isAdmin || isGestor },
   ];
 
   const adminItems = [
