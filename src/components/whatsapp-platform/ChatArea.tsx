@@ -303,7 +303,42 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
                             </span>
                           </div>
                         )}
-                        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                        {/* Media rendering */}
+                        {msg.media_url && msg.message_type === "image" && (
+                          <a href={msg.media_url} target="_blank" rel="noopener noreferrer" className="block mb-1.5">
+                            <img
+                              src={msg.media_url}
+                              alt="Imagem"
+                              className="rounded-lg max-w-full max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          </a>
+                        )}
+                        {msg.media_url && msg.message_type === "video" && (
+                          <video
+                            src={msg.media_url}
+                            controls
+                            className="rounded-lg max-w-full max-h-64 mb-1.5"
+                          />
+                        )}
+                        {msg.media_url && msg.message_type === "audio" && (
+                          <audio src={msg.media_url} controls className="max-w-full mb-1.5" />
+                        )}
+                        {msg.media_url && msg.message_type === "document" && (
+                          <a
+                            href={msg.media_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`flex items-center gap-2 mb-1.5 px-3 py-2 rounded-lg text-xs font-medium ${
+                              isOutbound ? "bg-white/10 text-white hover:bg-white/20" : "bg-muted hover:bg-muted/80"
+                            } transition-colors`}
+                          >
+                            📎 Documento anexo
+                          </a>
+                        )}
+                        {msg.content && msg.content !== "[Mensagem sem texto]" && (
+                          <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                        )}
                         <div className={`flex items-center gap-1 mt-1 ${isOutbound ? "justify-end" : "justify-start"}`}>
                           <span className={`text-[10px] ${isOutbound ? "text-white/50" : "text-muted-foreground"}`}>
                             {format(new Date(msg.created_at), "HH:mm")}
