@@ -226,6 +226,23 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
     return;
   }
 
+  // ─── Auto-reactivate AI if disabled and last interaction was 2+ hours ago ───
+  if (!conversation.ai_enabled) {
+    const lastMsgTime = new Date(conversation.last_message_at || 0).getTime();
+    const now = Date.now();
+    const hoursSinceLastMsg = (now - lastMsgTime) / (1000 * 60 * 60);
+    const REACTIVATION_THRESHOLD_HOURS = 2;
+
+    if (hoursSinceLastMsg >= REACTIVATION_THRESHOLD_HOURS) {
+      await supabase
+        .from("waba_conversations")
+        .update({ ai_enabled: true, queue_status: "waiting" })
+        .eq("id", conversation.id);
+      conversation.ai_enabled = true;
+      console.log(`AI auto-reactivated for ${phoneNumber} after ${hoursSinceLastMsg.toFixed(1)}h of inactivity`);
+    }
+  }
+
   // Insert message - rely on DB unique index as the definitive guard against race conditions
   const { error: insertError } = await supabase.from("waba_messages").insert({
     conversation_id: conversation.id,
