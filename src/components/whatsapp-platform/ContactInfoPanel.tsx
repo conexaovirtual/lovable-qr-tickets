@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -88,6 +88,9 @@ export function ContactInfoPanel({ conversation, onClose }: ContactInfoPanelProp
           {/* Contact Info */}
           <div className="flex flex-col items-center text-center space-y-2">
             <Avatar className="h-14 w-14 sm:h-16 sm:w-16">
+              {conversation.profile_photo_url && (
+                <AvatarImage src={conversation.profile_photo_url} alt={conversation.contact_name || conversation.phone_number} />
+              )}
               <AvatarFallback className="bg-primary/10 text-primary text-base sm:text-lg font-semibold">
                 {(conversation.contact_name || conversation.phone_number).slice(0, 2).toUpperCase()}
               </AvatarFallback>

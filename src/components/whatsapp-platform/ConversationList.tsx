@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Bot, Clock, MessageSquare, Users, UserCheck, Phone, Sparkles } from "lucide-react";
@@ -20,6 +20,7 @@ export interface Conversation {
   queue_status: string;
   first_response_at: string | null;
   resolved_at: string | null;
+  profile_photo_url: string | null;
 }
 
 interface ConversationListProps {
@@ -149,6 +150,9 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                 {/* Avatar with online/AI indicator */}
                 <div className="relative shrink-0">
                   <Avatar className="h-11 w-11">
+                    {conv.profile_photo_url && (
+                      <AvatarImage src={conv.profile_photo_url} alt={conv.contact_name || conv.phone_number} />
+                    )}
                     <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-semibold text-sm">
                       {(conv.contact_name || conv.phone_number).slice(0, 2).toUpperCase()}
                     </AvatarFallback>

@@ -1856,6 +1856,7 @@ export type Database = {
           id: string
           last_message_at: string | null
           phone_number: string
+          profile_photo_url: string | null
           queue_status: string
           resolved_at: string | null
           status: string
@@ -1871,6 +1872,7 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           phone_number: string
+          profile_photo_url?: string | null
           queue_status?: string
           resolved_at?: string | null
           status?: string
@@ -1886,6 +1888,7 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           phone_number?: string
+          profile_photo_url?: string | null
           queue_status?: string
           resolved_at?: string | null
           status?: string

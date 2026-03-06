@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -192,6 +192,9 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
           </Button>
         )}
         <Avatar className="h-9 w-9 shrink-0">
+          {conversation.profile_photo_url && (
+            <AvatarImage src={conversation.profile_photo_url} alt={conversation.contact_name || conversation.phone_number} />
+          )}
           <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-sm font-semibold">
             {(conversation.contact_name || conversation.phone_number).slice(0, 2).toUpperCase()}
           </AvatarFallback>
