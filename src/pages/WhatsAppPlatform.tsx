@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, MessageSquare, Bot, Wifi, WifiOff, BarChart3,
-  Headphones, Users, Clock, CheckCircle2
+  Headphones, Users, Clock, CheckCircle2, RefreshCw
 } from "lucide-react";
+import { toast } from "sonner";
 import { ConversationList, type Conversation } from "@/components/whatsapp-platform/ConversationList";
 import { ChatArea } from "@/components/whatsapp-platform/ChatArea";
 import { ContactInfoPanel } from "@/components/whatsapp-platform/ContactInfoPanel";
@@ -21,6 +22,25 @@ const WhatsAppPlatform = () => {
   const [showInfo, setShowInfo] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const [activeTab, setActiveTab] = useState<"inbox" | "metrics">("inbox");
+  const [syncing, setSyncing] = useState(false);
+
+  const syncContacts = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-whatsapp-contacts");
+      if (error) throw error;
+      toast.success(`${data?.synced || 0} contatos sincronizados`);
+      // Refresh conversations
+      const { data: convs } = await supabase
+        .from("waba_conversations")
+        .select("*")
+        .order("last_message_at", { ascending: false });
+      if (convs) setConversations(convs as Conversation[]);
+    } catch (err: any) {
+      toast.error("Erro ao sincronizar: " + (err.message || ""));
+    }
+    setSyncing(false);
+  };
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -155,6 +175,18 @@ const WhatsAppPlatform = () => {
                 <span className="hidden sm:inline">Métricas</span>
               </button>
             </div>
+
+            {/* Sync button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/10"
+              onClick={syncContacts}
+              disabled={syncing}
+              title="Sincronizar contatos"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+            </Button>
 
             {/* User avatar */}
             <div className="h-8 w-8 rounded-full bg-primary/30 border border-primary/50 flex items-center justify-center text-xs font-semibold text-white">

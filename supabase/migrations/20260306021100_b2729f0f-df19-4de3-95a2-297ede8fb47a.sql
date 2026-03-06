@@ -1,0 +1,1 @@
+ALTER TABLE public.waba_conversations ADD COLUMN IF NOT EXISTS profile_photo_url text;

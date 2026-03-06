@@ -202,17 +202,22 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
   }
 
   // Upsert conversation
+  // Extract profile photo URL from raw payload
+  const profilePhotoUrl = rawPayload?.profilePicUrl || rawPayload?.profilePic || rawPayload?.senderPhoto || null;
+
+  const upsertData: any = {
+    phone_number: phoneNumber,
+    contact_name: contactName,
+    last_message_at: new Date().toISOString(),
+    status: "active",
+  };
+  if (profilePhotoUrl) {
+    upsertData.profile_photo_url = profilePhotoUrl;
+  }
+
   const { data: conversation } = await supabase
     .from("waba_conversations")
-    .upsert(
-      {
-        phone_number: phoneNumber,
-        contact_name: contactName,
-        last_message_at: new Date().toISOString(),
-        status: "active",
-      },
-      { onConflict: "phone_number" }
-    )
+    .upsert(upsertData, { onConflict: "phone_number" })
     .select()
     .single();
 
