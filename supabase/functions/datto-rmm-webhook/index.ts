@@ -432,6 +432,45 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Create ticket for critical/warning alerts
     let ticketId = null;
     const priority = payload.alert_priority?.toLowerCase();
+
+    // ─── Filter out power-off / power-loss alerts (no ticket needed) ───
+    const alertMsgLower = (payload.alert_message || '').toLowerCase();
+    const alertTypeLower = (payload.alert_type || '').toLowerCase();
+    const alertCatLower = (payload.alert_category || '').toLowerCase();
+    const combinedAlert = `${alertMsgLower} ${alertTypeLower} ${alertCatLower}`;
+
+    const powerOffPatterns = [
+      'unexpected shutdown', 'improper shutdown', 'unclean shutdown',
+      'power loss', 'power failure', 'power off', 'poweroff',
+      'desligamento indevido', 'desligamento inesperado',
+      'queda de energia', 'falta de energia', 'energy loss',
+      'ups battery', 'power supply failure',
+      'the system has rebooted without cleanly shutting down',
+      'kernel-power', 'event 41',
+      'last shutdown was unexpected',
+    ];
+
+    const isPowerOffAlert = powerOffPatterns.some(pattern => combinedAlert.includes(pattern));
+
+    if (isPowerOffAlert) {
+      console.log(`Power-off/energy alert detected, skipping ticket creation: "${payload.alert_message}"`);
+      // Still log it but mark as processed without ticket
+      await supabase
+        .from('datto_alerts_log')
+        .update({ processed: true })
+        .eq('id', alertLogId);
+
+      return new Response(JSON.stringify({ 
+        ok: true, 
+        skipped: true, 
+        reason: 'power_off_alert_filtered',
+        alert_message: payload.alert_message,
+        asset_id: asset?.id || null,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const shouldCreateTicket = priority === 'critical' || priority === 'high' || priority === 'warning';
 
     if (shouldCreateTicket && asset) {
