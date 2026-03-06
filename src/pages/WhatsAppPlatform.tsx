@@ -29,7 +29,9 @@ const WhatsAppPlatform = () => {
     try {
       const { data, error } = await supabase.functions.invoke("sync-whatsapp-contacts");
       if (error) throw error;
-      toast.success(`${data?.synced || 0} contatos sincronizados`);
+      const syncedCount = data?.synced || 0;
+      const photosCount = data?.photosUpdated || 0;
+      toast.success(`${syncedCount} contatos sincronizados, ${photosCount} fotos atualizadas`);
       // Refresh conversations
       const { data: convs } = await supabase
         .from("waba_conversations")

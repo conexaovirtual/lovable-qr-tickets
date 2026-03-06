@@ -17,7 +17,11 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL");
+    const MABBIX_CONNECTION_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
+
     let synced = 0;
+    let photosUpdated = 0;
 
     // 1. Sync from companies with WhatsApp numbers
     const { data: companies } = await supabase
@@ -78,8 +82,61 @@ serve(async (req: Request) => {
       }
     }
 
+    // 3. Fetch profile photos from Mabbix API for conversations without photos
+    if (MABBIX_BACKEND_URL && MABBIX_CONNECTION_TOKEN) {
+      const { data: convosWithoutPhoto } = await supabase
+        .from("waba_conversations")
+        .select("id, phone_number")
+        .is("profile_photo_url", null)
+        .limit(50); // Process in batches to avoid timeout
+
+      if (convosWithoutPhoto && convosWithoutPhoto.length > 0) {
+        console.log(`Fetching profile photos for ${convosWithoutPhoto.length} contacts...`);
+
+        for (const convo of convosWithoutPhoto) {
+          try {
+            // Try Evolution API format: /chat/fetchProfilePictureUrl/{instance}
+            const photoResponse = await fetch(
+              `${MABBIX_BACKEND_URL}/api/chat/fetchProfilePictureUrl`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${MABBIX_CONNECTION_TOKEN}`,
+                },
+                body: JSON.stringify({ number: convo.phone_number }),
+              }
+            );
+
+            if (photoResponse.ok) {
+              const photoData = await photoResponse.json();
+              const photoUrl = photoData?.profilePictureUrl || photoData?.profilePicUrl || photoData?.picture || null;
+
+              if (photoUrl) {
+                await supabase
+                  .from("waba_conversations")
+                  .update({ profile_photo_url: photoUrl })
+                  .eq("id", convo.id);
+                photosUpdated++;
+                console.log(`Photo updated for ${convo.phone_number}`);
+              }
+            } else {
+              console.log(`Photo fetch failed for ${convo.phone_number}: ${photoResponse.status}`);
+            }
+
+            // Small delay to avoid rate limiting
+            await new Promise((r) => setTimeout(r, 200));
+          } catch (err) {
+            console.log(`Photo fetch error for ${convo.phone_number}:`, err);
+          }
+        }
+      }
+    } else {
+      console.log("Mabbix API not configured, skipping photo sync");
+    }
+
     return new Response(
-      JSON.stringify({ ok: true, synced }),
+      JSON.stringify({ ok: true, synced, photosUpdated }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {
