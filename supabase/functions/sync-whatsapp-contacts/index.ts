@@ -82,53 +82,111 @@ serve(async (req: Request) => {
       }
     }
 
-    // 3. Fetch profile photos from Mabbix API for conversations without photos
+    // 3. Fetch profile photos via Mabbix API
     if (MABBIX_BACKEND_URL && MABBIX_CONNECTION_TOKEN) {
       const { data: convosWithoutPhoto } = await supabase
         .from("waba_conversations")
         .select("id, phone_number")
         .is("profile_photo_url", null)
-        .limit(50); // Process in batches to avoid timeout
+        .limit(30);
 
       if (convosWithoutPhoto && convosWithoutPhoto.length > 0) {
-        console.log(`Fetching profile photos for ${convosWithoutPhoto.length} contacts...`);
+        console.log(`Attempting photo sync for ${convosWithoutPhoto.length} contacts`);
+        console.log(`MABBIX_BACKEND_URL: ${MABBIX_BACKEND_URL}`);
 
-        for (const convo of convosWithoutPhoto) {
+        // Try with first contact to discover the correct endpoint
+        const testPhone = convosWithoutPhoto[0].phone_number;
+        
+        // Try multiple possible endpoint patterns
+        const endpoints = [
+          { url: `${MABBIX_BACKEND_URL}/chat/fetchProfilePictureUrl`, authHeader: "apikey" },
+          { url: `${MABBIX_BACKEND_URL}/api/chat/fetchProfilePictureUrl`, authHeader: "Authorization" },
+          { url: `${MABBIX_BACKEND_URL}/api/contacts/profilePicture`, authHeader: "Authorization" },
+          { url: `${MABBIX_BACKEND_URL}/chat/fetchProfilePictureUrl`, authHeader: "Authorization" },
+        ];
+
+        let workingEndpoint: { url: string; authHeader: string } | null = null;
+
+        for (const ep of endpoints) {
           try {
-            // Try Evolution API format: /chat/fetchProfilePictureUrl/{instance}
-            const photoResponse = await fetch(
-              `${MABBIX_BACKEND_URL}/api/chat/fetchProfilePictureUrl`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${MABBIX_CONNECTION_TOKEN}`,
-                },
-                body: JSON.stringify({ number: convo.phone_number }),
-              }
-            );
-
-            if (photoResponse.ok) {
-              const photoData = await photoResponse.json();
-              const photoUrl = photoData?.profilePictureUrl || photoData?.profilePicUrl || photoData?.picture || null;
-
-              if (photoUrl) {
-                await supabase
-                  .from("waba_conversations")
-                  .update({ profile_photo_url: photoUrl })
-                  .eq("id", convo.id);
-                photosUpdated++;
-                console.log(`Photo updated for ${convo.phone_number}`);
-              }
+            const headers: Record<string, string> = { "Content-Type": "application/json" };
+            if (ep.authHeader === "apikey") {
+              headers["apikey"] = MABBIX_CONNECTION_TOKEN;
             } else {
-              console.log(`Photo fetch failed for ${convo.phone_number}: ${photoResponse.status}`);
+              headers["Authorization"] = `Bearer ${MABBIX_CONNECTION_TOKEN}`;
             }
 
-            // Small delay to avoid rate limiting
-            await new Promise((r) => setTimeout(r, 200));
+            console.log(`Testing endpoint: ${ep.url} with ${ep.authHeader} header`);
+            const testResp = await fetch(ep.url, {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ number: testPhone }),
+            });
+
+            const respText = await testResp.text();
+            console.log(`Response ${testResp.status}: ${respText.substring(0, 200)}`);
+
+            if (testResp.ok) {
+              workingEndpoint = ep;
+              // Parse and save the first result
+              try {
+                const data = JSON.parse(respText);
+                const photoUrl = data?.profilePictureUrl || data?.profilePicUrl || data?.picture || data?.url || null;
+                if (photoUrl) {
+                  await supabase
+                    .from("waba_conversations")
+                    .update({ profile_photo_url: photoUrl })
+                    .eq("id", convosWithoutPhoto[0].id);
+                  photosUpdated++;
+                }
+              } catch (_) { /* parse error */ }
+              break;
+            }
           } catch (err) {
-            console.log(`Photo fetch error for ${convo.phone_number}:`, err);
+            console.log(`Endpoint ${ep.url} error:`, err);
           }
+        }
+
+        // If we found a working endpoint, process the rest
+        if (workingEndpoint) {
+          console.log(`Working endpoint found: ${workingEndpoint.url}`);
+          for (let i = 1; i < convosWithoutPhoto.length; i++) {
+            const convo = convosWithoutPhoto[i];
+            try {
+              const headers: Record<string, string> = { "Content-Type": "application/json" };
+              if (workingEndpoint.authHeader === "apikey") {
+                headers["apikey"] = MABBIX_CONNECTION_TOKEN;
+              } else {
+                headers["Authorization"] = `Bearer ${MABBIX_CONNECTION_TOKEN}`;
+              }
+
+              const resp = await fetch(workingEndpoint.url, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({ number: convo.phone_number }),
+              });
+
+              if (resp.ok) {
+                const data = await resp.json();
+                const photoUrl = data?.profilePictureUrl || data?.profilePicUrl || data?.picture || data?.url || null;
+                if (photoUrl) {
+                  await supabase
+                    .from("waba_conversations")
+                    .update({ profile_photo_url: photoUrl })
+                    .eq("id", convo.id);
+                  photosUpdated++;
+                }
+              } else {
+                await resp.text(); // consume body
+              }
+
+              await new Promise((r) => setTimeout(r, 300));
+            } catch (err) {
+              console.log(`Photo error for ${convo.phone_number}:`, err);
+            }
+          }
+        } else {
+          console.log("No working endpoint found for profile photos. Tried:", endpoints.map(e => e.url));
         }
       }
     } else {
