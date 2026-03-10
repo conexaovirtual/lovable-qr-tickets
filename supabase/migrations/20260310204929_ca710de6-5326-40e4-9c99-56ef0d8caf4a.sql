@@ -1,0 +1,1 @@
+UPDATE tickets SET status = 'fechado', data_fechamento = now(), solucao = 'Ticket fechado automaticamente - alerta de desligamento de máquina do Datto não requer atendimento.' WHERE id IN (SELECT t.id FROM tickets t INNER JOIN datto_alerts_log d ON d.ticket_id = t.id WHERE d.alert_message LIKE '%desligamento do sistema%' AND t.status NOT IN ('fechado', 'resolvido'))
