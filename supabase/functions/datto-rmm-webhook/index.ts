@@ -434,7 +434,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const priority = payload.alert_priority?.toLowerCase();
 
     // ─── Filter out power-off / power-loss alerts (no ticket needed) ───
-    const alertMsgLower = (payload.alert_message || '').toLowerCase();
+    // Decode HTML entities before matching (Datto sends &agrave; &atilde; &lrm; etc.)
+    const decodeHtml = (s: string) => s
+      .replace(/&agrave;/g, 'à').replace(/&atilde;/g, 'ã').replace(/&aacute;/g, 'á')
+      .replace(/&eacute;/g, 'é').replace(/&iacute;/g, 'í').replace(/&oacute;/g, 'ó')
+      .replace(/&uacute;/g, 'ú').replace(/&ccedil;/g, 'ç').replace(/&ntilde;/g, 'ñ')
+      .replace(/&lrm;/g, '').replace(/&rlm;/g, '').replace(/&amp;/g, '&')
+      .replace(/&#\d+;/g, '').replace(/&[a-z]+;/g, '');
+
+    const alertMsgLower = decodeHtml((payload.alert_message || '').toLowerCase());
     const alertTypeLower = (payload.alert_type || '').toLowerCase();
     const alertCatLower = (payload.alert_category || '').toLowerCase();
     const combinedAlert = `${alertMsgLower} ${alertTypeLower} ${alertCatLower}`;
@@ -443,6 +451,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       'unexpected shutdown', 'improper shutdown', 'unclean shutdown',
       'power loss', 'power failure', 'power off', 'poweroff',
       'desligamento indevido', 'desligamento inesperado',
+      'desligamento do sistema', 'não era esperado', 'nao era esperado',
       'queda de energia', 'falta de energia', 'energy loss',
       'ups battery', 'power supply failure',
       'the system has rebooted without cleanly shutting down',
