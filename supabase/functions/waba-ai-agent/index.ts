@@ -1393,6 +1393,39 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
           console.error("Failed to send push for partial escalation:", pushErr);
         }
 
+        // WhatsApp notification to technician for partial escalation
+        try {
+          const TECNICO_PHONE_PARTIAL = "5562984515801";
+          const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
+          const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
+          if (MABBIX_URL && MABBIX_TOKEN) {
+            const partialMsg = `⚡ *Atenção — Atendimento IA (${args.urgencia?.toUpperCase() || "MEDIA"})*\n\n` +
+              `👤 *Cliente:* ${partialContactName}\n` +
+              `📞 *Telefone:* ${phone}\n` +
+              `🏢 *Empresa:* ${partialCompanyName}\n\n` +
+              `📋 *Motivo:* ${args.reason}\n\n` +
+              `📝 *Resumo:*\n${args.resumo}\n\n` +
+              `🤖 A IA continua ativa como copiloto. Acesse a plataforma se precisar intervir.`;
+
+            await fetch(`${MABBIX_URL}/api/messages/send`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${MABBIX_TOKEN}`,
+              },
+              body: JSON.stringify({
+                number: TECNICO_PHONE_PARTIAL,
+                body: partialMsg,
+                openTicket: "0",
+                queueId: "0",
+              }),
+            });
+            console.log(`WhatsApp partial escalation notification sent to ${TECNICO_PHONE_PARTIAL}`);
+          }
+        } catch (waMsgErr) {
+          console.error("Failed to send WhatsApp partial escalation notification:", waMsgErr);
+        }
+
         result = { success: true, mode: "ai_copilot", urgencia: args.urgencia };
         console.log(`Conversation ${args.conversation_id} partially escalated (copilot mode): ${args.reason}`);
         break;
