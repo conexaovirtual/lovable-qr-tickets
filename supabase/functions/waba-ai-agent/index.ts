@@ -617,11 +617,21 @@ REGRAS:
 - SEMPRE responda à ÚLTIMA mensagem. Ignore contexto antigo que contradiga.
 - Use search_knowledge_base ANTES de responder dúvidas técnicas.
 - NUNCA crie chamado sem confirmação do cliente.
-- Escalonamento: base de conhecimento → chamado → partial_escalate → escalate_to_human.
+- Escalonamento técnico: base de conhecimento → chamado → partial_escalate → escalate_to_human.
 - Após fechar chamado, use resolve_conversation.
 - NUNCA escreva JSON no texto. Use exclusivamente tool_calls estruturado.
 - Se o ativo não existir, use register_asset antes de criar chamado.
-- Use o nome "${contactName}" como solicitante ao criar chamados.`;
+- Use o nome "${contactName}" como solicitante ao criar chamados.
+
+═══════════════════════════════════════
+⚠️ REGRA CRÍTICA — FALAR COM TÉCNICO (OPÇÃO 4):
+═══════════════════════════════════════
+Quando o cliente pedir para "falar com técnico", "falar com Jose", "falar com humano", "transferir", "quero atendente", responder "4", ou qualquer variação:
+1. Você DEVE chamar a ferramenta escalate_to_human IMEDIATAMENTE.
+2. Passe conversation_id, reason (motivo do cliente) e resumo (resumo do contexto).
+3. Informe ao cliente: "Transferido para o técnico Jose Pereira. Ele receberá o aviso e retornará em breve."
+4. NÃO diga que transferiu sem chamar escalate_to_human. A ferramenta é o que REALMENTE notifica o técnico.
+5. NÃO tente resolver o problema primeiro se o cliente pediu explicitamente para falar com técnico.`;
 }
 
 // ─── Tools Definition (Expanded) ─────────────────────────────────────
@@ -1036,7 +1046,9 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
                 },
                 body: JSON.stringify({
                   number: TECNICO_PHONE,
-                  text: notifMsg,
+                  body: notifMsg,
+                  openTicket: "0",
+                  queueId: "0",
                 }),
               });
               console.log(`WhatsApp notification sent to technician ${TECNICO_PHONE}`);
@@ -1304,7 +1316,9 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
               },
               body: JSON.stringify({
                 number: TECNICO_PHONE_ESCALATE,
-                text: escalateMsg,
+                body: escalateMsg,
+                openTicket: "0",
+                queueId: "0",
               }),
             });
             console.log(`WhatsApp escalation notification sent to ${TECNICO_PHONE_ESCALATE}`);
@@ -1377,6 +1391,39 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
           console.log("Push notifications sent for partial escalation");
         } catch (pushErr) {
           console.error("Failed to send push for partial escalation:", pushErr);
+        }
+
+        // WhatsApp notification to technician for partial escalation
+        try {
+          const TECNICO_PHONE_PARTIAL = "5562984515801";
+          const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
+          const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
+          if (MABBIX_URL && MABBIX_TOKEN) {
+            const partialMsg = `⚡ *Atenção — Atendimento IA (${args.urgencia?.toUpperCase() || "MEDIA"})*\n\n` +
+              `👤 *Cliente:* ${partialContactName}\n` +
+              `📞 *Telefone:* ${phone}\n` +
+              `🏢 *Empresa:* ${partialCompanyName}\n\n` +
+              `📋 *Motivo:* ${args.reason}\n\n` +
+              `📝 *Resumo:*\n${args.resumo}\n\n` +
+              `🤖 A IA continua ativa como copiloto. Acesse a plataforma se precisar intervir.`;
+
+            await fetch(`${MABBIX_URL}/api/messages/send`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${MABBIX_TOKEN}`,
+              },
+              body: JSON.stringify({
+                number: TECNICO_PHONE_PARTIAL,
+                body: partialMsg,
+                openTicket: "0",
+                queueId: "0",
+              }),
+            });
+            console.log(`WhatsApp partial escalation notification sent to ${TECNICO_PHONE_PARTIAL}`);
+          }
+        } catch (waMsgErr) {
+          console.error("Failed to send WhatsApp partial escalation notification:", waMsgErr);
         }
 
         result = { success: true, mode: "ai_copilot", urgencia: args.urgencia };
