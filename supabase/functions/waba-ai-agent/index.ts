@@ -1046,7 +1046,9 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
                 },
                 body: JSON.stringify({
                   number: TECNICO_PHONE,
-                  text: notifMsg,
+                  body: notifMsg,
+                  openTicket: "0",
+                  queueId: "0",
                 }),
               });
               console.log(`WhatsApp notification sent to technician ${TECNICO_PHONE}`);
