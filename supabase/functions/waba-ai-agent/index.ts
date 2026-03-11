@@ -1314,7 +1314,9 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
               },
               body: JSON.stringify({
                 number: TECNICO_PHONE_ESCALATE,
-                text: escalateMsg,
+                body: escalateMsg,
+                openTicket: "0",
+                queueId: "0",
               }),
             });
             console.log(`WhatsApp escalation notification sent to ${TECNICO_PHONE_ESCALATE}`);
