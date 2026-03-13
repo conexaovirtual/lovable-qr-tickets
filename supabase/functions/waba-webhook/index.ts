@@ -226,12 +226,12 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
     return;
   }
 
-  // ─── Auto-reactivate AI if disabled and last interaction was 2+ hours ago ───
+  // ─── Auto-reactivate AI if disabled and last interaction was 30+ minutes ago ───
   if (!conversation.ai_enabled) {
     const lastMsgTime = new Date(conversation.last_message_at || 0).getTime();
     const now = Date.now();
-    const hoursSinceLastMsg = (now - lastMsgTime) / (1000 * 60 * 60);
-    const REACTIVATION_THRESHOLD_HOURS = 2;
+    const minutesSinceLastMsg = (now - lastMsgTime) / (1000 * 60);
+    const REACTIVATION_THRESHOLD_MINUTES = 30;
 
     if (hoursSinceLastMsg >= REACTIVATION_THRESHOLD_HOURS) {
       await supabase
