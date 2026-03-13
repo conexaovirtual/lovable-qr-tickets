@@ -233,13 +233,13 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
     const minutesSinceLastMsg = (now - lastMsgTime) / (1000 * 60);
     const REACTIVATION_THRESHOLD_MINUTES = 30;
 
-    if (hoursSinceLastMsg >= REACTIVATION_THRESHOLD_HOURS) {
+    if (minutesSinceLastMsg >= REACTIVATION_THRESHOLD_MINUTES) {
       await supabase
         .from("waba_conversations")
         .update({ ai_enabled: true, queue_status: "waiting" })
         .eq("id", conversation.id);
       conversation.ai_enabled = true;
-      console.log(`AI auto-reactivated for ${phoneNumber} after ${hoursSinceLastMsg.toFixed(1)}h of inactivity`);
+      console.log(`AI auto-reactivated for ${phoneNumber} after ${minutesSinceLastMsg.toFixed(0)}min of inactivity`);
     }
   }
 
