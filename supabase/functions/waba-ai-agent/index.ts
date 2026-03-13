@@ -1260,11 +1260,15 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
 
         // 1. Push notification para admins e técnicos
         try {
-          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push-notification`, {
+          const pushAuthKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY");
+          const pushUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push-notification`;
+          console.log(`Sending push notifications via: ${pushUrl}`);
+          
+          const adminPushRes = await fetch(pushUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+              "Authorization": `Bearer ${pushAuthKey}`,
             },
             body: JSON.stringify({
               role: "admin_provedor",
@@ -1274,12 +1278,15 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
               tag: `escalation-${args.conversation_id}`,
             }),
           });
+          const adminPushResult = await adminPushRes.text();
+          console.log(`Push admin response (${adminPushRes.status}):`, adminPushResult.substring(0, 200));
+          
           // Also notify technicians
-          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push-notification`, {
+          const techPushRes = await fetch(pushUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+              "Authorization": `Bearer ${pushAuthKey}`,
             },
             body: JSON.stringify({
               role: "tecnico",
@@ -1289,7 +1296,8 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
               tag: `escalation-${args.conversation_id}`,
             }),
           });
-          console.log("Push notifications sent for escalation");
+          const techPushResult = await techPushRes.text();
+          console.log(`Push tecnico response (${techPushRes.status}):`, techPushResult.substring(0, 200));
         } catch (pushErr) {
           console.error("Failed to send push notification for escalation:", pushErr);
         }
