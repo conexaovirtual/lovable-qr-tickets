@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, User, Package, AlertCircle, ExternalLink, Building2 } from 'lucide-react';
+import { TicketImpactIndicator } from './TicketImpactIndicator';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
