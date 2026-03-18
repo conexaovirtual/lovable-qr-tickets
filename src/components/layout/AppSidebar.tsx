@@ -33,6 +33,7 @@ import {
   User,
   FolderKanban,
   Wallet,
+  FileSignature,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
