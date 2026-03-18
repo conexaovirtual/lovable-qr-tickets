@@ -147,10 +147,10 @@ export default function NetworkMonitor() {
             Atualização a cada 60s
           </div>
         }
-        badges={[
-          { label: `${totals.online} Online`, variant: 'default', className: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
-          { label: `${totals.alert} Alertas`, variant: 'default', className: 'bg-amber-500 hover:bg-amber-600 text-white' },
-          { label: `${totals.offline} Offline`, variant: 'destructive' },
+        metrics={[
+          { icon: CheckCircle2, label: 'Online', value: totals.online, color: 'bg-emerald-600' },
+          { icon: AlertTriangle, label: 'Alertas', value: totals.alert, color: 'bg-amber-500' },
+          { icon: WifiOff, label: 'Offline', value: totals.offline, color: 'bg-red-600' },
         ]}
       />
 
