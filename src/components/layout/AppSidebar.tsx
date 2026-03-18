@@ -34,6 +34,7 @@ import {
   FolderKanban,
   Wallet,
   FileSignature,
+  Network,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
