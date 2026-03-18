@@ -90,6 +90,7 @@ const App = () => (
               <Route path="/projects" element={<Projects />} />
               <Route path="/cost-center" element={<CostCenter />} />
               <Route path="/contracts" element={<Contracts />} />
+              <Route path="/cmdb" element={<CMDB />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
