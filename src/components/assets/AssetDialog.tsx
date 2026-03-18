@@ -24,6 +24,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Cpu, MemoryStick, HardDrive, Monitor, Link2, Network, History } from 'lucide-react';
 import { AssetRelationships } from './AssetRelationships';
+import { AssetRelationshipMap } from './AssetRelationshipMap';
 import { AssetChangelog } from './AssetChangelog';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
