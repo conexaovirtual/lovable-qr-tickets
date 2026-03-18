@@ -95,6 +95,7 @@ export function AppSidebar() {
     { title: 'Centro de Custo', url: '/cost-center', icon: Wallet, show: isAdmin || isGestor },
     { title: 'Contratos', url: '/contracts', icon: FileSignature, show: isAdmin || isGestor },
     { title: 'CMDB', url: '/cmdb', icon: Network, show: isAdminOrTech },
+    { title: 'Monitor de Rede', url: '/network-monitor', icon: Wifi, show: isAdminOrTech },
   ];
 
   const adminItems = [
