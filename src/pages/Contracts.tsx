@@ -102,7 +102,7 @@ const Contracts = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Contratos" description="Gestão de contratos e SLA avançado" />
+      <PageHeader icon={FileSignature} title="Contratos" subtitle="Gestão de contratos e SLA avançado" />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
