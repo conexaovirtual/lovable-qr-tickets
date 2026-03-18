@@ -35,6 +35,7 @@ const Projects = lazy(() => import("./pages/Projects"));
 const CostCenter = lazy(() => import("./pages/CostCenter"));
 const Contracts = lazy(() => import("./pages/Contracts"));
 const CMDB = lazy(() => import("./pages/CMDB"));
+const NetworkMonitor = lazy(() => import("./pages/NetworkMonitor"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
