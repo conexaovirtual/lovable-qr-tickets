@@ -51,7 +51,7 @@ const Contracts = () => {
     queryKey: ["contracts", filterStatus],
     queryFn: async () => {
       let query = supabase.from("contracts").select("*, companies(nome_fantasia)").order("created_at", { ascending: false });
-      if (filterStatus !== "all") query = query.eq("status", filterStatus);
+      if (filterStatus !== "all") query = query.eq("status", filterStatus as "ativo" | "expirado" | "cancelado" | "pendente");
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
