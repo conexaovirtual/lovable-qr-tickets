@@ -34,6 +34,7 @@ const Chat = lazy(() => import("./pages/Chat"));
 const Projects = lazy(() => import("./pages/Projects"));
 const CostCenter = lazy(() => import("./pages/CostCenter"));
 const Contracts = lazy(() => import("./pages/Contracts"));
+const CMDB = lazy(() => import("./pages/CMDB"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -89,6 +90,7 @@ const App = () => (
               <Route path="/projects" element={<Projects />} />
               <Route path="/cost-center" element={<CostCenter />} />
               <Route path="/contracts" element={<Contracts />} />
+              <Route path="/cmdb" element={<CMDB />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

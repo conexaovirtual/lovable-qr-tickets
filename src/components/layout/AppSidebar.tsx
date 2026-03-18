@@ -34,6 +34,7 @@ import {
   FolderKanban,
   Wallet,
   FileSignature,
+  Network,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
@@ -92,6 +93,7 @@ export function AppSidebar() {
     { title: 'Projetos', url: '/projects', icon: FolderKanban, show: true },
     { title: 'Centro de Custo', url: '/cost-center', icon: Wallet, show: isAdmin || isGestor },
     { title: 'Contratos', url: '/contracts', icon: FileSignature, show: isAdmin || isGestor },
+    { title: 'CMDB', url: '/cmdb', icon: Network, show: isAdminOrTech },
   ];
 
   const adminItems = [
