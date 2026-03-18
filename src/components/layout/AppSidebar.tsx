@@ -91,6 +91,7 @@ export function AppSidebar() {
     { title: 'Chat Interno', url: '/chat', icon: MessageCircle, show: true },
     { title: 'Projetos', url: '/projects', icon: FolderKanban, show: true },
     { title: 'Centro de Custo', url: '/cost-center', icon: Wallet, show: isAdmin || isGestor },
+    { title: 'Contratos', url: '/contracts', icon: FileSignature, show: isAdmin || isGestor },
   ];
 
   const adminItems = [
