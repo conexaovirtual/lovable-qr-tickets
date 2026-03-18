@@ -33,6 +33,7 @@ const Agenda = lazy(() => import("./pages/Agenda"));
 const Chat = lazy(() => import("./pages/Chat"));
 const Projects = lazy(() => import("./pages/Projects"));
 const CostCenter = lazy(() => import("./pages/CostCenter"));
+const Contracts = lazy(() => import("./pages/Contracts"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -87,6 +88,7 @@ const App = () => (
               <Route path="/chat" element={<Chat />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/cost-center" element={<CostCenter />} />
+              <Route path="/contracts" element={<Contracts />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

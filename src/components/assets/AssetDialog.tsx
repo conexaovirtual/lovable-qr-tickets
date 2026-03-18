@@ -22,7 +22,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Cpu, MemoryStick, HardDrive, Monitor, Link2 } from 'lucide-react';
+import { Cpu, MemoryStick, HardDrive, Monitor, Link2, Network, History } from 'lucide-react';
+import { AssetRelationships } from './AssetRelationships';
+import { AssetChangelog } from './AssetChangelog';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
@@ -276,7 +278,7 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className={cn(
               "grid w-full",
-              requiredHardwareTab ? "grid-cols-4" : "grid-cols-3"
+              asset ? (requiredHardwareTab ? "grid-cols-6" : "grid-cols-5") : (requiredHardwareTab ? "grid-cols-4" : "grid-cols-3")
             )}>
               <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
               {requiredHardwareTab && <TabsTrigger value="hardware">Hardware</TabsTrigger>}
@@ -285,6 +287,8 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                 <Link2 className="h-3 w-3 mr-1" />
                 Datto
               </TabsTrigger>
+              {asset && <TabsTrigger value="cmdb"><Network className="h-3 w-3 mr-1" />CMDB</TabsTrigger>}
+              {asset && <TabsTrigger value="changelog"><History className="h-3 w-3 mr-1" />Histórico</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="basic" className="space-y-4">
@@ -687,6 +691,18 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                 )}
               </div>
             </TabsContent>
+
+            {asset && (
+              <TabsContent value="cmdb">
+                <AssetRelationships assetId={asset.id} companyId={asset.company_id} />
+              </TabsContent>
+            )}
+
+            {asset && (
+              <TabsContent value="changelog">
+                <AssetChangelog assetId={asset.id} />
+              </TabsContent>
+            )}
           </Tabs>
 
           <div className="flex gap-3 pt-4">

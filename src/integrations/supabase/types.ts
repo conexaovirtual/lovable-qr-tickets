@@ -205,6 +205,103 @@ export type Database = {
         }
         Relationships: []
       }
+      asset_changelog: {
+        Row: {
+          asset_id: string
+          campo: string
+          changed_by: string | null
+          created_at: string | null
+          id: string
+          observacao: string | null
+          valor_anterior: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          asset_id: string
+          campo: string
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          observacao?: string | null
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          asset_id?: string
+          campo?: string
+          changed_by?: string | null
+          created_at?: string | null
+          id?: string
+          observacao?: string | null
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_changelog_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_changelog_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_changelog_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_relationships: {
+        Row: {
+          child_asset_id: string
+          created_at: string | null
+          descricao: string | null
+          id: string
+          parent_asset_id: string
+          relationship_type: Database["public"]["Enums"]["asset_relationship_type"]
+        }
+        Insert: {
+          child_asset_id: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          parent_asset_id: string
+          relationship_type: Database["public"]["Enums"]["asset_relationship_type"]
+        }
+        Update: {
+          child_asset_id?: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          parent_asset_id?: string
+          relationship_type?: Database["public"]["Enums"]["asset_relationship_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_relationships_child_asset_id_fkey"
+            columns: ["child_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_relationships_parent_asset_id_fkey"
+            columns: ["parent_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_subcategories: {
         Row: {
           category_id: string
@@ -528,6 +625,165 @@ export type Database = {
           whatsapp?: string | null
         }
         Relationships: []
+      }
+      contract_hour_entries: {
+        Row: {
+          contract_id: string
+          created_at: string | null
+          data_registro: string
+          descricao: string | null
+          horas: number
+          id: string
+          service_order_id: string | null
+          tecnico_id: string | null
+          ticket_id: string | null
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string | null
+          data_registro?: string
+          descricao?: string | null
+          horas?: number
+          id?: string
+          service_order_id?: string | null
+          tecnico_id?: string | null
+          ticket_id?: string | null
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string | null
+          data_registro?: string
+          descricao?: string | null
+          horas?: number
+          id?: string
+          service_order_id?: string | null
+          tecnico_id?: string | null
+          ticket_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_hour_entries_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_hour_entries_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_hour_entries_tecnico_id_fkey"
+            columns: ["tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_hour_entries_tecnico_id_fkey"
+            columns: ["tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_hour_entries_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          descricao: string | null
+          horas_consumidas: number | null
+          horas_contratadas: number | null
+          id: string
+          observacoes: string | null
+          renovacao_automatica: boolean | null
+          status: Database["public"]["Enums"]["contract_status"]
+          tipo: Database["public"]["Enums"]["contract_type"]
+          updated_at: string | null
+          valor_mensal: number | null
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          descricao?: string | null
+          horas_consumidas?: number | null
+          horas_contratadas?: number | null
+          id?: string
+          observacoes?: string | null
+          renovacao_automatica?: boolean | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          tipo?: Database["public"]["Enums"]["contract_type"]
+          updated_at?: string | null
+          valor_mensal?: number | null
+          vigencia_fim?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          descricao?: string | null
+          horas_consumidas?: number | null
+          horas_contratadas?: number | null
+          id?: string
+          observacoes?: string | null
+          renovacao_automatica?: boolean | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          tipo?: Database["public"]["Enums"]["contract_type"]
+          updated_at?: string | null
+          valor_mensal?: number | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "asset_inventory_by_company"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_basic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_statistics"
+            referencedColumns: ["company_id"]
+          },
+        ]
       }
       cost_centers: {
         Row: {
@@ -2307,6 +2563,12 @@ export type Database = {
       }
     }
     Enums: {
+      asset_relationship_type:
+        | "hospeda"
+        | "conecta"
+        | "depende_de"
+        | "backup_de"
+        | "virtualiza"
       asset_status: "em_uso" | "estoque" | "manutencao" | "baixado"
       asset_type:
         | "desktop"
@@ -2325,6 +2587,8 @@ export type Database = {
         | "email"
         | "web"
       company_contract_type: "eventual" | "contrato_manutencao"
+      contract_status: "ativo" | "expirado" | "cancelado" | "pendente"
+      contract_type: "bloco_horas" | "ilimitado" | "por_chamado" | "mensal_fixo"
       impact_level: "alto" | "medio" | "baixo"
       phone_visibility: "everyone" | "managers_only" | "private"
       priority_level: "critica" | "alta" | "media" | "baixa"
@@ -2480,6 +2744,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      asset_relationship_type: [
+        "hospeda",
+        "conecta",
+        "depende_de",
+        "backup_de",
+        "virtualiza",
+      ],
       asset_status: ["em_uso", "estoque", "manutencao", "baixado"],
       asset_type: [
         "desktop",
@@ -2500,6 +2771,8 @@ export const Constants = {
         "web",
       ],
       company_contract_type: ["eventual", "contrato_manutencao"],
+      contract_status: ["ativo", "expirado", "cancelado", "pendente"],
+      contract_type: ["bloco_horas", "ilimitado", "por_chamado", "mensal_fixo"],
       impact_level: ["alto", "medio", "baixo"],
       phone_visibility: ["everyone", "managers_only", "private"],
       priority_level: ["critica", "alta", "media", "baixa"],
