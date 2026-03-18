@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Wifi, WifiOff, AlertTriangle, CheckCircle2, Search, ChevronDown, Monitor, Server, Router, Printer, HardDrive, RefreshCw } from 'lucide-react';
+import { Wifi, WifiOff, AlertTriangle, CheckCircle2, Search, ChevronDown, Monitor, Server, Printer, HardDrive, RefreshCw, Cable } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
