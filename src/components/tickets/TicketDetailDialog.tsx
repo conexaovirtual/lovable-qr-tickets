@@ -170,6 +170,11 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: TicketDetai
                     <span>{ticket.assets.tipo} - {ticket.assets.fabricante} {ticket.assets.modelo}</span>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Impact indicator */}
+            {ticket.asset_id && <TicketImpactIndicator assetId={ticket.asset_id} />}
 
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />

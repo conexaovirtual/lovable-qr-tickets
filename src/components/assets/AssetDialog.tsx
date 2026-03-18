@@ -694,7 +694,8 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
             </TabsContent>
 
             {asset && (
-              <TabsContent value="cmdb">
+              <TabsContent value="cmdb" className="space-y-4">
+                <AssetRelationshipMap assetId={asset.id} assetName={asset.nome} assetType={asset.tipo} />
                 <AssetRelationships assetId={asset.id} companyId={asset.company_id} />
               </TabsContent>
             )}
