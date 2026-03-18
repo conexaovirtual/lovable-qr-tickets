@@ -691,6 +691,18 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                 )}
               </div>
             </TabsContent>
+
+            {asset && (
+              <TabsContent value="cmdb">
+                <AssetRelationships assetId={asset.id} companyId={asset.company_id} />
+              </TabsContent>
+            )}
+
+            {asset && (
+              <TabsContent value="changelog">
+                <AssetChangelog assetId={asset.id} />
+              </TabsContent>
+            )}
           </Tabs>
 
           <div className="flex gap-3 pt-4">
