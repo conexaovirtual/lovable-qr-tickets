@@ -79,7 +79,10 @@ const Contracts = () => {
       setForm({ company_id: "", tipo: "mensal_fixo", valor_mensal: "", horas_contratadas: "", vigencia_inicio: format(new Date(), "yyyy-MM-dd"), vigencia_fim: "", renovacao_automatica: false, descricao: "", observacoes: "" });
       toast({ title: "Contrato criado com sucesso!" });
     },
-    onError: () => toast({ title: "Erro ao criar contrato", variant: "destructive" }),
+    onError: (error: any) => {
+      console.error("[Contracts] Error creating contract:", error);
+      toast({ title: "Erro ao criar contrato", description: error?.message, variant: "destructive" });
+    },
   });
 
   const getStatusBadge = (contract: any) => {
