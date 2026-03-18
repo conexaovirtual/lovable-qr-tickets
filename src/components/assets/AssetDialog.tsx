@@ -278,7 +278,7 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className={cn(
               "grid w-full",
-              requiredHardwareTab ? "grid-cols-4" : "grid-cols-3"
+              asset ? (requiredHardwareTab ? "grid-cols-6" : "grid-cols-5") : (requiredHardwareTab ? "grid-cols-4" : "grid-cols-3")
             )}>
               <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
               {requiredHardwareTab && <TabsTrigger value="hardware">Hardware</TabsTrigger>}
@@ -287,6 +287,8 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                 <Link2 className="h-3 w-3 mr-1" />
                 Datto
               </TabsTrigger>
+              {asset && <TabsTrigger value="cmdb"><Network className="h-3 w-3 mr-1" />CMDB</TabsTrigger>}
+              {asset && <TabsTrigger value="changelog"><History className="h-3 w-3 mr-1" />Histórico</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="basic" className="space-y-4">
