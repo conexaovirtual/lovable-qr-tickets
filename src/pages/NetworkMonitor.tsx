@@ -36,7 +36,7 @@ interface CompanyGroup {
 const deviceIcon = (tipo: string) => {
   switch (tipo) {
     case 'servidor': return Server;
-    case 'roteador': return Router;
+    case 'roteador': return Cable;
     case 'impressora': return Printer;
     case 'switch': return HardDrive;
     default: return Monitor;
