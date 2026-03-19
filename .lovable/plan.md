@@ -1,37 +1,97 @@
 
 
-## Diagnóstico: Todos os dispositivos marcados como Offline
+## Plano: Redesign Inspirado no Infradesk Service Desk
 
-### Problema identificado
+Esse projeto envolve muitas mudanças. Recomendo dividir em **fases incrementais** para evitar quebrar funcionalidades existentes. Abaixo está o plano completo.
 
-A função `datto-check-offline` marcou **todos os 210 dispositivos como offline** porque o campo `datto_last_sync` só é atualizado quando o Datto envia um **alerta** (webhook de alert). Dispositivos que estão funcionando normalmente e sem alertas nunca atualizam seu `datto_last_sync`, e após 15 minutos sem atualização, são marcados como offline.
+---
 
-Resumindo: o webhook do Datto RMM **não é um heartbeat** — ele só dispara em eventos de alerta. Logo, usar `datto_last_sync` como indicador de conectividade não funciona com a arquitetura atual.
+### O que o Infradesk tem (e comparação com o que voce ja tem)
 
-Além disso, o log do webhook mostra um erro de parsing JSON (`Bad control character in string literal`), indicando que alguns webhooks estão falhando.
+| Funcionalidade | Infradesk | Conexao Help Desk | Status |
+|---|---|---|---|
+| Chamados/Tickets | Kanban (arrastar entre colunas) | Lista com filtros | Precisa criar |
+| Gestao de Ativos/Patrimonios | Sim | Sim | Ja tem |
+| Dashboard com metricas | Sim | Sim | Melhorar visual |
+| Chat Corporativo interno | Sim | Nao tem | Precisa criar |
+| Projetos | Sim | Nao tem | Precisa criar |
+| Centro de Custo | Sim | Nao tem | Precisa criar |
+| Sidebar fixa com icones | Sim (lateral escura) | Header horizontal | Precisa migrar |
+| Base de Conhecimento | Sim | Sim | Ja tem |
+| App/PWA | Sim | Sim (PWA) | Ja tem |
 
-### Solução proposta
+---
 
-Usar a **API REST do Datto RMM** para consultar o status real dos dispositivos periodicamente, em vez de depender dos webhooks. O Datto já possui os secrets configurados (`DATTO_API_URL`, `DATTO_API_KEY`, `DATTO_API_SECRET`).
+### Fase 1 -- Layout e Navegacao (prioridade)
 
-**1. Reescrever a Edge Function `datto-check-offline`**
+**Migrar de header horizontal para sidebar lateral** igual ao Infradesk:
 
-Em vez de apenas verificar timestamps, a função vai:
-- Autenticar na API do Datto RMM (OAuth2 com client credentials)
-- Buscar a lista de dispositivos via `GET /api/v2/account/devices`
-- Para cada dispositivo, verificar o campo `online` retornado pela API
-- Atualizar `datto_status` e `datto_last_sync` nos ativos correspondentes (match por `datto_device_id`)
-- Dispositivos que a API retorna como offline → `datto_status = 'offline'`
-- Dispositivos que a API retorna como online → `datto_status = 'online'` + `datto_last_sync = now()`
+- Criar `AppSidebar` com Shadcn Sidebar (`collapsible="icon"`)
+- Sidebar escura com logo no topo, icones para cada modulo
+- Remover `AppHeader` e substituir por sidebar + header compacto com perfil/notificacoes
+- Layout wrapper com `SidebarProvider` envolvendo todas as paginas autenticadas
+- Mobile: sidebar offcanvas com trigger no header
 
-**2. Manter o cron job existente** (a cada 5 minutos)
+**Arquivos afetados:**
+- Criar `src/components/layout/AppSidebar.tsx`
+- Criar `src/components/layout/AppLayout.tsx` (wrapper com SidebarProvider)
+- Atualizar `src/App.tsx` para usar AppLayout nas rotas autenticadas
+- Deprecar `src/components/layout/AppHeader.tsx`
 
-**3. Nenhuma alteração no frontend** — o Monitor de Rede já lê `datto_status` corretamente
+---
 
-### Pré-requisito
+### Fase 2 -- Kanban de Chamados
 
-Verificar se os secrets `DATTO_API_URL`, `DATTO_API_KEY` e `DATTO_API_SECRET` estão configurados. Caso não estejam, será necessário adicioná-los antes da implementação.
+**Adicionar visao Kanban na pagina de Tickets**, com colunas:
+- Aberto | Em Atendimento | Aguardando Cliente | Resolvido | Fechado
 
-### Arquivos afetados
-- `supabase/functions/datto-check-offline/index.ts` — reescrever para usar API REST do Datto
+- Cada chamado como card arrastavel com: numero, empresa, prioridade, tecnico, tempo
+- Toggle entre visao Lista (atual) e Kanban
+- Arrastar para mudar status (update no banco)
+- Usa os dados ja existentes da tabela `tickets`
+
+**Arquivos afetados:**
+- Criar `src/components/tickets/TicketKanban.tsx`
+- Atualizar `src/pages/Tickets.tsx` para toggle Lista/Kanban
+
+---
+
+### Fase 3 -- Dashboard Redesign
+
+- Redesenhar o dashboard com cards mais visuais e coloridos
+- Graficos de desempenho (tickets por status, SLA, tempo medio)
+- Secao de "Meus Atendimentos" com contadores por status
+- Widget de agenda do dia integrado
+
+**Arquivos afetados:**
+- Atualizar `src/pages/Dashboard.tsx`
+
+---
+
+### Fase 4 -- Chat Corporativo Interno
+
+- Chat em tempo real entre tecnicos e gestores
+- Usar tabelas novas: `chat_channels`, `chat_messages`
+- Realtime via Supabase
+- Sidebar ou pagina dedicada `/chat`
+
+**Novas tabelas necessarias** (migracao):
+- `chat_channels` (id, name, type, created_at)
+- `chat_messages` (id, channel_id, user_id, content, created_at)
+
+---
+
+### Fase 5 -- Projetos e Centro de Custo
+
+- Modulo de projetos com tarefas e acompanhamento
+- Centro de custo por empresa/contrato
+- Tabelas novas necessarias
+
+---
+
+### Recomendacao
+
+Sugiro comecar pela **Fase 1 (Sidebar)** pois muda toda a base visual e ja deixa a plataforma com a cara do Infradesk. Depois seguimos fase por fase.
+
+Quer que eu comece pela Fase 1?
 
