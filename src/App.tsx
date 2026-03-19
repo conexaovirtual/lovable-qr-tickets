@@ -36,6 +36,7 @@ const CostCenter = lazy(() => import("./pages/CostCenter"));
 const Contracts = lazy(() => import("./pages/Contracts"));
 const CMDB = lazy(() => import("./pages/CMDB"));
 const NetworkMonitor = lazy(() => import("./pages/NetworkMonitor"));
+const DattoCallback = lazy(() => import("./pages/DattoCallback"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
