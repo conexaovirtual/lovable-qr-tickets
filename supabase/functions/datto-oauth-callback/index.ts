@@ -55,9 +55,12 @@ Deno.serve(async (req) => {
     console.log("[Datto OAuth Callback] Exchanging code for token...");
 
     // Exchange authorization code for access token
+    const clientCredentials = btoa("public-client:public");
+
     const tokenResponse = await fetch(tokenUrl, {
       method: "POST",
       headers: {
+        Authorization: `Basic ${clientCredentials}`,
         "Content-Type": "application/x-www-form-urlencoded",
         Accept: "application/json",
       },
@@ -65,8 +68,6 @@ Deno.serve(async (req) => {
         grant_type: "authorization_code",
         code,
         redirect_uri,
-        client_id: "public-client",
-        client_secret: "public",
       }).toString(),
     });
 

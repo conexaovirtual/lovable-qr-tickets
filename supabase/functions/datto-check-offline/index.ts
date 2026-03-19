@@ -124,17 +124,18 @@ async function refreshAccessToken(
   console.log("[Datto] Refreshing access token...");
   const tokenUrl = `${dattoApiUrl}/auth/oauth/token`;
 
+  const clientCredentials = btoa("public-client:public");
+
   const response = await fetch(tokenUrl, {
     method: "POST",
     headers: {
+      Authorization: `Basic ${clientCredentials}`,
       "Content-Type": "application/x-www-form-urlencoded",
       Accept: "application/json",
     },
     body: new URLSearchParams({
       grant_type: "refresh_token",
       refresh_token: storedToken.refresh_token,
-      client_id: "public-client",
-      client_secret: "public",
     }).toString(),
   });
 
