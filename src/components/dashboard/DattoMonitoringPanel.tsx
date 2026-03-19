@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Activity, CheckCircle2, AlertTriangle, WifiOff, ExternalLink, KeyRound, RefreshCw } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Activity, CheckCircle2, AlertTriangle, WifiOff, ExternalLink, KeyRound, RefreshCw, ScanSearch } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -26,6 +27,15 @@ interface RecentAlert {
   created_at: string;
 }
 
+interface FullSyncReport {
+  total: number;
+  detailsFetched: number;
+  updated: number;
+  created: number;
+  noCompany: number;
+  unmatchedSites: string[];
+}
+
 export function DattoMonitoringPanel() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DattoStats>({ online: 0, alert: 0, offline: 0 });
@@ -34,12 +44,13 @@ export function DattoMonitoringPanel() {
   const [hasDevices, setHasDevices] = useState(false);
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isFullSyncing, setIsFullSyncing] = useState(false);
+  const [syncReport, setSyncReport] = useState<FullSyncReport | null>(null);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  // Listen for OAuth callback
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
       if (event.data?.type === 'datto-oauth-callback' && event.data?.code) {
@@ -52,17 +63,11 @@ export function DattoMonitoringPanel() {
 
   const loadData = async () => {
     setLoading(true);
-
     const [devicesResult, alertsResult] = await Promise.all([
-      supabase
-        .from('assets')
-        .select('datto_status')
-        .not('datto_device_id', 'is', null),
-      supabase
-        .from('datto_alerts_log')
+      supabase.from('assets').select('datto_status').not('datto_device_id', 'is', null),
+      supabase.from('datto_alerts_log')
         .select('id, device_hostname, alert_type, alert_message, alert_priority, ticket_id, created_at')
-        .order('created_at', { ascending: false })
-        .limit(5),
+        .order('created_at', { ascending: false }).limit(5),
     ]);
 
     if (devicesResult.data && devicesResult.data.length > 0) {
@@ -76,37 +81,19 @@ export function DattoMonitoringPanel() {
       });
       setStats(counts);
     }
-
-    if (alertsResult.data) {
-      setRecentAlerts(alertsResult.data as RecentAlert[]);
-    }
-
+    if (alertsResult.data) setRecentAlerts(alertsResult.data as RecentAlert[]);
     setLoading(false);
   };
 
   const handleAuthorize = async () => {
     setIsAuthorizing(true);
     try {
-      // The callback URL will be on the same origin
       const redirectUri = `${window.location.origin}/datto-callback`;
-
-      const { data, error } = await supabase.functions.invoke('datto-oauth-start', {
-        body: { redirect_uri: redirectUri },
-      });
-
+      const { data, error } = await supabase.functions.invoke('datto-oauth-start', { body: { redirect_uri: redirectUri } });
       if (error) throw new Error(error.message || 'Erro ao iniciar autorização');
       if (!data?.authorize_url) throw new Error('URL de autorização não retornada');
-
-      // Open popup for authorization
-      const popup = window.open(
-        data.authorize_url,
-        'datto-oauth',
-        'width=600,height=700,menubar=no,toolbar=no,location=yes',
-      );
-
-      if (!popup) {
-        toast.error('Popup bloqueado! Permita popups para este site.');
-      }
+      const popup = window.open(data.authorize_url, 'datto-oauth', 'width=600,height=700,menubar=no,toolbar=no,location=yes');
+      if (!popup) toast.error('Popup bloqueado! Permita popups para este site.');
     } catch (err: any) {
       toast.error(err.message || 'Erro ao autorizar Datto');
     } finally {
@@ -117,13 +104,9 @@ export function DattoMonitoringPanel() {
   const exchangeCode = async (code: string) => {
     try {
       const redirectUri = `${window.location.origin}/datto-callback`;
-      const { data, error } = await supabase.functions.invoke('datto-oauth-callback', {
-        body: { code, redirect_uri: redirectUri },
-      });
-
+      const { data, error } = await supabase.functions.invoke('datto-oauth-callback', { body: { code, redirect_uri: redirectUri } });
       if (error) throw new Error(error.message || 'Erro ao trocar código');
       if (!data?.success) throw new Error('Falha ao salvar token');
-
       toast.success('Datto RMM autorizado com sucesso!');
       handleSync();
     } catch (err: any) {
@@ -137,7 +120,6 @@ export function DattoMonitoringPanel() {
       const { data, error } = await supabase.functions.invoke('datto-check-offline');
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || 'Erro na sincronização');
-
       toast.success(`Sincronizado: ${data.sync.dattoDevices} dispositivos`);
       loadData();
     } catch (err: any) {
@@ -147,53 +129,111 @@ export function DattoMonitoringPanel() {
     }
   };
 
-  if (loading) {
-    return <Skeleton className="h-48 mb-6" />;
-  }
+  const handleFullSync = async () => {
+    setIsFullSyncing(true);
+    setSyncReport(null);
+    try {
+      toast.info('Varredura completa iniciada. Isso pode levar alguns minutos...');
+      const { data, error } = await supabase.functions.invoke('datto-full-sync');
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error(data?.error || 'Erro na varredura');
+      const report = data.report as FullSyncReport;
+      setSyncReport(report);
+      toast.success(`Varredura concluída: ${report.created} criados, ${report.updated} atualizados`);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || 'Erro na varredura completa');
+    } finally {
+      setIsFullSyncing(false);
+    }
+  };
+
+  if (loading) return <Skeleton className="h-48 mb-6" />;
 
   const total = stats.online + stats.alert + stats.offline;
 
   return (
     <Card className="mb-6 border-blue-200 dark:border-blue-800">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-blue-600" />
             <CardTitle className="text-base">Monitoramento Datto RMM</CardTitle>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAuthorize}
-              disabled={isAuthorizing}
-              className="text-xs"
-            >
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={handleAuthorize} disabled={isAuthorizing} className="text-xs">
               <KeyRound className="h-3 w-3 mr-1" />
               {isAuthorizing ? 'Autorizando...' : 'Autorizar'}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSync}
-              disabled={isSyncing}
-              className="text-xs"
-            >
+            <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing} className="text-xs">
               <RefreshCw className={`h-3 w-3 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
               Sincronizar
             </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleFullSync}
+              disabled={isFullSyncing}
+              className="text-xs bg-blue-600 hover:bg-blue-700"
+            >
+              <ScanSearch className={`h-3 w-3 mr-1 ${isFullSyncing ? 'animate-pulse' : ''}`} />
+              {isFullSyncing ? 'Varrendo...' : 'Varredura Completa'}
+            </Button>
             {total > 0 && (
-              <Badge variant="outline" className="text-xs">
-                {total} dispositivos
-              </Badge>
+              <Badge variant="outline" className="text-xs">{total} dispositivos</Badge>
             )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Full sync progress */}
+        {isFullSyncing && (
+          <div className="space-y-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+            <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+              🔍 Varredura completa em andamento...
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Buscando dispositivos, coletando hardware e cadastrando ativos. Isso pode levar alguns minutos.
+            </p>
+            <Progress value={undefined} className="h-2" />
+          </div>
+        )}
+
+        {/* Full sync report */}
+        {syncReport && !isFullSyncing && (
+          <div className="space-y-2 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+            <p className="text-sm font-medium text-green-700 dark:text-green-300">
+              ✅ Varredura concluída
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="text-center p-2 rounded bg-background">
+                <p className="text-lg font-bold">{syncReport.total}</p>
+                <p className="text-muted-foreground">Total Datto</p>
+              </div>
+              <div className="text-center p-2 rounded bg-background">
+                <p className="text-lg font-bold text-blue-600">{syncReport.updated}</p>
+                <p className="text-muted-foreground">Atualizados</p>
+              </div>
+              <div className="text-center p-2 rounded bg-background">
+                <p className="text-lg font-bold text-green-600">{syncReport.created}</p>
+                <p className="text-muted-foreground">Criados</p>
+              </div>
+              <div className="text-center p-2 rounded bg-background">
+                <p className="text-lg font-bold text-amber-600">{syncReport.noCompany}</p>
+                <p className="text-muted-foreground">Sem empresa</p>
+              </div>
+            </div>
+            {syncReport.unmatchedSites.length > 0 && (
+              <div className="text-xs text-muted-foreground mt-1">
+                <p className="font-medium">Sites sem correspondência:</p>
+                <p className="truncate">{syncReport.unmatchedSites.join(', ')}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {total > 0 ? (
           <>
-            {/* Stats Row */}
             <div className="grid grid-cols-3 gap-3">
               <div className="flex items-center gap-2 p-2 rounded-lg bg-green-50 dark:bg-green-950/20">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -218,7 +258,6 @@ export function DattoMonitoringPanel() {
               </div>
             </div>
 
-            {/* Recent Alerts */}
             {recentAlerts.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground">Alertas Recentes</p>
@@ -227,10 +266,7 @@ export function DattoMonitoringPanel() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium truncate">{alert.device_hostname || 'Desconhecido'}</span>
-                        <Badge
-                          variant={alert.alert_priority === 'critical' ? 'destructive' : 'secondary'}
-                          className="text-xs"
-                        >
+                        <Badge variant={alert.alert_priority === 'critical' ? 'destructive' : 'secondary'} className="text-xs">
                           {alert.alert_priority}
                         </Badge>
                       </div>
@@ -242,11 +278,7 @@ export function DattoMonitoringPanel() {
                       </p>
                     </div>
                     {alert.ticket_id && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/tickets/${alert.ticket_id}`)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => navigate(`/tickets/${alert.ticket_id}`)}>
                         <ExternalLink className="h-3 w-3" />
                       </Button>
                     )}
