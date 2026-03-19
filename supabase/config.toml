@@ -82,3 +82,6 @@ verify_jwt = false
 
 [functions.datto-oauth-callback]
 verify_jwt = false
+
+[functions.datto-full-sync]
+verify_jwt = false
