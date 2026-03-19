@@ -1088,6 +1088,36 @@ export type Database = {
           },
         ]
       }
+      datto_oauth_tokens: {
+        Row: {
+          access_token: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          refresh_token: string | null
+          token_type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_token: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          refresh_token?: string | null
+          token_type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          access_token?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          refresh_token?: string | null
+          token_type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       knowledge_articles: {
         Row: {
           categoria: string | null

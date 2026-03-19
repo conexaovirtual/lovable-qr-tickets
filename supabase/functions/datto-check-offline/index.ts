@@ -26,22 +26,6 @@ function sanitizeBodyPreview(value: string): string {
 
 function buildHttpError(endpoint: string, status: number, body: string): Error {
   const preview = sanitizeBodyPreview(body);
-
-  if (status === 401) {
-    console.error(`[Datto][401 unauthorized] endpoint=${endpoint} body="${preview}"`);
-    return new Error(`Datto unauthorized (401) em ${endpoint}.`);
-  }
-
-  if (status === 403) {
-    console.error(`[Datto][403 forbidden] endpoint=${endpoint} body="${preview}"`);
-    return new Error(`Datto forbidden (403) em ${endpoint}.`);
-  }
-
-  if (status === 404) {
-    console.error(`[Datto][404 endpoint not found] endpoint=${endpoint} body="${preview}"`);
-    return new Error(`Datto endpoint not found (404) em ${endpoint}.`);
-  }
-
   console.error(`[Datto][http_error] endpoint=${endpoint} status=${status} body="${preview}"`);
   return new Error(`Datto HTTP ${status} em ${endpoint}.`);
 }
@@ -101,40 +85,121 @@ function normalizeDattoDevice(raw: any): DattoDevice {
   };
 }
 
-async function getDattoAccessToken(apiUrl: string, apiKey: string, apiSecret: string): Promise<string> {
-  const endpoint = "/auth/oauth/token";
-  const tokenUrl = `${apiUrl}${endpoint}`;
-  const credentials = btoa(`${apiKey}:${apiSecret}`);
+// --- Token management ---
 
-  const data = await fetchDattoJson(tokenUrl, endpoint, {
+interface StoredToken {
+  id: string;
+  access_token: string;
+  refresh_token: string | null;
+  expires_at: string | null;
+}
+
+async function getStoredToken(supabase: any): Promise<StoredToken | null> {
+  const { data, error } = await supabase
+    .from("datto_oauth_tokens")
+    .select("id, access_token, refresh_token, expires_at")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error || !data) return null;
+  return data as StoredToken;
+}
+
+function isTokenExpired(token: StoredToken): boolean {
+  if (!token.expires_at) return false;
+  // Refresh 5 minutes before expiration
+  return new Date(token.expires_at).getTime() - 5 * 60 * 1000 < Date.now();
+}
+
+async function refreshAccessToken(
+  supabase: any,
+  storedToken: StoredToken,
+  dattoApiUrl: string,
+): Promise<string> {
+  if (!storedToken.refresh_token) {
+    throw new Error("Token expirado e sem refresh_token. Reautorize o Datto.");
+  }
+
+  console.log("[Datto] Refreshing access token...");
+  const tokenUrl = `${dattoApiUrl}/auth/oauth/token`;
+
+  const response = await fetch(tokenUrl, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${credentials}`,
       "Content-Type": "application/x-www-form-urlencoded",
       Accept: "application/json",
     },
-    body: "grant_type=client_credentials",
-  }) as Record<string, unknown>;
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: storedToken.refresh_token,
+      client_id: "public-client",
+      client_secret: "public",
+    }).toString(),
+  });
 
-  const accessToken = data?.access_token;
-  if (!accessToken || typeof accessToken !== "string") {
-    console.error("[Datto][oauth_error] access_token ausente na resposta do OAuth2");
-    throw new Error("Datto OAuth2 inválido: access_token não encontrado.");
+  const body = await response.text();
+
+  if (!response.ok) {
+    console.error(`[Datto] Refresh failed: ${response.status} ${body.substring(0, 240)}`);
+    throw new Error(`Falha ao renovar token Datto (${response.status}). Reautorize.`);
   }
 
-  return accessToken;
+  let tokenData: Record<string, unknown>;
+  try {
+    tokenData = JSON.parse(body);
+  } catch {
+    throw new Error("Resposta inválida ao renovar token Datto.");
+  }
+
+  const newAccessToken = tokenData.access_token as string;
+  const newRefreshToken = tokenData.refresh_token as string | undefined;
+  const expiresIn = tokenData.expires_in as number | undefined;
+
+  if (!newAccessToken) {
+    throw new Error("access_token não encontrado na renovação.");
+  }
+
+  const expiresAt = expiresIn
+    ? new Date(Date.now() + expiresIn * 1000).toISOString()
+    : null;
+
+  // Update stored token
+  await supabase
+    .from("datto_oauth_tokens")
+    .update({
+      access_token: newAccessToken,
+      refresh_token: newRefreshToken || storedToken.refresh_token,
+      expires_at: expiresAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", storedToken.id);
+
+  console.log("[Datto] Token refreshed successfully. Expires at:", expiresAt);
+  return newAccessToken;
 }
+
+async function getDattoAccessToken(supabase: any, dattoApiUrl: string): Promise<string> {
+  const storedToken = await getStoredToken(supabase);
+
+  if (!storedToken) {
+    throw new Error("Nenhum token Datto encontrado. Autorize o Datto RMM primeiro.");
+  }
+
+  if (isTokenExpired(storedToken)) {
+    return await refreshAccessToken(supabase, storedToken, dattoApiUrl);
+  }
+
+  return storedToken.access_token;
+}
+
+// --- API calls ---
 
 async function fetchDattoAccount(apiUrl: string, token: string): Promise<DattoAccountSummary> {
   const endpoint = "/api/v2/account";
-  const accountUrl = `${apiUrl}${endpoint}`;
-
-  const data = await fetchDattoJson(accountUrl, endpoint, {
+  const data = await fetchDattoJson(`${apiUrl}${endpoint}`, endpoint, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   }) as Record<string, unknown>;
 
   return {
@@ -151,13 +216,9 @@ async function fetchAllDattoDevices(apiUrl: string, token: string): Promise<Datt
 
   for (let page = 1; page <= maxPages; page++) {
     const url = `${apiUrl}${endpoint}?page=${page}&perPage=${perPage}`;
-
     const data = await fetchDattoJson(url, endpoint, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
     });
 
     const deviceList =
@@ -166,19 +227,15 @@ async function fetchAllDattoDevices(apiUrl: string, token: string): Promise<Datt
       (Array.isArray((data as any)?.results) && (data as any).results) ||
       (Array.isArray(data) ? data : []);
 
-    if (!Array.isArray(deviceList) || deviceList.length === 0) {
-      break;
-    }
-
+    if (!Array.isArray(deviceList) || deviceList.length === 0) break;
     allDevices.push(...deviceList.map(normalizeDattoDevice));
-
-    if (deviceList.length < perPage) {
-      break;
-    }
+    if (deviceList.length < perPage) break;
   }
 
   return allDevices;
 }
+
+// --- Main handler ---
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -189,17 +246,13 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const dattoApiUrl = Deno.env.get("DATTO_API_URL")!;
-    const dattoApiKey = Deno.env.get("DATTO_API_KEY")!;
-    const dattoApiSecret = Deno.env.get("DATTO_API_SECRET")!;
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Debug: verificar se os secrets chegaram (mostra apenas 4 primeiros chars)
-    console.log(`[Datto] Config: URL=${dattoApiUrl}, KEY=${dattoApiKey?.substring(0, 4)}..., SECRET=${dattoApiSecret ? "SET(" + dattoApiSecret.length + " chars)" : "EMPTY"}`);
-    console.log("[Datto] Iniciando autenticação OAuth2...");
-    const accessToken = await getDattoAccessToken(dattoApiUrl, dattoApiKey, dattoApiSecret);
+    console.log("[Datto] Obtendo access token do banco de dados...");
+    const accessToken = await getDattoAccessToken(supabase, dattoApiUrl);
 
-    console.log("[Datto] OAuth2 OK. Consultando /api/v2/account...");
+    console.log("[Datto] Token OK. Consultando /api/v2/account...");
     const account = await fetchDattoAccount(dattoApiUrl, accessToken);
 
     console.log("[Datto] Conta carregada. Consultando /api/v2/device...");
@@ -246,13 +299,10 @@ Deno.serve(async (req) => {
       if (isOnline === undefined) {
         unmatchedCount++;
         offlineCount++;
-
-        const { error: updateError } = await supabase
+        await supabase
           .from("assets")
           .update({ datto_status: "offline", datto_last_sync: now })
           .eq("id", asset.id);
-
-        if (updateError) throw updateError;
         continue;
       }
 
@@ -260,12 +310,10 @@ Deno.serve(async (req) => {
       if (isOnline) onlineCount++;
       else offlineCount++;
 
-      const { error: updateError } = await supabase
+      await supabase
         .from("assets")
         .update({ datto_status: newStatus, datto_last_sync: now })
         .eq("id", asset.id);
-
-      if (updateError) throw updateError;
     }
 
     return new Response(
@@ -287,10 +335,7 @@ Deno.serve(async (req) => {
     console.error("[Datto] datto-check-offline error:", message);
 
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: message,
-      }),
+      JSON.stringify({ success: false, error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
