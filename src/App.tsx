@@ -67,6 +67,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/public/ticket" element={<PublicTicket />} />
+            <Route path="/datto-callback" element={<DattoCallback />} />
 
             {/* Authenticated routes with sidebar */}
             <Route element={<AppLayout />}>
