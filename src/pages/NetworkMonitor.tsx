@@ -69,14 +69,19 @@ export default function NetworkMonitor() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<string>('all');
 
-  const { data: assets = [], isLoading } = useQuery({
+  const { data: assets = [], isLoading, error: queryError, refetch } = useQuery({
     queryKey: ['network-monitor-assets'],
     queryFn: async () => {
+      console.log('[NetworkMonitor] Fetching assets...');
       const { data, error } = await supabase
         .from('assets')
         .select('id, nome, tipo, datto_status, datto_last_sync, datto_device_id, company_id, companies(id, nome_fantasia)')
         .not('datto_device_id', 'is', null);
-      if (error) throw error;
+      if (error) {
+        console.error('[NetworkMonitor] Query error:', error);
+        throw error;
+      }
+      console.log('[NetworkMonitor] Fetched', data?.length, 'assets');
       return (data || []) as unknown as MonitoredAsset[];
     },
     refetchInterval: 60000,
