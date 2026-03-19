@@ -210,30 +210,57 @@ async function fetchDattoAccount(apiUrl: string, token: string): Promise<DattoAc
 }
 
 async function fetchAllDattoDevices(apiUrl: string, token: string): Promise<DattoDevice[]> {
-  const endpoint = "/api/v2/device";
-  const allDevices: DattoDevice[] = [];
+  const endpointCandidates = [
+    "/api/v2/account/devices",
+    "/api/v2/device",
+    "/api/v2/devices",
+  ];
   const perPage = 250;
   const maxPages = 20;
+  let lastError: Error | null = null;
 
-  for (let page = 1; page <= maxPages; page++) {
-    const url = `${apiUrl}${endpoint}?page=${page}&perPage=${perPage}`;
-    const data = await fetchDattoJson(url, endpoint, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-    });
+  for (const endpoint of endpointCandidates) {
+    const allDevices: DattoDevice[] = [];
 
-    const deviceList =
-      (Array.isArray((data as any)?.devices) && (data as any).devices) ||
-      (Array.isArray((data as any)?.items) && (data as any).items) ||
-      (Array.isArray((data as any)?.results) && (data as any).results) ||
-      (Array.isArray(data) ? data : []);
+    try {
+      for (let page = 0; page < maxPages; page++) {
+        const query = endpoint === "/api/v2/account/devices"
+          ? `max=${perPage}&page=${page}`
+          : `page=${page + 1}&perPage=${perPage}`;
 
-    if (!Array.isArray(deviceList) || deviceList.length === 0) break;
-    allDevices.push(...deviceList.map(normalizeDattoDevice));
-    if (deviceList.length < perPage) break;
+        const url = `${apiUrl}${endpoint}?${query}`;
+        const data = await fetchDattoJson(url, endpoint, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        });
+
+        const deviceList =
+          (Array.isArray((data as any)?.devices) && (data as any).devices) ||
+          (Array.isArray((data as any)?.items) && (data as any).items) ||
+          (Array.isArray((data as any)?.results) && (data as any).results) ||
+          (Array.isArray(data) ? data : []);
+
+        if (!Array.isArray(deviceList) || deviceList.length === 0) break;
+        allDevices.push(...deviceList.map(normalizeDattoDevice));
+        if (deviceList.length < perPage) break;
+      }
+
+      if (allDevices.length > 0) {
+        console.log(`[Datto] Endpoint de dispositivos OK: ${endpoint}`);
+        return allDevices;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (lastError.message.includes("HTTP 404")) {
+        console.warn(`[Datto] Endpoint não encontrado, tentando próximo: ${endpoint}`);
+        continue;
+      }
+      throw lastError;
+    }
   }
 
-  return allDevices;
+  if (lastError) throw lastError;
+  return [];
 }
 
 // --- Main handler ---
