@@ -182,7 +182,15 @@ export default function NetworkMonitor() {
         </Select>
       </div>
 
-      {isLoading ? (
+      {queryError ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-destructive">
+            <AlertTriangle className="h-12 w-12 mb-3 opacity-50" />
+            <p className="text-lg font-medium">Erro ao carregar dispositivos</p>
+            <p className="text-sm text-muted-foreground">{(queryError as Error).message}</p>
+          </CardContent>
+        </Card>
+      ) : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-40" />)}
         </div>
@@ -192,6 +200,7 @@ export default function NetworkMonitor() {
             <Wifi className="h-12 w-12 mb-3 opacity-30" />
             <p className="text-lg font-medium">Nenhum dispositivo monitorado encontrado</p>
             <p className="text-sm">Dispositivos com agente Datto RMM aparecerão aqui automaticamente.</p>
+            <p className="text-xs mt-2">Total de assets no filtro: {assets.length}</p>
           </CardContent>
         </Card>
       ) : (
