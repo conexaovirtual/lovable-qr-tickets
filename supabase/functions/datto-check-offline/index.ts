@@ -6,69 +6,174 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+interface DattoDevice {
+  uid: string;
+  id: string;
+  hostname: string;
+  online: boolean;
+}
+
+interface DattoAccountSummary {
+  id: string | null;
+  name: string | null;
+}
+
+const MAX_LOG_PREVIEW = 240;
+
+function sanitizeBodyPreview(value: string): string {
+  return value.replace(/\s+/g, " ").trim().slice(0, MAX_LOG_PREVIEW);
+}
+
+function buildHttpError(endpoint: string, status: number, body: string): Error {
+  const preview = sanitizeBodyPreview(body);
+
+  if (status === 401) {
+    console.error(`[Datto][401 unauthorized] endpoint=${endpoint} body="${preview}"`);
+    return new Error(`Datto unauthorized (401) em ${endpoint}.`);
+  }
+
+  if (status === 403) {
+    console.error(`[Datto][403 forbidden] endpoint=${endpoint} body="${preview}"`);
+    return new Error(`Datto forbidden (403) em ${endpoint}.`);
+  }
+
+  if (status === 404) {
+    console.error(`[Datto][404 endpoint not found] endpoint=${endpoint} body="${preview}"`);
+    return new Error(`Datto endpoint not found (404) em ${endpoint}.`);
+  }
+
+  console.error(`[Datto][http_error] endpoint=${endpoint} status=${status} body="${preview}"`);
+  return new Error(`Datto HTTP ${status} em ${endpoint}.`);
+}
+
+async function fetchDattoJson(
+  url: string,
+  endpoint: string,
+  init: RequestInit,
+): Promise<unknown> {
+  let response: Response;
+
+  try {
+    response = await fetch(url, init);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[Datto][network error] endpoint=${endpoint} message="${message}"`);
+    throw new Error(`Datto network error em ${endpoint}: ${message}`);
+  }
+
+  const body = await response.text();
+
+  if (!response.ok) {
+    throw buildHttpError(endpoint, response.status, body);
+  }
+
+  if (/<!DOCTYPE html>|<html/i.test(body)) {
+    const preview = sanitizeBodyPreview(body);
+    console.error(`[Datto][invalid_response_html] endpoint=${endpoint} body="${preview}"`);
+    throw new Error(`Datto retornou HTML em ${endpoint}; esperado JSON.`);
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    const preview = sanitizeBodyPreview(body);
+    console.error(`[Datto][invalid_json] endpoint=${endpoint} body="${preview}"`);
+    throw new Error(`Datto retornou JSON inválido em ${endpoint}.`);
+  }
+}
+
+function normalizeDattoDevice(raw: any): DattoDevice {
+  const id = raw?.id ?? raw?.deviceId ?? raw?.device_id ?? "";
+  const uid = raw?.uid ?? raw?.deviceUid ?? raw?.device_uid ?? "";
+  const hostname = raw?.hostname ?? raw?.deviceName ?? raw?.name ?? "Dispositivo sem nome";
+  const onlineValue = raw?.online ?? raw?.isOnline ?? raw?.status;
+
+  const online =
+    onlineValue === true ||
+    String(onlineValue).toLowerCase() === "true" ||
+    String(onlineValue).toLowerCase() === "online";
+
+  return {
+    uid: String(uid || id),
+    id: String(id || uid),
+    hostname: String(hostname),
+    online,
+  };
+}
+
 async function getDattoAccessToken(apiUrl: string, apiKey: string, apiSecret: string): Promise<string> {
-  const tokenUrl = `${apiUrl}/auth/oauth/token`;
+  const endpoint = "/auth/oauth/token";
+  const tokenUrl = `${apiUrl}${endpoint}`;
   const credentials = btoa(`${apiKey}:${apiSecret}`);
 
-  console.log(`Requesting token from: ${tokenUrl}`);
-
-  const res = await fetch(tokenUrl, {
+  const data = await fetchDattoJson(tokenUrl, endpoint, {
     method: "POST",
     headers: {
       Authorization: `Basic ${credentials}`,
       "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
     },
     body: "grant_type=client_credentials",
-  });
+  }) as Record<string, unknown>;
 
-  const text = await res.text();
-  console.log(`Token response status: ${res.status}, body preview: ${text.substring(0, 200)}`);
-
-  if (!res.ok) {
-    throw new Error(`Datto OAuth failed (${res.status}): ${text.substring(0, 300)}`);
+  const accessToken = data?.access_token;
+  if (!accessToken || typeof accessToken !== "string") {
+    console.error("[Datto][oauth_error] access_token ausente na resposta do OAuth2");
+    throw new Error("Datto OAuth2 inválido: access_token não encontrado.");
   }
 
-  const data = JSON.parse(text);
-  return data.access_token;
+  return accessToken;
 }
 
-interface DattoDevice {
-  uid: string;
-  id: number;
-  hostname: string;
-  online: boolean;
-  lastSeen?: string;
+async function fetchDattoAccount(apiUrl: string, token: string): Promise<DattoAccountSummary> {
+  const endpoint = "/api/v2/account";
+  const accountUrl = `${apiUrl}${endpoint}`;
+
+  const data = await fetchDattoJson(accountUrl, endpoint, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  }) as Record<string, unknown>;
+
+  return {
+    id: (data?.id ?? data?.uid ?? data?.accountUid ?? null) as string | null,
+    name: (data?.name ?? data?.accountName ?? data?.displayName ?? null) as string | null,
+  };
 }
 
 async function fetchAllDattoDevices(apiUrl: string, token: string): Promise<DattoDevice[]> {
+  const endpoint = "/api/v2/device";
   const allDevices: DattoDevice[] = [];
-  let page = 1;
   const perPage = 250;
-  let hasMore = true;
+  const maxPages = 20;
 
-  while (hasMore) {
-    const url = `${apiUrl}/api/v2/account/devices?page=${page}&perPage=${perPage}`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+  for (let page = 1; page <= maxPages; page++) {
+    const url = `${apiUrl}${endpoint}?page=${page}&perPage=${perPage}`;
+
+    const data = await fetchDattoJson(url, endpoint, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Datto API devices failed (${res.status}): ${text}`);
+    const deviceList =
+      (Array.isArray((data as any)?.devices) && (data as any).devices) ||
+      (Array.isArray((data as any)?.items) && (data as any).items) ||
+      (Array.isArray((data as any)?.results) && (data as any).results) ||
+      (Array.isArray(data) ? data : []);
+
+    if (!Array.isArray(deviceList) || deviceList.length === 0) {
+      break;
     }
 
-    const data = await res.json();
-    const devices = data.devices || data.items || data || [];
+    allDevices.push(...deviceList.map(normalizeDattoDevice));
 
-    if (Array.isArray(devices) && devices.length > 0) {
-      allDevices.push(...devices);
-      if (devices.length < perPage) {
-        hasMore = false;
-      } else {
-        page++;
-      }
-    } else {
-      hasMore = false;
+    if (deviceList.length < perPage) {
+      break;
     }
   }
 
@@ -89,108 +194,102 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // 1. Authenticate with Datto RMM API
-    console.log("Authenticating with Datto RMM API...");
+    console.log("[Datto] Iniciando autenticação OAuth2...");
     const accessToken = await getDattoAccessToken(dattoApiUrl, dattoApiKey, dattoApiSecret);
 
-    // 2. Fetch all devices from Datto
-    console.log("Fetching devices from Datto API...");
-    const dattoDevices = await fetchAllDattoDevices(dattoApiUrl, accessToken);
-    console.log(`Fetched ${dattoDevices.length} devices from Datto API`);
+    console.log("[Datto] OAuth2 OK. Consultando /api/v2/account...");
+    const account = await fetchDattoAccount(dattoApiUrl, accessToken);
 
-    // 3. Build a map of datto uid -> online status
+    console.log("[Datto] Conta carregada. Consultando /api/v2/device...");
+    const dattoDevices = await fetchAllDattoDevices(dattoApiUrl, accessToken);
+    console.log(`[Datto] ${dattoDevices.length} dispositivos carregados.`);
+
     const dattoStatusMap = new Map<string, boolean>();
     for (const device of dattoDevices) {
-      if (device.uid) {
-        dattoStatusMap.set(device.uid, device.online === true);
-      }
+      if (device.uid) dattoStatusMap.set(device.uid, device.online);
+      if (device.id) dattoStatusMap.set(device.id, device.online);
     }
 
-    // 4. Fetch all monitored assets from our database
-    const { data: assets, error } = await supabase
+    const { data: assets, error: assetsError } = await supabase
       .from("assets")
       .select("id, datto_device_uid, datto_device_id, datto_status")
-      .not("datto_device_id", "is", null);
+      .or("datto_device_id.not.is.null,datto_device_uid.not.is.null");
 
-    if (error) throw error;
+    if (assetsError) throw assetsError;
 
     const now = new Date().toISOString();
     let onlineCount = 0;
     let offlineCount = 0;
     let unmatchedCount = 0;
 
-    // 5. Update each asset based on Datto API response
     for (const asset of assets || []) {
-      const matchKey = asset.datto_device_uid || asset.datto_device_id;
-      if (!matchKey) {
+      const keys = [asset.datto_device_uid, asset.datto_device_id]
+        .filter(Boolean)
+        .map((value) => String(value));
+
+      if (keys.length === 0) {
         unmatchedCount++;
         continue;
       }
 
-      // Try matching by uid first, then by device_id string
-      let isOnline: boolean | undefined = dattoStatusMap.get(matchKey);
-
-      // If no match by uid, try matching by numeric id converted to string
-      if (isOnline === undefined && asset.datto_device_id) {
-        for (const device of dattoDevices) {
-          if (String(device.id) === asset.datto_device_id || device.uid === asset.datto_device_id) {
-            isOnline = device.online === true;
-            break;
-          }
+      let isOnline: boolean | undefined;
+      for (const key of keys) {
+        const status = dattoStatusMap.get(key);
+        if (status !== undefined) {
+          isOnline = status;
+          break;
         }
       }
 
       if (isOnline === undefined) {
-        // Device not found in Datto API — mark as offline
-        if (asset.datto_status !== "offline") {
-          await supabase
-            .from("assets")
-            .update({ datto_status: "offline", datto_last_sync: now })
-            .eq("id", asset.id);
-        }
-        offlineCount++;
         unmatchedCount++;
+        offlineCount++;
+
+        const { error: updateError } = await supabase
+          .from("assets")
+          .update({ datto_status: "offline", datto_last_sync: now })
+          .eq("id", asset.id);
+
+        if (updateError) throw updateError;
         continue;
       }
 
       const newStatus = isOnline ? "online" : "offline";
-
-      if (asset.datto_status !== newStatus) {
-        await supabase
-          .from("assets")
-          .update({ datto_status: newStatus, datto_last_sync: now })
-          .eq("id", asset.id);
-      } else {
-        // Still update last_sync to show we checked
-        await supabase
-          .from("assets")
-          .update({ datto_last_sync: now })
-          .eq("id", asset.id);
-      }
-
       if (isOnline) onlineCount++;
       else offlineCount++;
-    }
 
-    const summary = `datto-check-offline: ${dattoDevices.length} Datto devices, ${assets?.length || 0} local assets, ${onlineCount} online, ${offlineCount} offline, ${unmatchedCount} unmatched`;
-    console.log(summary);
+      const { error: updateError } = await supabase
+        .from("assets")
+        .update({ datto_status: newStatus, datto_last_sync: now })
+        .eq("id", asset.id);
+
+      if (updateError) throw updateError;
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
-        dattoDevices: dattoDevices.length,
-        localAssets: assets?.length || 0,
-        onlineCount,
-        offlineCount,
-        unmatchedCount,
+        account,
+        sync: {
+          dattoDevices: dattoDevices.length,
+          localAssets: assets?.length || 0,
+          onlineCount,
+          offlineCount,
+          unmatchedCount,
+        },
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
-    console.error("datto-check-offline error:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[Datto] datto-check-offline error:", message);
+
     return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        success: false,
+        error: message,
+      }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
