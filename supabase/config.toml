@@ -76,3 +76,9 @@ verify_jwt = false
 
 [functions.datto-check-offline]
 verify_jwt = false
+
+[functions.datto-oauth-start]
+verify_jwt = false
+
+[functions.datto-oauth-callback]
+verify_jwt = false
