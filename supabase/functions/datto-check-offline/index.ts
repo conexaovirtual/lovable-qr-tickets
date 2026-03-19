@@ -194,6 +194,8 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // Debug: verificar se os secrets chegaram (mostra apenas 4 primeiros chars)
+    console.log(`[Datto] Config: URL=${dattoApiUrl}, KEY=${dattoApiKey?.substring(0, 4)}..., SECRET=${dattoApiSecret ? "SET(" + dattoApiSecret.length + " chars)" : "EMPTY"}`);
     console.log("[Datto] Iniciando autenticação OAuth2...");
     const accessToken = await getDattoAccessToken(dattoApiUrl, dattoApiKey, dattoApiSecret);
 
