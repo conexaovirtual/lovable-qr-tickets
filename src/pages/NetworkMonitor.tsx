@@ -147,8 +147,8 @@ export default function NetworkMonitor() {
         title="Monitor de Conectividade"
         icon={Wifi}
         actions={
-          <div className="flex items-center gap-2 text-xs text-white/60">
-            <RefreshCw className="h-3 w-3" />
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <RefreshCw className="h-3 w-3 cursor-pointer" onClick={() => refetch()} />
             Atualização a cada 60s
           </div>
         }
