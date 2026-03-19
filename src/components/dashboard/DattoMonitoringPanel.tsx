@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Activity, CheckCircle2, AlertTriangle, WifiOff, ExternalLink } from 'lucide-react';
+import { Activity, CheckCircle2, AlertTriangle, WifiOff, ExternalLink, KeyRound, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 interface DattoStats {
   online: number;
@@ -31,9 +32,22 @@ export function DattoMonitoringPanel() {
   const [recentAlerts, setRecentAlerts] = useState<RecentAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasDevices, setHasDevices] = useState(false);
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Listen for OAuth callback
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data?.type === 'datto-oauth-callback' && event.data?.code) {
+        await exchangeCode(event.data.code);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   const loadData = async () => {
@@ -70,12 +84,71 @@ export function DattoMonitoringPanel() {
     setLoading(false);
   };
 
+  const handleAuthorize = async () => {
+    setIsAuthorizing(true);
+    try {
+      // The callback URL will be on the same origin
+      const redirectUri = `${window.location.origin}/datto-callback`;
+
+      const { data, error } = await supabase.functions.invoke('datto-oauth-start', {
+        body: { redirect_uri: redirectUri },
+      });
+
+      if (error) throw new Error(error.message || 'Erro ao iniciar autorização');
+      if (!data?.authorize_url) throw new Error('URL de autorização não retornada');
+
+      // Open popup for authorization
+      const popup = window.open(
+        data.authorize_url,
+        'datto-oauth',
+        'width=600,height=700,menubar=no,toolbar=no,location=yes',
+      );
+
+      if (!popup) {
+        toast.error('Popup bloqueado! Permita popups para este site.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao autorizar Datto');
+    } finally {
+      setIsAuthorizing(false);
+    }
+  };
+
+  const exchangeCode = async (code: string) => {
+    try {
+      const redirectUri = `${window.location.origin}/datto-callback`;
+      const { data, error } = await supabase.functions.invoke('datto-oauth-callback', {
+        body: { code, redirect_uri: redirectUri },
+      });
+
+      if (error) throw new Error(error.message || 'Erro ao trocar código');
+      if (!data?.success) throw new Error('Falha ao salvar token');
+
+      toast.success('Datto RMM autorizado com sucesso!');
+      handleSync();
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao completar autorização');
+    }
+  };
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('datto-check-offline');
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error(data?.error || 'Erro na sincronização');
+
+      toast.success(`Sincronizado: ${data.sync.dattoDevices} dispositivos`);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao sincronizar');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   if (loading) {
     return <Skeleton className="h-48 mb-6" />;
-  }
-
-  if (!hasDevices && recentAlerts.length === 0) {
-    return null;
   }
 
   const total = stats.online + stats.alert + stats.offline;
@@ -88,72 +161,104 @@ export function DattoMonitoringPanel() {
             <Activity className="h-5 w-5 text-blue-600" />
             <CardTitle className="text-base">Monitoramento Datto RMM</CardTitle>
           </div>
-          <Badge variant="outline" className="text-xs">
-            {total} dispositivos
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAuthorize}
+              disabled={isAuthorizing}
+              className="text-xs"
+            >
+              <KeyRound className="h-3 w-3 mr-1" />
+              {isAuthorizing ? 'Autorizando...' : 'Autorizar'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSync}
+              disabled={isSyncing}
+              className="text-xs"
+            >
+              <RefreshCw className={`h-3 w-3 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+              Sincronizar
+            </Button>
+            {total > 0 && (
+              <Badge variant="outline" className="text-xs">
+                {total} dispositivos
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-green-50 dark:bg-green-950/20">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <div>
-              <p className="text-lg font-bold text-green-700 dark:text-green-400">{stats.online}</p>
-              <p className="text-xs text-muted-foreground">Online</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/20">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <div>
-              <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{stats.alert}</p>
-              <p className="text-xs text-muted-foreground">Alertas</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-red-50 dark:bg-red-950/20">
-            <WifiOff className="h-4 w-4 text-red-600" />
-            <div>
-              <p className="text-lg font-bold text-red-700 dark:text-red-400">{stats.offline}</p>
-              <p className="text-xs text-muted-foreground">Offline</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Alerts */}
-        {recentAlerts.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">Alertas Recentes</p>
-            {recentAlerts.map((alert) => (
-              <div key={alert.id} className="flex items-center justify-between p-2 rounded border text-sm">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium truncate">{alert.device_hostname || 'Desconhecido'}</span>
-                    <Badge
-                      variant={alert.alert_priority === 'critical' ? 'destructive' : 'secondary'}
-                      className="text-xs"
-                    >
-                      {alert.alert_priority}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {alert.alert_type}: {alert.alert_message}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(alert.created_at), { addSuffix: true, locale: ptBR })}
-                  </p>
+        {total > 0 ? (
+          <>
+            {/* Stats Row */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-green-50 dark:bg-green-950/20">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <div>
+                  <p className="text-lg font-bold text-green-700 dark:text-green-400">{stats.online}</p>
+                  <p className="text-xs text-muted-foreground">Online</p>
                 </div>
-                {alert.ticket_id && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate(`/tickets/${alert.ticket_id}`)}
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                  </Button>
-                )}
               </div>
-            ))}
-          </div>
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/20">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <div>
+                  <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{stats.alert}</p>
+                  <p className="text-xs text-muted-foreground">Alertas</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-red-50 dark:bg-red-950/20">
+                <WifiOff className="h-4 w-4 text-red-600" />
+                <div>
+                  <p className="text-lg font-bold text-red-700 dark:text-red-400">{stats.offline}</p>
+                  <p className="text-xs text-muted-foreground">Offline</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Alerts */}
+            {recentAlerts.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Alertas Recentes</p>
+                {recentAlerts.map((alert) => (
+                  <div key={alert.id} className="flex items-center justify-between p-2 rounded border text-sm">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium truncate">{alert.device_hostname || 'Desconhecido'}</span>
+                        <Badge
+                          variant={alert.alert_priority === 'critical' ? 'destructive' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {alert.alert_priority}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {alert.alert_type}: {alert.alert_message}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(alert.created_at), { addSuffix: true, locale: ptBR })}
+                      </p>
+                    </div>
+                    {alert.ticket_id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigate(`/tickets/${alert.ticket_id}`)}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            Clique em "Autorizar" para conectar ao Datto RMM e depois "Sincronizar".
+          </p>
         )}
       </CardContent>
     </Card>
