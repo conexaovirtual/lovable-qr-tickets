@@ -69,14 +69,19 @@ export default function NetworkMonitor() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<string>('all');
 
-  const { data: assets = [], isLoading } = useQuery({
+  const { data: assets = [], isLoading, error: queryError, refetch } = useQuery({
     queryKey: ['network-monitor-assets'],
     queryFn: async () => {
+      console.log('[NetworkMonitor] Fetching assets...');
       const { data, error } = await supabase
         .from('assets')
         .select('id, nome, tipo, datto_status, datto_last_sync, datto_device_id, company_id, companies(id, nome_fantasia)')
         .not('datto_device_id', 'is', null);
-      if (error) throw error;
+      if (error) {
+        console.error('[NetworkMonitor] Query error:', error);
+        throw error;
+      }
+      console.log('[NetworkMonitor] Fetched', data?.length, 'assets');
       return (data || []) as unknown as MonitoredAsset[];
     },
     refetchInterval: 60000,
@@ -142,8 +147,8 @@ export default function NetworkMonitor() {
         title="Monitor de Conectividade"
         icon={Wifi}
         actions={
-          <div className="flex items-center gap-2 text-xs text-white/60">
-            <RefreshCw className="h-3 w-3" />
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <RefreshCw className="h-3 w-3 cursor-pointer" onClick={() => refetch()} />
             Atualização a cada 60s
           </div>
         }
@@ -177,7 +182,15 @@ export default function NetworkMonitor() {
         </Select>
       </div>
 
-      {isLoading ? (
+      {queryError ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-destructive">
+            <AlertTriangle className="h-12 w-12 mb-3 opacity-50" />
+            <p className="text-lg font-medium">Erro ao carregar dispositivos</p>
+            <p className="text-sm text-muted-foreground">{(queryError as Error).message}</p>
+          </CardContent>
+        </Card>
+      ) : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-40" />)}
         </div>
@@ -187,6 +200,7 @@ export default function NetworkMonitor() {
             <Wifi className="h-12 w-12 mb-3 opacity-30" />
             <p className="text-lg font-medium">Nenhum dispositivo monitorado encontrado</p>
             <p className="text-sm">Dispositivos com agente Datto RMM aparecerão aqui automaticamente.</p>
+            <p className="text-xs mt-2">Total de assets no filtro: {assets.length}</p>
           </CardContent>
         </Card>
       ) : (
