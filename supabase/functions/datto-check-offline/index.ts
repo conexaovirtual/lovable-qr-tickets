@@ -10,6 +10,8 @@ async function getDattoAccessToken(apiUrl: string, apiKey: string, apiSecret: st
   const tokenUrl = `${apiUrl}/auth/oauth/token`;
   const credentials = btoa(`${apiKey}:${apiSecret}`);
 
+  console.log(`Requesting token from: ${tokenUrl}`);
+
   const res = await fetch(tokenUrl, {
     method: "POST",
     headers: {
@@ -19,12 +21,14 @@ async function getDattoAccessToken(apiUrl: string, apiKey: string, apiSecret: st
     body: "grant_type=client_credentials",
   });
 
+  const text = await res.text();
+  console.log(`Token response status: ${res.status}, body preview: ${text.substring(0, 200)}`);
+
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Datto OAuth failed (${res.status}): ${text}`);
+    throw new Error(`Datto OAuth failed (${res.status}): ${text.substring(0, 300)}`);
   }
 
-  const data = await res.json();
+  const data = JSON.parse(text);
   return data.access_token;
 }
 
