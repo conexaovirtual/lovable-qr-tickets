@@ -17,6 +17,7 @@ export default function Companies() {
   const canAccess = profile?.roles?.includes('admin_provedor') || profile?.roles?.includes('tecnico');
   const canCreate = canAccess;
   const canEdit = canAccess;
+  const canDelete = profile?.roles?.includes('admin_provedor');
 
   useEffect(() => {
     if (!loading) {
@@ -63,7 +64,7 @@ export default function Companies() {
       />
 
       <main className="container mx-auto px-4 py-4">
-        <CompanyList onEdit={handleEdit} refreshTrigger={refreshTrigger} />
+        <CompanyList onEdit={handleEdit} refreshTrigger={refreshTrigger} canDelete={canDelete} />
       </main>
 
       <CompanyDialog

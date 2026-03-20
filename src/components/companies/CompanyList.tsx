@@ -10,11 +10,12 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 interface CompanyListProps {
   onEdit: (company: any) => void;
   refreshTrigger?: number;
+  canDelete?: boolean;
 }
 
 const ITEMS_PER_PAGE = 30;
 
-export function CompanyList({ onEdit, refreshTrigger }: CompanyListProps) {
+export function CompanyList({ onEdit, refreshTrigger, canDelete }: CompanyListProps) {
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -87,6 +88,7 @@ export function CompanyList({ onEdit, refreshTrigger }: CompanyListProps) {
             company={company}
             onEdit={onEdit}
             onUpdate={loadCompanies}
+            canDelete={canDelete}
           />
         ))}
       </div>
