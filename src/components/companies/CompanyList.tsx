@@ -88,6 +88,7 @@ export function CompanyList({ onEdit, refreshTrigger, canDelete }: CompanyListPr
             company={company}
             onEdit={onEdit}
             onUpdate={loadCompanies}
+            canDelete={canDelete}
           />
         ))}
       </div>
