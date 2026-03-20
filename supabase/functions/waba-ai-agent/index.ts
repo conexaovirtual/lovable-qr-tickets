@@ -838,24 +838,6 @@ function getTools() {
     {
       type: "function",
       function: {
-        name: "register_company",
-        description: "Cadastra uma nova empresa no sistema quando não encontrada via find_company. Também vincula o contato automaticamente.",
-        parameters: {
-          type: "object",
-          properties: {
-            nome_fantasia: { type: "string", description: "Nome fantasia da empresa" },
-            telefone: { type: "string", description: "Telefone da empresa (opcional)" },
-            email: { type: "string", description: "E-mail da empresa (opcional)" },
-            contact_name: { type: "string", description: "Nome do contato/pessoa que está conversando" },
-          },
-          required: ["nome_fantasia"],
-          additionalProperties: false,
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
         name: "register_asset",
         description: "Cadastra um novo ativo (equipamento) para a empresa do cliente. Use quando o cliente menciona um equipamento que não está cadastrado no sistema. Pergunte informações básicas como nome/identificação, tipo e modelo.",
         parameters: {
