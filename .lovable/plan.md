@@ -1,23 +1,24 @@
 
 
-## Plano: Remover permissão de criação de empresas pela IA do WhatsApp
+## Plano: Corrigir instrução da IA para empresas não cadastradas
 
 ### O que muda
 
-A IA do WhatsApp deixará de cadastrar empresas automaticamente. Quando um contato não for identificado como cliente, a IA informará que a empresa não é cadastrada e orientará a entrar em contato por outro canal.
+A IA do WhatsApp, ao identificar que a empresa não é cadastrada, **não vai mais orientar o cliente a ligar ou enviar e-mail**. Em vez disso, vai apenas informar que a empresa não possui cadastro e **continuar o atendimento normalmente** pelo próprio WhatsApp.
 
-### Alterações no arquivo `supabase/functions/waba-ai-agent/index.ts`
+### Alteração no arquivo `supabase/functions/waba-ai-agent/index.ts`
 
-**1. Remover a ferramenta `register_company`** (linhas ~838-855)
-- Excluir a definição da tool `register_company` do array de ferramentas disponíveis para a IA.
+**Linha 562** — Atualizar a instrução do fluxo de empresa não identificada:
 
-**2. Atualizar o prompt do sistema** (linhas ~561-562)
-- Onde hoje diz: `"se não, use register_company"`
-- Substituir por instrução para informar que a empresa não é cadastrada e que não pode criar cadastros.
+**De:**
+> `se NÃO encontrar, informe educadamente que a empresa não possui cadastro na Conexão Virtual e oriente o cliente a entrar em contato pelo telefone (62) 3932-1212 ou e-mail contato@conexaovirtual.net para realizar o cadastro. NUNCA cadastre empresas automaticamente.`
 
-**3. Remover o handler `case "register_company"`** (linhas ~1517-1559)
-- Remover o bloco de execução que cria a empresa e vincula o contato.
+**Para:**
+> `se NÃO encontrar, informe educadamente que a empresa não possui cadastro na Conexão Virtual, mas continue o atendimento normalmente. NUNCA cadastre empresas automaticamente.`
 
-**4. Adicionar instrução explícita no prompt**
-- Adicionar regra clara: "NUNCA cadastre empresas. Se o cliente não for identificado após busca com find_company, informe educadamente que a empresa não possui cadastro e oriente a entrar em contato com a Conexão Virtual para realizar o cadastro."
+**Linha 571** — Remover "3. Cadastrar empresa nova" da lista de capacidades (já foi removida a ferramenta, falta limpar o prompt).
+
+### Resumo
+- 1 arquivo alterado: `supabase/functions/waba-ai-agent/index.ts`
+- Redeploy da função após a alteração
 
