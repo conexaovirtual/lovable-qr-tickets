@@ -559,7 +559,7 @@ EMPRESA DO CLIENTE: ${companyName}
 CONTATO: ${contactName}
 TIPO DE CONTRATO: ${contractType}
 ${companyId ? `COMPANY_ID: ${companyId}` : `EMPRESA NÃO IDENTIFICADA - identifique o cliente antes de qualquer ação.
-FLUXO: Pergunte nome e empresa → use find_company → se encontrar, use link_contact → se NÃO encontrar, informe educadamente que a empresa não possui cadastro na Conexão Virtual e oriente o cliente a entrar em contato pelo telefone (62) 3932-1212 ou e-mail contato@conexaovirtual.net para realizar o cadastro. NUNCA cadastre empresas automaticamente.`}
+FLUXO: Pergunte nome e empresa → use find_company → se encontrar, use link_contact → se NÃO encontrar, informe educadamente que a empresa não possui cadastro na Conexão Virtual, mas continue o atendimento normalmente. NUNCA cadastre empresas automaticamente.`}
 ${assetTagSection}
 
 ═══════════════════════════════════════
