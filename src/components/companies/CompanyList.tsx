@@ -15,7 +15,7 @@ interface CompanyListProps {
 
 const ITEMS_PER_PAGE = 30;
 
-export function CompanyList({ onEdit, refreshTrigger }: CompanyListProps) {
+export function CompanyList({ onEdit, refreshTrigger, canDelete }: CompanyListProps) {
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
