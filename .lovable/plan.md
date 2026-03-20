@@ -1,24 +1,30 @@
 
 
-## Plano: Corrigir instrução da IA para empresas não cadastradas
+## Plano: Adicionar botão de exclusão de empresas
 
-### O que muda
+### Contexto
+A política RLS `Admins can delete companies` já existe no banco. Falta apenas o botão na interface.
 
-A IA do WhatsApp, ao identificar que a empresa não é cadastrada, **não vai mais orientar o cliente a ligar ou enviar e-mail**. Em vez disso, vai apenas informar que a empresa não possui cadastro e **continuar o atendimento normalmente** pelo próprio WhatsApp.
+### Alterações
 
-### Alteração no arquivo `supabase/functions/waba-ai-agent/index.ts`
+**1. `src/components/companies/CompanyCard.tsx`**
+- Adicionar botão "Excluir" (ícone Trash2) ao lado de "Editar"
+- Mostrar diálogo de confirmação (AlertDialog) antes de excluir
+- Chamar `supabase.from('companies').delete().eq('id', company.id)`
+- Após exclusão, chamar `onUpdate()` para recarregar a lista
+- Botão visível apenas para admins (passando prop ou verificando role)
 
-**Linha 562** — Atualizar a instrução do fluxo de empresa não identificada:
+**2. `src/components/companies/CompanyCard.tsx` — Props**
+- Adicionar prop `canDelete?: boolean` para controlar visibilidade do botão
 
-**De:**
-> `se NÃO encontrar, informe educadamente que a empresa não possui cadastro na Conexão Virtual e oriente o cliente a entrar em contato pelo telefone (62) 3932-1212 ou e-mail contato@conexaovirtual.net para realizar o cadastro. NUNCA cadastre empresas automaticamente.`
+**3. `src/pages/Companies.tsx`**
+- Passar `canDelete` baseado em `isAdmin` para o CompanyList/CompanyCard
 
-**Para:**
-> `se NÃO encontrar, informe educadamente que a empresa não possui cadastro na Conexão Virtual, mas continue o atendimento normalmente. NUNCA cadastre empresas automaticamente.`
-
-**Linha 571** — Remover "3. Cadastrar empresa nova" da lista de capacidades (já foi removida a ferramenta, falta limpar o prompt).
+**4. `src/components/companies/CompanyList.tsx`**
+- Repassar `canDelete` para cada CompanyCard
 
 ### Resumo
-- 1 arquivo alterado: `supabase/functions/waba-ai-agent/index.ts`
-- Redeploy da função após a alteração
+- 3 arquivos alterados
+- Sem migração de banco (RLS já existe)
+- Confirmação obrigatória antes de excluir
 
