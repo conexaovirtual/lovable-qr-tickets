@@ -23,15 +23,24 @@ export const CompanyCard = memo(({ company, onEdit, onUpdate, canDelete }: Compa
 
   const handleDelete = async () => {
     setDeleting(true);
-    const { error } = await supabase.from('companies').delete().eq('id', company.id);
+    try {
+      // Remove linked whatsapp_contacts first
+      await supabase.from('whatsapp_contacts').delete().eq('company_id', company.id);
+      // Remove linked visit_schedules
+      await supabase.from('visit_schedules').delete().eq('company_id', company.id);
+      
+      const { error } = await supabase.from('companies').delete().eq('id', company.id);
+      if (error) {
+        toast({ title: 'Erro ao excluir empresa', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Empresa excluída com sucesso' });
+        onUpdate();
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro ao excluir empresa', description: err.message, variant: 'destructive' });
+    }
     setDeleting(false);
     setDeleteOpen(false);
-    if (error) {
-      toast({ title: 'Erro ao excluir empresa', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Empresa excluída com sucesso' });
-      onUpdate();
-    }
   };
 
   return (
