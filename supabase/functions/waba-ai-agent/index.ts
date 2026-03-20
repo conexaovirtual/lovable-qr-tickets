@@ -559,7 +559,7 @@ EMPRESA DO CLIENTE: ${companyName}
 CONTATO: ${contactName}
 TIPO DE CONTRATO: ${contractType}
 ${companyId ? `COMPANY_ID: ${companyId}` : `EMPRESA NÃO IDENTIFICADA - identifique o cliente antes de qualquer ação.
-FLUXO: Pergunte nome e empresa → use find_company → se encontrar, use link_contact → se não, use register_company.`}
+FLUXO: Pergunte nome e empresa → use find_company → se encontrar, use link_contact → se NÃO encontrar, informe educadamente que a empresa não possui cadastro na Conexão Virtual e oriente o cliente a entrar em contato pelo telefone (62) 3932-1212 ou e-mail contato@conexaovirtual.net para realizar o cadastro. NUNCA cadastre empresas automaticamente.`}
 ${assetTagSection}
 
 ═══════════════════════════════════════
@@ -831,24 +831,6 @@ function getTools() {
             contact_name: { type: "string", description: "Nome do contato informado pelo cliente" },
           },
           required: ["company_id"],
-          additionalProperties: false,
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "register_company",
-        description: "Cadastra uma nova empresa no sistema quando não encontrada via find_company. Também vincula o contato automaticamente.",
-        parameters: {
-          type: "object",
-          properties: {
-            nome_fantasia: { type: "string", description: "Nome fantasia da empresa" },
-            telefone: { type: "string", description: "Telefone da empresa (opcional)" },
-            email: { type: "string", description: "E-mail da empresa (opcional)" },
-            contact_name: { type: "string", description: "Nome do contato/pessoa que está conversando" },
-          },
-          required: ["nome_fantasia"],
           additionalProperties: false,
         },
       },
@@ -1514,50 +1496,6 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
         break;
       }
 
-      case "register_company": {
-        // Create the company
-        const { data: newCompany, error: companyError } = await supabase
-          .from("companies")
-          .insert({
-            nome_fantasia: args.nome_fantasia,
-            telefone: args.telefone || null,
-            email: args.email || null,
-            whatsapp: phone,
-            tipo_contrato: "eventual",
-            status: true,
-          })
-          .select("id, nome_fantasia")
-          .single();
-
-        if (companyError) {
-          console.error("Error registering company:", companyError);
-          result = { success: false, error: companyError.message };
-        } else {
-          // Auto-link the contact to the new company
-          await supabase
-            .from("whatsapp_contacts")
-            .upsert({
-              phone_number: phone,
-              company_id: newCompany.id,
-              contact_name: args.contact_name || null,
-              last_message_at: new Date().toISOString(),
-            }, { onConflict: "phone_number" });
-
-          await supabase
-            .from("waba_conversations")
-            .update({ contact_name: args.contact_name || null })
-            .eq("id", conversationId);
-
-          result = {
-            success: true,
-            company_id: newCompany.id,
-            nome_fantasia: newCompany.nome_fantasia,
-            message: "Empresa cadastrada e contato vinculado automaticamente.",
-          };
-          console.log(`Company "${args.nome_fantasia}" registered and contact ${phone} linked`);
-        }
-        break;
-      }
 
       case "register_asset": {
         const { data: newAsset, error: assetError } = await supabase
