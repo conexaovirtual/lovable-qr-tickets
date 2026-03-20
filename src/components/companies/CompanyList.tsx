@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 interface CompanyListProps {
   onEdit: (company: any) => void;
   refreshTrigger?: number;
+  canDelete?: boolean;
 }
 
 const ITEMS_PER_PAGE = 30;
