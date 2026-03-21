@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Plus, Download, MoreVertical, Info, Edit, Trash, FileText, FileSpreadsheet, Package } from 'lucide-react';
 import { AssetDialog } from '@/components/assets/AssetDialog';
 import { AssetConfigDialog } from '@/components/assets/AssetConfigDialog';
-import { AssetStatusBadge } from '@/components/assets/AssetStatusBadge';
+
 import { exportInventoryToCSV, exportInventoryToPDF } from '@/lib/exportInventory';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
