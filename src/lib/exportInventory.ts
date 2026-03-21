@@ -8,8 +8,6 @@ export const exportInventoryToCSV = (assets: any[]) => {
     'Fabricante',
     'Modelo',
     'Serial',
-    'Tag',
-    'Estado',
     'Processador',
     'RAM (GB)',
     'Tipo RAM',
@@ -17,10 +15,7 @@ export const exportInventoryToCSV = (assets: any[]) => {
     'Tipo Armazenamento',
     'Placa de Vídeo',
     'Sistema Operacional',
-    'Local',
-    'Setor',
-    'Data Compra',
-    'Garantia Até'
+    'Local'
   ];
 
   const rows = assets.map(asset => [
@@ -29,8 +24,6 @@ export const exportInventoryToCSV = (assets: any[]) => {
     asset.fabricante || '',
     asset.modelo || '',
     asset.numero_serie || '',
-    asset.tag_patrimonial || '',
-    asset.estado || '',
     asset.configuracoes?.processador || '',
     asset.configuracoes?.memoria_ram_gb || '',
     asset.configuracoes?.memoria_ram_tipo || '',
@@ -38,10 +31,7 @@ export const exportInventoryToCSV = (assets: any[]) => {
     asset.configuracoes?.armazenamento_principal_tipo || '',
     asset.configuracoes?.placa_video || '',
     asset.sistema_operacional || '',
-    asset.local || '',
-    asset.setor || '',
-    asset.data_compra || '',
-    asset.garantia_fim || ''
+    asset.local || ''
   ]);
 
   const csvContent = [
