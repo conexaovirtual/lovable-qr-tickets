@@ -147,24 +147,6 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
     }
   }, [asset, open, profile, preSelectedCompanyId]);
 
-  useEffect(() => {
-    const fetchSubcategories = async () => {
-      if (!formData.categoria_id) {
-        setSubcategories([]);
-        return;
-      }
-
-      const { data } = await supabase
-        .from('asset_subcategories')
-        .select('id, nome')
-        .eq('category_id', formData.categoria_id)
-        .order('nome');
-      
-      if (data) setSubcategories(data);
-    };
-
-    fetchSubcategories();
-  }, [formData.categoria_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
