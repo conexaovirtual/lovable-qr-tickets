@@ -317,7 +317,7 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                   <Label htmlFor="categoria">Categoria</Label>
                   <Select
                     value={formData.categoria_id}
-                    onValueChange={(value) => setFormData({ ...formData, categoria_id: value, subcategoria_id: '' })}
+                    onValueChange={(value) => setFormData({ ...formData, categoria_id: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione uma categoria" />
