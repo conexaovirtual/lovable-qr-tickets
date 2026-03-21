@@ -358,10 +358,11 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Tag Patrimonial</Label>
+                  <Label>Sistema Operacional</Label>
                   <Input
-                    value={formData.tag_patrimonial}
-                    onChange={(e) => setFormData({ ...formData, tag_patrimonial: e.target.value })}
+                    value={formData.sistema_operacional}
+                    onChange={(e) => setFormData({ ...formData, sistema_operacional: e.target.value })}
+                    placeholder="Ex: Windows 11 Pro"
                   />
                 </div>
 
@@ -374,12 +375,12 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Setor</Label>
-                  <Input
-                    value={formData.setor}
-                    onChange={(e) => setFormData({ ...formData, setor: e.target.value })}
-                    placeholder="Ex: TI, Financeiro"
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Observações</Label>
+                  <Textarea
+                    value={formData.observacoes}
+                    onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                    rows={3}
                   />
                 </div>
               </div>
