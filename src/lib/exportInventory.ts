@@ -64,13 +64,10 @@ export const exportInventoryToPDF = (assets: any[]) => {
     asset.fabricante || '-',
     asset.modelo || '-',
     asset.numero_serie || '-',
-    asset.tag_patrimonial || '-',
-    asset.estado || '-',
     asset.configuracoes?.processador || '-',
     `${asset.configuracoes?.memoria_ram_gb || '-'} GB`,
     asset.sistema_operacional || '-',
-    asset.local || '-',
-    asset.data_compra ? new Date(asset.data_compra).toLocaleDateString('pt-BR') : '-'
+    asset.local || '-'
   ]);
   
   // Gerar tabela com autoTable
