@@ -369,6 +369,8 @@ Deno.serve(async (req) => {
           configuracoes: Object.keys(configuracoes).length > 0 ? configuracoes : null,
           sistema_operacional: os ? String(os) : null,
           numero_serie: serial ? String(serial) : null,
+          fabricante: fabricante ? String(fabricante) : null,
+          modelo: modelo ? String(modelo) : null,
           estado: "em_uso",
         });
         created++;
