@@ -48,23 +48,16 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     company_id: '',
     nome: '',
     tipo: '',
     categoria_id: '',
-    subcategoria_id: '',
     fabricante: '',
     modelo: '',
     numero_serie: '',
-    tag_patrimonial: '',
     local: '',
-    setor: '',
     sistema_operacional: '',
-    estado: 'em_uso' as const,
-    data_compra: '',
-    garantia_fim: '',
     observacoes: '',
     datto_device_id: '',
     datto_site_id: '',
@@ -125,17 +118,11 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
         nome: asset.nome || '',
         tipo: asset.tipo || '',
         categoria_id: asset.categoria_id || '',
-        subcategoria_id: asset.subcategoria_id || '',
         fabricante: asset.fabricante || '',
         modelo: asset.modelo || '',
         numero_serie: asset.numero_serie || '',
-        tag_patrimonial: asset.tag_patrimonial || '',
         local: asset.local || '',
-        setor: asset.setor || '',
         sistema_operacional: asset.sistema_operacional || '',
-        estado: asset.estado || 'em_uso',
-        data_compra: asset.data_compra || '',
-        garantia_fim: asset.garantia_fim || '',
         observacoes: asset.observacoes || '',
         datto_device_id: asset.datto_device_id || '',
         datto_site_id: asset.datto_site_id || '',
@@ -147,17 +134,11 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
         nome: '',
         tipo: '',
         categoria_id: '',
-        subcategoria_id: '',
         fabricante: '',
         modelo: '',
         numero_serie: '',
-        tag_patrimonial: '',
         local: '',
-        setor: '',
         sistema_operacional: '',
-        estado: 'em_uso',
-        data_compra: '',
-        garantia_fim: '',
         observacoes: '',
         datto_device_id: '',
         datto_site_id: '',
@@ -166,24 +147,6 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
     }
   }, [asset, open, profile, preSelectedCompanyId]);
 
-  useEffect(() => {
-    const fetchSubcategories = async () => {
-      if (!formData.categoria_id) {
-        setSubcategories([]);
-        return;
-      }
-
-      const { data } = await supabase
-        .from('asset_subcategories')
-        .select('id, nome')
-        .eq('category_id', formData.categoria_id)
-        .order('nome');
-      
-      if (data) setSubcategories(data);
-    };
-
-    fetchSubcategories();
-  }, [formData.categoria_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,16 +172,9 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
     setLoading(true);
     const payload: any = {
       ...formData,
-      // Converter strings vazias em null para campos UUID
       categoria_id: formData.categoria_id || null,
-      subcategoria_id: formData.subcategoria_id || null,
-      // Converter strings vazias em null para campos de data
-      data_compra: formData.data_compra || null,
-      garantia_fim: formData.garantia_fim || null,
-      // Datto fields - convert empty to null
       datto_device_id: formData.datto_device_id || null,
       datto_site_id: formData.datto_site_id || null,
-      // Só salvar configurações se o tipo requer hardware
       configuracoes: TIPOS_COM_HARDWARE.includes(formData.tipo) ? configs : null,
     };
 
@@ -279,11 +235,11 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className={cn(
               "grid w-full",
-              asset ? (requiredHardwareTab ? "grid-cols-6" : "grid-cols-5") : (requiredHardwareTab ? "grid-cols-4" : "grid-cols-3")
+              asset ? (requiredHardwareTab ? "grid-cols-5" : "grid-cols-4") : (requiredHardwareTab ? "grid-cols-3" : "grid-cols-2")
             )}>
               <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
               {requiredHardwareTab && <TabsTrigger value="hardware">Hardware</TabsTrigger>}
-              <TabsTrigger value="additional">Adicionais</TabsTrigger>
+              
               <TabsTrigger value="datto">
                 <Link2 className="h-3 w-3 mr-1" />
                 Datto
@@ -361,7 +317,7 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                   <Label htmlFor="categoria">Categoria</Label>
                   <Select
                     value={formData.categoria_id}
-                    onValueChange={(value) => setFormData({ ...formData, categoria_id: value, subcategoria_id: '' })}
+                    onValueChange={(value) => setFormData({ ...formData, categoria_id: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione uma categoria" />
@@ -372,45 +328,6 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                           {cat.nome}
                         </SelectItem>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="subcategoria">Subcategoria</Label>
-                  <Select
-                    value={formData.subcategoria_id}
-                    onValueChange={(value) => setFormData({ ...formData, subcategoria_id: value })}
-                    disabled={!formData.categoria_id}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={formData.categoria_id ? "Selecione uma subcategoria" : "Selecione uma categoria primeiro"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subcategories.map((sub) => (
-                        <SelectItem key={sub.id} value={sub.id}>
-                          {sub.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="estado">Estado *</Label>
-                  <Select
-                    required
-                    value={formData.estado}
-                    onValueChange={(value: any) => setFormData({ ...formData, estado: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="em_uso">Em Uso</SelectItem>
-                      <SelectItem value="estoque">Estoque</SelectItem>
-                      <SelectItem value="manutencao">Manutenção</SelectItem>
-                      <SelectItem value="baixado">Baixado</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -441,10 +358,11 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Tag Patrimonial</Label>
+                  <Label>Sistema Operacional</Label>
                   <Input
-                    value={formData.tag_patrimonial}
-                    onChange={(e) => setFormData({ ...formData, tag_patrimonial: e.target.value })}
+                    value={formData.sistema_operacional}
+                    onChange={(e) => setFormData({ ...formData, sistema_operacional: e.target.value })}
+                    placeholder="Ex: Windows 11 Pro"
                   />
                 </div>
 
@@ -457,12 +375,12 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Setor</Label>
-                  <Input
-                    value={formData.setor}
-                    onChange={(e) => setFormData({ ...formData, setor: e.target.value })}
-                    placeholder="Ex: TI, Financeiro"
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Observações</Label>
+                  <Textarea
+                    value={formData.observacoes}
+                    onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                    rows={3}
                   />
                 </div>
               </div>
@@ -608,44 +526,6 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
               </TabsContent>
             )}
 
-            <TabsContent value="additional" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Sistema Operacional</Label>
-                  <Input
-                    value={formData.sistema_operacional}
-                    onChange={(e) => setFormData({ ...formData, sistema_operacional: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Data de Compra</Label>
-                  <Input
-                    type="date"
-                    value={formData.data_compra}
-                    onChange={(e) => setFormData({ ...formData, data_compra: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Garantia até</Label>
-                  <Input
-                    type="date"
-                    value={formData.garantia_fim}
-                    onChange={(e) => setFormData({ ...formData, garantia_fim: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Observações</Label>
-                <Textarea
-                  value={formData.observacoes}
-                  onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                  rows={3}
-                />
-              </div>
-            </TabsContent>
 
             <TabsContent value="datto" className="space-y-4">
               <div className="p-4 border rounded-lg space-y-4">

@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Plus, Download, MoreVertical, Info, Edit, Trash, FileText, FileSpreadsheet, Package } from 'lucide-react';
 import { AssetDialog } from '@/components/assets/AssetDialog';
 import { AssetConfigDialog } from '@/components/assets/AssetConfigDialog';
-import { AssetStatusBadge } from '@/components/assets/AssetStatusBadge';
+
 import { exportInventoryToCSV, exportInventoryToPDF } from '@/lib/exportInventory';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -22,7 +22,7 @@ export default function Inventory() {
   const { profile, loading } = useAuth();
   const [assets, setAssets] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
-  const [filters, setFilters] = useState({ company_id: '', tipo: '', estado: '', search: '' });
+  const [filters, setFilters] = useState({ company_id: '', tipo: '', search: '' });
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [editingAsset, setEditingAsset] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -44,7 +44,6 @@ export default function Inventory() {
       let query = supabase.from('assets').select('*, company:companies(nome_fantasia)').order('created_at', { ascending: false });
       if (filters.company_id) query = query.eq('company_id', filters.company_id);
       if (filters.tipo) query = query.eq('tipo', filters.tipo as any);
-      if (filters.estado) query = query.eq('estado', filters.estado as any);
       if (filters.search) query = query.or(`modelo.ilike.%${filters.search}%,numero_serie.ilike.%${filters.search}%,tag_patrimonial.ilike.%${filters.search}%`);
       const { data, error } = await query;
       if (error) throw error;
@@ -89,7 +88,7 @@ export default function Inventory() {
       <main className="container mx-auto px-4 py-4 space-y-4">
         <Card>
           <CardContent className="pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Select value={filters.company_id} onValueChange={(v) => setFilters({...filters, company_id: v})}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="Todas empresas" /></SelectTrigger>
                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_fantasia}</SelectItem>)}</SelectContent>
@@ -102,14 +101,7 @@ export default function Inventory() {
                   <SelectItem value="monitor">Monitor</SelectItem><SelectItem value="roteador">Roteador</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={filters.estado} onValueChange={(v) => setFilters({...filters, estado: v})}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Todos os estados" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="em_uso">Em Uso</SelectItem><SelectItem value="estoque">Estoque</SelectItem>
-                  <SelectItem value="manutencao">Manutenção</SelectItem><SelectItem value="baixado">Baixado</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input placeholder="Buscar modelo, serial, tag..." value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} className="h-9" />
+              <Input placeholder="Buscar modelo, serial..." value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} className="h-9" />
             </div>
           </CardContent>
         </Card>
@@ -119,22 +111,20 @@ export default function Inventory() {
             <TableHeader>
               <TableRow>
                 <TableHead>Empresa</TableHead><TableHead>Tipo</TableHead><TableHead>Fabricante/Modelo</TableHead>
-                <TableHead>Serial</TableHead><TableHead>Tag</TableHead><TableHead>Estado</TableHead><TableHead>Config</TableHead><TableHead>Ações</TableHead>
+                <TableHead>Serial</TableHead><TableHead>Config</TableHead><TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loadingData ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
               ) : assets.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum ativo encontrado</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum ativo encontrado</TableCell></TableRow>
               ) : assets.map((asset) => (
                 <TableRow key={asset.id}>
                   <TableCell className="font-medium">{asset.company?.nome_fantasia}</TableCell>
                   <TableCell><Badge variant="outline">{asset.tipo}</Badge></TableCell>
                   <TableCell><p className="font-medium">{asset.fabricante}</p><p className="text-sm text-muted-foreground">{asset.modelo}</p></TableCell>
                   <TableCell><code className="text-xs bg-muted px-2 py-1 rounded">{asset.numero_serie || '-'}</code></TableCell>
-                  <TableCell>{asset.tag_patrimonial && <Badge variant="secondary">{asset.tag_patrimonial}</Badge>}</TableCell>
-                  <TableCell><AssetStatusBadge asset={asset} /></TableCell>
                   <TableCell>{asset.configuracoes && <Button size="sm" variant="ghost" onClick={() => setSelectedAsset(asset)}><Info className="h-4 w-4" /></Button>}</TableCell>
                   <TableCell>
                     <DropdownMenu>
