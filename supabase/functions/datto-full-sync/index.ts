@@ -175,7 +175,7 @@ function dig(obj: any, ...keys: string[]): any {
     if (val !== undefined && val !== null && val !== "") return val;
   }
   // Also search inside common nested containers
-  for (const container of ["deviceAudit", "systemInfo", "hardwareInfo", "audit"]) {
+  for (const container of ["_audit", "deviceAudit", "systemInfo", "hardwareInfo", "audit"]) {
     if (obj?.[container] && typeof obj[container] === "object") {
       for (const k of keys) {
         const val = obj[container][k];
