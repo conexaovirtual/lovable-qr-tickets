@@ -239,7 +239,7 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
             )}>
               <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
               {requiredHardwareTab && <TabsTrigger value="hardware">Hardware</TabsTrigger>}
-              <TabsTrigger value="additional">Adicionais</TabsTrigger>
+              
               <TabsTrigger value="datto">
                 <Link2 className="h-3 w-3 mr-1" />
                 Datto
