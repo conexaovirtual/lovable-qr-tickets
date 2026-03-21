@@ -1,30 +1,38 @@
 
 
-## Plano: Adicionar botão de exclusão de empresas
+## Plano: Capturar dados de hardware (processador, memória) na varredura Datto
 
-### Contexto
-A política RLS `Admins can delete companies` já existe no banco. Falta apenas o botão na interface.
+### Problema
+A varredura completa (`datto-full-sync`) já busca detalhes de cada dispositivo via `/api/v2/device/{uid}`, mas os campos de processador e memória **não estão sendo mapeados** — provavelmente porque a API do Datto retorna esses dados com nomes de campo diferentes dos esperados pelo código.
 
-### Alterações
+Atualmente o `configuracoes` só traz: `dominio`, `ip_externo`, `ip_interno`, `ultimo_usuario`. Faltam processador, RAM, discos.
 
-**1. `src/components/companies/CompanyCard.tsx`**
-- Adicionar botão "Excluir" (ícone Trash2) ao lado de "Editar"
-- Mostrar diálogo de confirmação (AlertDialog) antes de excluir
-- Chamar `supabase.from('companies').delete().eq('id', company.id)`
-- Após exclusão, chamar `onUpdate()` para recarregar a lista
-- Botão visível apenas para admins (passando prop ou verificando role)
+### O que será feito
 
-**2. `src/components/companies/CompanyCard.tsx` — Props**
-- Adicionar prop `canDelete?: boolean` para controlar visibilidade do botão
+**1. Adicionar logging diagnóstico na Edge Function**
 
-**3. `src/pages/Companies.tsx`**
-- Passar `canDelete` baseado em `isAdmin` para o CompanyList/CompanyCard
+No `datto-full-sync/index.ts`, logar o JSON completo do primeiro dispositivo retornado pelo endpoint `/api/v2/device/{uid}` para descobrir os nomes exatos dos campos da API Datto.
 
-**4. `src/components/companies/CompanyList.tsx`**
-- Repassar `canDelete` para cada CompanyCard
+**2. Ampliar o mapeamento de campos em `buildConfiguracoes`**
 
-### Resumo
-- 3 arquivos alterados
-- Sem migração de banco (RLS já existe)
-- Confirmação obrigatória antes de excluir
+Atualizar a função para cobrir todos os campos conhecidos da API Datto v2, incluindo variações:
+- **Processador**: `processor`, `cpuName`, `cpu`, `processorName`, `deviceAudit.processor`
+- **Memória RAM**: `memory`, `totalMemory`, `memoryTotal`, `ram`, `physicalMemory`, `deviceAudit.memory`
+- **Discos**: `disks`, `drives`, `diskDrives`, `volumes`
+- Buscar dentro de objetos aninhados como `deviceAudit`, `systemInfo`, `hardwareInfo`
+
+**3. Testar via invocação direta**
+
+Chamar a função após o deploy para verificar nos logs o formato real da resposta e confirmar que processador/memória são capturados.
+
+**4. Re-sincronizar todos os ativos existentes**
+
+A varredura já atualiza ativos existentes — após a correção, basta rodar novamente pelo botão "Varredura Completa" para preencher os dados faltantes.
+
+### Detalhes técnicos
+
+- **1 arquivo alterado**: `supabase/functions/datto-full-sync/index.ts`
+- **Sem migração de banco**: os campos `configuracoes` (JSONB), `sistema_operacional`, `numero_serie` já existem
+- Redeploy da função após alteração
+- Abordagem iterativa: primeiro logar a resposta real, depois ajustar o mapeamento
 
