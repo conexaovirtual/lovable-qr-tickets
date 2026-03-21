@@ -286,18 +286,19 @@ Deno.serve(async (req) => {
     // Diagnostic: log first device detail to discover field names
     if (detailsMap.size > 0) {
       const firstEntry = detailsMap.values().next().value;
-      console.log("[FullSync] DIAGNOSTIC - First device detail keys:", JSON.stringify(Object.keys(firstEntry || {})));
+      console.log("[FullSync] DIAGNOSTIC - Top-level keys:", JSON.stringify(Object.keys(firstEntry || {})));
+      if (firstEntry?._audit) {
+        console.log("[FullSync] DIAGNOSTIC - _audit keys:", JSON.stringify(Object.keys(firstEntry._audit)));
+        // Log a sample of the audit data (first 500 chars)
+        console.log("[FullSync] DIAGNOSTIC - _audit sample:", JSON.stringify(firstEntry._audit).substring(0, 500));
+      } else {
+        console.log("[FullSync] DIAGNOSTIC - No _audit data found");
+      }
       for (const container of ["deviceAudit", "systemInfo", "hardwareInfo", "audit"]) {
         if (firstEntry?.[container]) {
           console.log(`[FullSync] DIAGNOSTIC - ${container} keys:`, JSON.stringify(Object.keys(firstEntry[container])));
         }
       }
-      const hwFields = ["processor", "cpuName", "cpu", "memory", "totalMemory", "memoryTotal", "disks", "drives", "diskDrives"];
-      const found: Record<string, any> = {};
-      for (const f of hwFields) {
-        if (firstEntry?.[f] !== undefined) found[f] = typeof firstEntry[f] === "object" ? JSON.stringify(firstEntry[f]).substring(0, 200) : firstEntry[f];
-      }
-      console.log("[FullSync] DIAGNOSTIC - Hardware fields found:", JSON.stringify(found));
     }
 
 
