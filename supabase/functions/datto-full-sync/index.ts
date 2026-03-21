@@ -277,7 +277,24 @@ Deno.serve(async (req) => {
     const detailsMap = await fetchDetailsBatch(dattoApiUrl, accessToken, uids, 5);
     console.log(`[FullSync] Detalhes obtidos para ${detailsMap.size} dispositivos.`);
 
-    // 4. Load existing assets and companies
+    // Diagnostic: log first device detail to discover field names
+    if (detailsMap.size > 0) {
+      const firstEntry = detailsMap.values().next().value;
+      console.log("[FullSync] DIAGNOSTIC - First device detail keys:", JSON.stringify(Object.keys(firstEntry || {})));
+      for (const container of ["deviceAudit", "systemInfo", "hardwareInfo", "audit"]) {
+        if (firstEntry?.[container]) {
+          console.log(`[FullSync] DIAGNOSTIC - ${container} keys:`, JSON.stringify(Object.keys(firstEntry[container])));
+        }
+      }
+      const hwFields = ["processor", "cpuName", "cpu", "memory", "totalMemory", "memoryTotal", "disks", "drives", "diskDrives"];
+      const found: Record<string, any> = {};
+      for (const f of hwFields) {
+        if (firstEntry?.[f] !== undefined) found[f] = typeof firstEntry[f] === "object" ? JSON.stringify(firstEntry[f]).substring(0, 200) : firstEntry[f];
+      }
+      console.log("[FullSync] DIAGNOSTIC - Hardware fields found:", JSON.stringify(found));
+    }
+
+
     const { data: existingAssets } = await supabase
       .from("assets")
       .select("id, datto_device_uid, datto_device_id, company_id")
