@@ -276,32 +276,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3. Fetch hardware details for all devices
+    // 3. Fetch hardware details + audit for all devices
     const uids = devices.map((d: any) => String(d.uid ?? d.deviceUid ?? d.device_uid ?? d.id ?? "")).filter(Boolean);
-    // Fetch audit for first 3 devices as diagnostic (to discover field names)
-    const auditUids = new Set(uids.slice(0, 3));
-    console.log(`[FullSync] Buscando detalhes de hardware para ${uids.length} dispositivos (audit para ${auditUids.size})...`);
-    const detailsMap = await fetchDetailsBatch(dattoApiUrl, accessToken, uids, 5, auditUids);
+    const auditUids = new Set(uids); // Fetch audit for ALL devices
+    console.log(`[FullSync] Buscando detalhes + audit para ${uids.length} dispositivos...`);
+    const detailsMap = await fetchDetailsBatch(dattoApiUrl, accessToken, uids, 10, auditUids);
     console.log(`[FullSync] Detalhes obtidos para ${detailsMap.size} dispositivos.`);
-
-    // Diagnostic: log first device detail to discover field names
-    if (detailsMap.size > 0) {
-      const firstEntry = detailsMap.values().next().value;
-      console.log("[FullSync] DIAGNOSTIC - Top-level keys:", JSON.stringify(Object.keys(firstEntry || {})));
-      if (firstEntry?._audit) {
-        console.log("[FullSync] DIAGNOSTIC - _audit keys:", JSON.stringify(Object.keys(firstEntry._audit)));
-        // Log a sample of the audit data (first 500 chars)
-        console.log("[FullSync] DIAGNOSTIC - _audit sample:", JSON.stringify(firstEntry._audit).substring(0, 500));
-      } else {
-        console.log("[FullSync] DIAGNOSTIC - No _audit data found");
-      }
-      for (const container of ["deviceAudit", "systemInfo", "hardwareInfo", "audit"]) {
-        if (firstEntry?.[container]) {
-          console.log(`[FullSync] DIAGNOSTIC - ${container} keys:`, JSON.stringify(Object.keys(firstEntry[container])));
-        }
-      }
-    }
-
 
     const { data: existingAssets } = await supabase
       .from("assets")
