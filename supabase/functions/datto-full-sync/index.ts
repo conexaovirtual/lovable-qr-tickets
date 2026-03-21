@@ -139,20 +139,27 @@ async function fetchAllDevices(apiUrl: string, token: string): Promise<any[]> {
   return [];
 }
 
-async function fetchDeviceDetails(apiUrl: string, token: string, uid: string): Promise<any> {
+async function fetchDeviceDetails(apiUrl: string, token: string, uid: string, fetchAudit = false): Promise<any> {
   try {
-    return await fetchDattoJson(`${apiUrl}/api/v2/device/${uid}`, token);
+    const device = await fetchDattoJson(`${apiUrl}/api/v2/device/${uid}`, token) as any;
+    if (fetchAudit) {
+    try {
+      const audit = await fetchDattoJson(`${apiUrl}/api/v2/audit/device/${uid}`, token) as any;
+      if (audit) device._audit = audit;
+    } catch { /* audit endpoint may not exist for all devices */ }
+    }
+    return device;
   } catch {
     return null;
   }
 }
 
 // Batch fetch with concurrency limit
-async function fetchDetailsBatch(apiUrl: string, token: string, uids: string[], concurrency = 5): Promise<Map<string, any>> {
+async function fetchDetailsBatch(apiUrl: string, token: string, uids: string[], concurrency = 5, auditUids: Set<string> = new Set()): Promise<Map<string, any>> {
   const results = new Map<string, any>();
   for (let i = 0; i < uids.length; i += concurrency) {
     const batch = uids.slice(i, i + concurrency);
-    const details = await Promise.all(batch.map(uid => fetchDeviceDetails(apiUrl, token, uid)));
+    const details = await Promise.all(batch.map(uid => fetchDeviceDetails(apiUrl, token, uid, auditUids.has(uid))));
     batch.forEach((uid, idx) => {
       if (details[idx]) results.set(uid, details[idx]);
     });
@@ -160,39 +167,83 @@ async function fetchDetailsBatch(apiUrl: string, token: string, uids: string[], 
   return results;
 }
 
-// ── Build configuracoes JSON ──
+// ── Build configuracoes JSON from Datto audit data ──
 
 function buildConfiguracoes(detail: any): Record<string, unknown> {
   const config: Record<string, unknown> = {};
+  const audit = detail?._audit;
+  const sysInfo = audit?.systemInfo;
 
-  const proc = detail?.processor ?? detail?.cpuName ?? detail?.cpu;
-  if (proc) config.processador = String(proc);
-
-  const memBytes = detail?.memory ?? detail?.totalMemory ?? detail?.memoryTotal;
-  if (memBytes && Number(memBytes) > 0) {
-    config.memoria_ram_gb = Math.round(Number(memBytes) / (1024 * 1024 * 1024));
+  // Processador — from audit.processors array
+  const processors = audit?.processors;
+  if (Array.isArray(processors) && processors.length > 0) {
+    const p = processors[0];
+    config.processador = p.name ?? p.manufacturer ?? "Desconhecido";
+    if (p.cores) config.processador_cores = Number(p.cores);
+    if (p.logicalCores) config.processador_threads = Number(p.logicalCores);
+    if (p.clockSpeed) config.processador_ghz = (Number(p.clockSpeed) / 1000).toFixed(1);
+  }
+  // Fallback: systemInfo.totalCpuCores
+  if (!config.processador_cores && sysInfo?.totalCpuCores) {
+    config.processador_cores = Number(sysInfo.totalCpuCores);
   }
 
-  const disks = detail?.disks ?? detail?.drives;
+  // Memória RAM — from systemInfo.totalPhysicalMemory (in bytes)
+  if (sysInfo?.totalPhysicalMemory && Number(sysInfo.totalPhysicalMemory) > 0) {
+    config.memoria_ram_gb = Math.round(Number(sysInfo.totalPhysicalMemory) / (1024 * 1024 * 1024));
+  }
+  // Physical memory modules detail
+  const memModules = audit?.physicalMemory;
+  if (Array.isArray(memModules) && memModules.length > 0) {
+    config.memoria_ram_slots = memModules.length;
+    const types = memModules.map((m: any) => m.memoryType).filter(Boolean);
+    if (types.length > 0) config.memoria_ram_tipo = types[0];
+  }
+
+  // Discos — from audit.logicalDisks
+  const disks = audit?.logicalDisks;
   if (Array.isArray(disks) && disks.length > 0) {
     config.armazenamento = disks.map((d: any) => ({
-      disco: d.name ?? d.letter ?? d.mountPoint ?? "?",
-      total_gb: d.size ? Math.round(Number(d.size) / (1024 * 1024 * 1024)) : d.totalSize ?? null,
-      livre_gb: d.free ? Math.round(Number(d.free) / (1024 * 1024 * 1024)) : d.freeSpace ?? null,
+      disco: d.name ?? d.caption ?? "?",
+      total_gb: d.size ? Math.round(Number(d.size) / (1024 * 1024 * 1024)) : null,
+      livre_gb: d.freeSpace ? Math.round(Number(d.freeSpace) / (1024 * 1024 * 1024)) : null,
+      tipo: d.description ?? d.fileSystem ?? null,
     }));
   }
 
-  const intIp = detail?.intIpAddress ?? detail?.internalIp ?? detail?.localIp;
-  if (intIp) config.ip_interno = String(intIp);
+  // Placa de vídeo — from audit.videoBoards
+  const videoBoards = audit?.videoBoards;
+  if (Array.isArray(videoBoards) && videoBoards.length > 0) {
+    config.placa_video = videoBoards[0].name ?? videoBoards[0].description ?? null;
+    if (videoBoards[0].adapterRam) {
+      config.placa_video_memoria_gb = Math.round(Number(videoBoards[0].adapterRam) / (1024 * 1024 * 1024));
+    }
+  }
 
-  const extIp = detail?.extIpAddress ?? detail?.externalIp ?? detail?.publicIp;
+  // NICs / IPs — from audit.nics + device top-level
+  const intIp = detail?.intIpAddress;
+  if (intIp) config.ip_interno = String(intIp);
+  const extIp = detail?.extIpAddress;
   if (extIp) config.ip_externo = String(extIp);
 
-  const domain = detail?.domain ?? detail?.domainName;
+  // Fabricante e modelo do sistema
+  if (sysInfo?.manufacturer) config.fabricante_sistema = String(sysInfo.manufacturer);
+  if (sysInfo?.model) config.modelo_sistema = String(sysInfo.model);
+
+  // Domínio
+  const domain = detail?.domain;
   if (domain) config.dominio = String(domain);
 
-  const lastUser = detail?.lastLoggedInUser ?? detail?.lastUser;
+  // Último usuário
+  const lastUser = detail?.lastLoggedInUser ?? sysInfo?.username;
   if (lastUser) config.ultimo_usuario = String(lastUser);
+
+  // MAC address from NICs
+  const nics = audit?.nics;
+  if (Array.isArray(nics) && nics.length > 0) {
+    const mainNic = nics.find((n: any) => n.type === "Ethernet") ?? nics[0];
+    if (mainNic?.macAddress) config.mac_address = String(mainNic.macAddress);
+  }
 
   return config;
 }
@@ -225,13 +276,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3. Fetch hardware details for all devices
+    // 3. Fetch hardware details + audit for all devices
     const uids = devices.map((d: any) => String(d.uid ?? d.deviceUid ?? d.device_uid ?? d.id ?? "")).filter(Boolean);
-    console.log(`[FullSync] Buscando detalhes de hardware para ${uids.length} dispositivos...`);
-    const detailsMap = await fetchDetailsBatch(dattoApiUrl, accessToken, uids, 5);
+    const auditUids = new Set(uids); // Fetch audit for ALL devices
+    console.log(`[FullSync] Buscando detalhes + audit para ${uids.length} dispositivos...`);
+    const detailsMap = await fetchDetailsBatch(dattoApiUrl, accessToken, uids, 10, auditUids);
     console.log(`[FullSync] Detalhes obtidos para ${detailsMap.size} dispositivos.`);
 
-    // 4. Load existing assets and companies
     const { data: existingAssets } = await supabase
       .from("assets")
       .select("id, datto_device_uid, datto_device_id, company_id")
@@ -274,6 +325,9 @@ Deno.serve(async (req) => {
       const os = detail?.operatingSystem ?? detail?.os ?? detail?.osName ?? null;
       const serial = detail?.serialNumber ?? detail?.serial ?? null;
       const dattoStatus = isOnline ? "online" : "offline";
+      const sysInfo = detail?._audit?.systemInfo;
+      const fabricante = sysInfo?.manufacturer ?? null;
+      const modelo = sysInfo?.model ?? null;
 
       // Check if asset exists
       const existingAsset = assetByUid.get(uid) || assetById.get(deviceId);
@@ -288,6 +342,8 @@ Deno.serve(async (req) => {
         if (Object.keys(configuracoes).length > 0) updateData.configuracoes = configuracoes;
         if (os) updateData.sistema_operacional = String(os);
         if (serial) updateData.numero_serie = String(serial);
+        if (fabricante) updateData.fabricante = String(fabricante);
+        if (modelo) updateData.modelo = String(modelo);
 
         await supabase.from("assets").update(updateData).eq("id", existingAsset.id);
         updated++;
@@ -313,6 +369,8 @@ Deno.serve(async (req) => {
           configuracoes: Object.keys(configuracoes).length > 0 ? configuracoes : null,
           sistema_operacional: os ? String(os) : null,
           numero_serie: serial ? String(serial) : null,
+          fabricante: fabricante ? String(fabricante) : null,
+          modelo: modelo ? String(modelo) : null,
           estado: "em_uso",
         });
         created++;
