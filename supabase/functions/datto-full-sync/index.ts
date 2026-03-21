@@ -155,11 +155,11 @@ async function fetchDeviceDetails(apiUrl: string, token: string, uid: string, fe
 }
 
 // Batch fetch with concurrency limit
-async function fetchDetailsBatch(apiUrl: string, token: string, uids: string[], concurrency = 5): Promise<Map<string, any>> {
+async function fetchDetailsBatch(apiUrl: string, token: string, uids: string[], concurrency = 5, auditUids: Set<string> = new Set()): Promise<Map<string, any>> {
   const results = new Map<string, any>();
   for (let i = 0; i < uids.length; i += concurrency) {
     const batch = uids.slice(i, i + concurrency);
-    const details = await Promise.all(batch.map(uid => fetchDeviceDetails(apiUrl, token, uid)));
+    const details = await Promise.all(batch.map(uid => fetchDeviceDetails(apiUrl, token, uid, auditUids.has(uid))));
     batch.forEach((uid, idx) => {
       if (details[idx]) results.set(uid, details[idx]);
     });
