@@ -44,7 +44,6 @@ export default function Inventory() {
       let query = supabase.from('assets').select('*, company:companies(nome_fantasia)').order('created_at', { ascending: false });
       if (filters.company_id) query = query.eq('company_id', filters.company_id);
       if (filters.tipo) query = query.eq('tipo', filters.tipo as any);
-      if (filters.estado) query = query.eq('estado', filters.estado as any);
       if (filters.search) query = query.or(`modelo.ilike.%${filters.search}%,numero_serie.ilike.%${filters.search}%,tag_patrimonial.ilike.%${filters.search}%`);
       const { data, error } = await query;
       if (error) throw error;
