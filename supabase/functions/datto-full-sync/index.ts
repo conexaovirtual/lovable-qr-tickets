@@ -143,10 +143,10 @@ async function fetchDeviceDetails(apiUrl: string, token: string, uid: string, fe
   try {
     const device = await fetchDattoJson(`${apiUrl}/api/v2/device/${uid}`, token) as any;
     if (fetchAudit) {
-      try {
-        const audit = await fetchDattoJson(`${apiUrl}/api/v2/device/${uid}/audit`, token) as any;
-        if (audit) device._audit = audit;
-      } catch { /* audit endpoint may not exist for all devices */ }
+    try {
+      const audit = await fetchDattoJson(`${apiUrl}/api/v2/audit/device/${uid}`, token) as any;
+      if (audit) device._audit = audit;
+    } catch { /* audit endpoint may not exist for all devices */ }
     }
     return device;
   } catch {
