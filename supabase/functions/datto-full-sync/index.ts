@@ -162,37 +162,83 @@ async function fetchDetailsBatch(apiUrl: string, token: string, uids: string[], 
 
 // ── Build configuracoes JSON ──
 
+// Helper to dig into nested audit objects
+function dig(obj: any, ...keys: string[]): any {
+  for (const k of keys) {
+    const val = obj?.[k];
+    if (val !== undefined && val !== null && val !== "") return val;
+  }
+  // Also search inside common nested containers
+  for (const container of ["deviceAudit", "systemInfo", "hardwareInfo", "audit"]) {
+    if (obj?.[container] && typeof obj[container] === "object") {
+      for (const k of keys) {
+        const val = obj[container][k];
+        if (val !== undefined && val !== null && val !== "") return val;
+      }
+    }
+  }
+  return null;
+}
+
 function buildConfiguracoes(detail: any): Record<string, unknown> {
   const config: Record<string, unknown> = {};
 
-  const proc = detail?.processor ?? detail?.cpuName ?? detail?.cpu;
-  if (proc) config.processador = String(proc);
+  // Processador — muitas variações possíveis na API Datto
+  const proc = dig(detail, "processor", "cpuName", "cpu", "processorName", "cpuModel", "processorModel");
+  if (proc) {
+    if (typeof proc === "object") {
+      // Some Datto versions return processor as an object
+      config.processador = proc.name ?? proc.model ?? proc.description ?? JSON.stringify(proc);
+      if (proc.cores) config.processador_cores = Number(proc.cores);
+      if (proc.threads) config.processador_threads = Number(proc.threads);
+      if (proc.speed || proc.clockSpeed) config.processador_ghz = String(proc.speed ?? proc.clockSpeed);
+    } else {
+      config.processador = String(proc);
+    }
+  }
 
-  const memBytes = detail?.memory ?? detail?.totalMemory ?? detail?.memoryTotal;
+  // Memória RAM — em bytes ou já em GB
+  const memBytes = dig(detail, "memory", "totalMemory", "memoryTotal", "ram", "physicalMemory", "totalPhysicalMemory");
   if (memBytes && Number(memBytes) > 0) {
-    config.memoria_ram_gb = Math.round(Number(memBytes) / (1024 * 1024 * 1024));
+    const num = Number(memBytes);
+    // Se > 1024 provavelmente está em bytes; se < 1024 já está em GB
+    config.memoria_ram_gb = num > 1024 ? Math.round(num / (1024 * 1024 * 1024)) : Math.round(num);
   }
 
-  const disks = detail?.disks ?? detail?.drives;
+  // Discos
+  const disks = dig(detail, "disks", "drives", "diskDrives", "volumes", "storageDevices");
   if (Array.isArray(disks) && disks.length > 0) {
-    config.armazenamento = disks.map((d: any) => ({
-      disco: d.name ?? d.letter ?? d.mountPoint ?? "?",
-      total_gb: d.size ? Math.round(Number(d.size) / (1024 * 1024 * 1024)) : d.totalSize ?? null,
-      livre_gb: d.free ? Math.round(Number(d.free) / (1024 * 1024 * 1024)) : d.freeSpace ?? null,
-    }));
+    config.armazenamento = disks.map((d: any) => {
+      const sizeRaw = d.size ?? d.totalSize ?? d.capacity ?? d.sizeBytes;
+      const freeRaw = d.free ?? d.freeSpace ?? d.freeBytes ?? d.availableSpace;
+      const sizeNum = sizeRaw ? Number(sizeRaw) : null;
+      const freeNum = freeRaw ? Number(freeRaw) : null;
+      return {
+        disco: d.name ?? d.letter ?? d.mountPoint ?? d.deviceName ?? "?",
+        total_gb: sizeNum ? (sizeNum > 1024 * 1024 ? Math.round(sizeNum / (1024 * 1024 * 1024)) : Math.round(sizeNum)) : null,
+        livre_gb: freeNum ? (freeNum > 1024 * 1024 ? Math.round(freeNum / (1024 * 1024 * 1024)) : Math.round(freeNum)) : null,
+      };
+    });
   }
 
-  const intIp = detail?.intIpAddress ?? detail?.internalIp ?? detail?.localIp;
+  // IPs
+  const intIp = dig(detail, "intIpAddress", "internalIp", "localIp", "privateIp", "lanIp");
   if (intIp) config.ip_interno = String(intIp);
 
-  const extIp = detail?.extIpAddress ?? detail?.externalIp ?? detail?.publicIp;
+  const extIp = dig(detail, "extIpAddress", "externalIp", "publicIp", "wanIp");
   if (extIp) config.ip_externo = String(extIp);
 
-  const domain = detail?.domain ?? detail?.domainName;
+  // Domínio
+  const domain = dig(detail, "domain", "domainName", "adDomain");
   if (domain) config.dominio = String(domain);
 
-  const lastUser = detail?.lastLoggedInUser ?? detail?.lastUser;
+  // Último usuário
+  const lastUser = dig(detail, "lastLoggedInUser", "lastUser", "loggedInUser", "currentUser");
   if (lastUser) config.ultimo_usuario = String(lastUser);
+
+  // MAC Address
+  const mac = dig(detail, "macAddress", "macAddr", "primaryMac");
+  if (mac) config.mac_address = String(mac);
 
   return config;
 }
