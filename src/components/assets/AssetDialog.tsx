@@ -172,16 +172,9 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
     setLoading(true);
     const payload: any = {
       ...formData,
-      // Converter strings vazias em null para campos UUID
       categoria_id: formData.categoria_id || null,
-      subcategoria_id: formData.subcategoria_id || null,
-      // Converter strings vazias em null para campos de data
-      data_compra: formData.data_compra || null,
-      garantia_fim: formData.garantia_fim || null,
-      // Datto fields - convert empty to null
       datto_device_id: formData.datto_device_id || null,
       datto_site_id: formData.datto_site_id || null,
-      // Só salvar configurações se o tipo requer hardware
       configuracoes: TIPOS_COM_HARDWARE.includes(formData.tipo) ? configs : null,
     };
 
