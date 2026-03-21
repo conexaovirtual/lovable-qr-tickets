@@ -325,6 +325,9 @@ Deno.serve(async (req) => {
       const os = detail?.operatingSystem ?? detail?.os ?? detail?.osName ?? null;
       const serial = detail?.serialNumber ?? detail?.serial ?? null;
       const dattoStatus = isOnline ? "online" : "offline";
+      const sysInfo = detail?._audit?.systemInfo;
+      const fabricante = sysInfo?.manufacturer ?? null;
+      const modelo = sysInfo?.model ?? null;
 
       // Check if asset exists
       const existingAsset = assetByUid.get(uid) || assetById.get(deviceId);
@@ -339,6 +342,8 @@ Deno.serve(async (req) => {
         if (Object.keys(configuracoes).length > 0) updateData.configuracoes = configuracoes;
         if (os) updateData.sistema_operacional = String(os);
         if (serial) updateData.numero_serie = String(serial);
+        if (fabricante) updateData.fabricante = String(fabricante);
+        if (modelo) updateData.modelo = String(modelo);
 
         await supabase.from("assets").update(updateData).eq("id", existingAsset.id);
         updated++;
