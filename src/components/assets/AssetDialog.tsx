@@ -526,44 +526,6 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
               </TabsContent>
             )}
 
-            <TabsContent value="additional" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Sistema Operacional</Label>
-                  <Input
-                    value={formData.sistema_operacional}
-                    onChange={(e) => setFormData({ ...formData, sistema_operacional: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Data de Compra</Label>
-                  <Input
-                    type="date"
-                    value={formData.data_compra}
-                    onChange={(e) => setFormData({ ...formData, data_compra: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Garantia até</Label>
-                  <Input
-                    type="date"
-                    value={formData.garantia_fim}
-                    onChange={(e) => setFormData({ ...formData, garantia_fim: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Observações</Label>
-                <Textarea
-                  value={formData.observacoes}
-                  onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                  rows={3}
-                />
-              </div>
-            </TabsContent>
 
             <TabsContent value="datto" className="space-y-4">
               <div className="p-4 border rounded-lg space-y-4">
