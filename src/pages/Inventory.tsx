@@ -89,7 +89,7 @@ export default function Inventory() {
       <main className="container mx-auto px-4 py-4 space-y-4">
         <Card>
           <CardContent className="pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Select value={filters.company_id} onValueChange={(v) => setFilters({...filters, company_id: v})}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="Todas empresas" /></SelectTrigger>
                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_fantasia}</SelectItem>)}</SelectContent>
@@ -102,14 +102,7 @@ export default function Inventory() {
                   <SelectItem value="monitor">Monitor</SelectItem><SelectItem value="roteador">Roteador</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={filters.estado} onValueChange={(v) => setFilters({...filters, estado: v})}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Todos os estados" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="em_uso">Em Uso</SelectItem><SelectItem value="estoque">Estoque</SelectItem>
-                  <SelectItem value="manutencao">Manutenção</SelectItem><SelectItem value="baixado">Baixado</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input placeholder="Buscar modelo, serial, tag..." value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} className="h-9" />
+              <Input placeholder="Buscar modelo, serial..." value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} className="h-9" />
             </div>
           </CardContent>
         </Card>
