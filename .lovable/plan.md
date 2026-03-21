@@ -1,38 +1,45 @@
 
 
-## Plano: Capturar dados de hardware (processador, memória) na varredura Datto
+## Plano: Simplificar formulário de cadastro de ativos
 
-### Problema
-A varredura completa (`datto-full-sync`) já busca detalhes de cada dispositivo via `/api/v2/device/{uid}`, mas os campos de processador e memória **não estão sendo mapeados** — provavelmente porque a API do Datto retorna esses dados com nomes de campo diferentes dos esperados pelo código.
+### O que muda
 
-Atualmente o `configuracoes` só traz: `dominio`, `ip_externo`, `ip_interno`, `ultimo_usuario`. Faltam processador, RAM, discos.
+Remover campos subutilizados e eliminar a aba "Adicionais", movendo "Sistema Operacional" para a aba "Dados Básicos". O formulário fica mais limpo e direto.
 
-### O que será feito
+### Campos removidos
+- Subcategoria
+- Estado
+- Tag Patrimonial
+- Setor
+- Data de Compra
+- Garantia até
+- Aba "Adicionais" inteira
 
-**1. Adicionar logging diagnóstico na Edge Function**
+### Campo movido
+- **Sistema Operacional** → vai para a aba "Dados Básicos"
 
-No `datto-full-sync/index.ts`, logar o JSON completo do primeiro dispositivo retornado pelo endpoint `/api/v2/device/{uid}` para descobrir os nomes exatos dos campos da API Datto.
+### Alterações
 
-**2. Ampliar o mapeamento de campos em `buildConfiguracoes`**
+**1. `src/components/assets/AssetDialog.tsx`**
+- Remover do `formData`: `subcategoria_id`, `estado`, `tag_patrimonial`, `setor`, `data_compra`, `garantia_fim`
+- Remover state `subcategories` e o `useEffect` que busca subcategorias
+- Remover do formulário os campos visuais de: subcategoria, estado, tag patrimonial, setor
+- Remover a aba "Adicionais" (`TabsTrigger` + `TabsContent value="additional"`)
+- Adicionar campo "Sistema Operacional" na aba "Dados Básicos" (após Modelo/Número de Série)
+- Mover "Observações" para a aba "Dados Básicos"
+- Ajustar grid das tabs (menos uma aba)
+- Limpar payload no `handleSubmit` (remover campos deletados, manter null para os que ficam no banco)
 
-Atualizar a função para cobrir todos os campos conhecidos da API Datto v2, incluindo variações:
-- **Processador**: `processor`, `cpuName`, `cpu`, `processorName`, `deviceAudit.processor`
-- **Memória RAM**: `memory`, `totalMemory`, `memoryTotal`, `ram`, `physicalMemory`, `deviceAudit.memory`
-- **Discos**: `disks`, `drives`, `diskDrives`, `volumes`
-- Buscar dentro de objetos aninhados como `deviceAudit`, `systemInfo`, `hardwareInfo`
+**2. `src/pages/Inventory.tsx`** — Atualizar filtros e tabela
+- Remover filtro de "estado" do painel de filtros
+- Remover colunas "Tag" e "Estado" da tabela
+- Ajustar colSpan dos placeholders
 
-**3. Testar via invocação direta**
+**3. `src/components/assets/AssetList.tsx`** — Verificar se exibe campos removidos (subcategoria, estado, tag, setor) e remover da visualização
 
-Chamar a função após o deploy para verificar nos logs o formato real da resposta e confirmar que processador/memória são capturados.
+**4. `src/lib/exportInventory.ts`** — Remover campos do CSV/PDF: Tag, Estado, Setor, Data Compra, Garantia
 
-**4. Re-sincronizar todos os ativos existentes**
-
-A varredura já atualiza ativos existentes — após a correção, basta rodar novamente pelo botão "Varredura Completa" para preencher os dados faltantes.
-
-### Detalhes técnicos
-
-- **1 arquivo alterado**: `supabase/functions/datto-full-sync/index.ts`
-- **Sem migração de banco**: os campos `configuracoes` (JSONB), `sistema_operacional`, `numero_serie` já existem
-- Redeploy da função após alteração
-- Abordagem iterativa: primeiro logar a resposta real, depois ajustar o mapeamento
+### Resumo
+- 4 arquivos alterados
+- Sem migração de banco (colunas permanecem, apenas não são mais exibidas/editadas no formulário)
 
