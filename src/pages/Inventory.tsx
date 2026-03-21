@@ -22,7 +22,7 @@ export default function Inventory() {
   const { profile, loading } = useAuth();
   const [assets, setAssets] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
-  const [filters, setFilters] = useState({ company_id: '', tipo: '', estado: '', search: '' });
+  const [filters, setFilters] = useState({ company_id: '', tipo: '', search: '' });
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [editingAsset, setEditingAsset] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
