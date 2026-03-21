@@ -139,14 +139,15 @@ async function fetchAllDevices(apiUrl: string, token: string): Promise<any[]> {
   return [];
 }
 
-async function fetchDeviceDetails(apiUrl: string, token: string, uid: string): Promise<any> {
+async function fetchDeviceDetails(apiUrl: string, token: string, uid: string, fetchAudit = false): Promise<any> {
   try {
     const device = await fetchDattoJson(`${apiUrl}/api/v2/device/${uid}`, token) as any;
-    // Try to fetch audit data for hardware details
-    try {
-      const audit = await fetchDattoJson(`${apiUrl}/api/v2/device/${uid}/audit`, token) as any;
-      if (audit) device._audit = audit;
-    } catch { /* audit endpoint may not exist for all devices */ }
+    if (fetchAudit) {
+      try {
+        const audit = await fetchDattoJson(`${apiUrl}/api/v2/device/${uid}/audit`, token) as any;
+        if (audit) device._audit = audit;
+      } catch { /* audit endpoint may not exist for all devices */ }
+    }
     return device;
   } catch {
     return null;
