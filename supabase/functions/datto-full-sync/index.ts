@@ -167,85 +167,83 @@ async function fetchDetailsBatch(apiUrl: string, token: string, uids: string[], 
   return results;
 }
 
-// ── Build configuracoes JSON ──
-
-// Helper to dig into nested audit objects
-function dig(obj: any, ...keys: string[]): any {
-  for (const k of keys) {
-    const val = obj?.[k];
-    if (val !== undefined && val !== null && val !== "") return val;
-  }
-  // Also search inside common nested containers
-  for (const container of ["_audit", "deviceAudit", "systemInfo", "hardwareInfo", "audit"]) {
-    if (obj?.[container] && typeof obj[container] === "object") {
-      for (const k of keys) {
-        const val = obj[container][k];
-        if (val !== undefined && val !== null && val !== "") return val;
-      }
-    }
-  }
-  return null;
-}
+// ── Build configuracoes JSON from Datto audit data ──
 
 function buildConfiguracoes(detail: any): Record<string, unknown> {
   const config: Record<string, unknown> = {};
+  const audit = detail?._audit;
+  const sysInfo = audit?.systemInfo;
 
-  // Processador — muitas variações possíveis na API Datto
-  const proc = dig(detail, "processor", "cpuName", "cpu", "processorName", "cpuModel", "processorModel");
-  if (proc) {
-    if (typeof proc === "object") {
-      // Some Datto versions return processor as an object
-      config.processador = proc.name ?? proc.model ?? proc.description ?? JSON.stringify(proc);
-      if (proc.cores) config.processador_cores = Number(proc.cores);
-      if (proc.threads) config.processador_threads = Number(proc.threads);
-      if (proc.speed || proc.clockSpeed) config.processador_ghz = String(proc.speed ?? proc.clockSpeed);
-    } else {
-      config.processador = String(proc);
+  // Processador — from audit.processors array
+  const processors = audit?.processors;
+  if (Array.isArray(processors) && processors.length > 0) {
+    const p = processors[0];
+    config.processador = p.name ?? p.manufacturer ?? "Desconhecido";
+    if (p.cores) config.processador_cores = Number(p.cores);
+    if (p.logicalCores) config.processador_threads = Number(p.logicalCores);
+    if (p.clockSpeed) config.processador_ghz = (Number(p.clockSpeed) / 1000).toFixed(1);
+  }
+  // Fallback: systemInfo.totalCpuCores
+  if (!config.processador_cores && sysInfo?.totalCpuCores) {
+    config.processador_cores = Number(sysInfo.totalCpuCores);
+  }
+
+  // Memória RAM — from systemInfo.totalPhysicalMemory (in bytes)
+  if (sysInfo?.totalPhysicalMemory && Number(sysInfo.totalPhysicalMemory) > 0) {
+    config.memoria_ram_gb = Math.round(Number(sysInfo.totalPhysicalMemory) / (1024 * 1024 * 1024));
+  }
+  // Physical memory modules detail
+  const memModules = audit?.physicalMemory;
+  if (Array.isArray(memModules) && memModules.length > 0) {
+    config.memoria_ram_slots = memModules.length;
+    const types = memModules.map((m: any) => m.memoryType).filter(Boolean);
+    if (types.length > 0) config.memoria_ram_tipo = types[0];
+  }
+
+  // Discos — from audit.logicalDisks
+  const disks = audit?.logicalDisks;
+  if (Array.isArray(disks) && disks.length > 0) {
+    config.armazenamento = disks.map((d: any) => ({
+      disco: d.name ?? d.caption ?? "?",
+      total_gb: d.size ? Math.round(Number(d.size) / (1024 * 1024 * 1024)) : null,
+      livre_gb: d.freeSpace ? Math.round(Number(d.freeSpace) / (1024 * 1024 * 1024)) : null,
+      tipo: d.description ?? d.fileSystem ?? null,
+    }));
+  }
+
+  // Placa de vídeo — from audit.videoBoards
+  const videoBoards = audit?.videoBoards;
+  if (Array.isArray(videoBoards) && videoBoards.length > 0) {
+    config.placa_video = videoBoards[0].name ?? videoBoards[0].description ?? null;
+    if (videoBoards[0].adapterRam) {
+      config.placa_video_memoria_gb = Math.round(Number(videoBoards[0].adapterRam) / (1024 * 1024 * 1024));
     }
   }
 
-  // Memória RAM — em bytes ou já em GB
-  const memBytes = dig(detail, "memory", "totalMemory", "memoryTotal", "ram", "physicalMemory", "totalPhysicalMemory");
-  if (memBytes && Number(memBytes) > 0) {
-    const num = Number(memBytes);
-    // Se > 1024 provavelmente está em bytes; se < 1024 já está em GB
-    config.memoria_ram_gb = num > 1024 ? Math.round(num / (1024 * 1024 * 1024)) : Math.round(num);
-  }
-
-  // Discos
-  const disks = dig(detail, "disks", "drives", "diskDrives", "volumes", "storageDevices");
-  if (Array.isArray(disks) && disks.length > 0) {
-    config.armazenamento = disks.map((d: any) => {
-      const sizeRaw = d.size ?? d.totalSize ?? d.capacity ?? d.sizeBytes;
-      const freeRaw = d.free ?? d.freeSpace ?? d.freeBytes ?? d.availableSpace;
-      const sizeNum = sizeRaw ? Number(sizeRaw) : null;
-      const freeNum = freeRaw ? Number(freeRaw) : null;
-      return {
-        disco: d.name ?? d.letter ?? d.mountPoint ?? d.deviceName ?? "?",
-        total_gb: sizeNum ? (sizeNum > 1024 * 1024 ? Math.round(sizeNum / (1024 * 1024 * 1024)) : Math.round(sizeNum)) : null,
-        livre_gb: freeNum ? (freeNum > 1024 * 1024 ? Math.round(freeNum / (1024 * 1024 * 1024)) : Math.round(freeNum)) : null,
-      };
-    });
-  }
-
-  // IPs
-  const intIp = dig(detail, "intIpAddress", "internalIp", "localIp", "privateIp", "lanIp");
+  // NICs / IPs — from audit.nics + device top-level
+  const intIp = detail?.intIpAddress;
   if (intIp) config.ip_interno = String(intIp);
-
-  const extIp = dig(detail, "extIpAddress", "externalIp", "publicIp", "wanIp");
+  const extIp = detail?.extIpAddress;
   if (extIp) config.ip_externo = String(extIp);
 
+  // Fabricante e modelo do sistema
+  if (sysInfo?.manufacturer) config.fabricante_sistema = String(sysInfo.manufacturer);
+  if (sysInfo?.model) config.modelo_sistema = String(sysInfo.model);
+
   // Domínio
-  const domain = dig(detail, "domain", "domainName", "adDomain");
+  const domain = detail?.domain;
   if (domain) config.dominio = String(domain);
 
   // Último usuário
-  const lastUser = dig(detail, "lastLoggedInUser", "lastUser", "loggedInUser", "currentUser");
+  const lastUser = detail?.lastLoggedInUser ?? sysInfo?.username;
   if (lastUser) config.ultimo_usuario = String(lastUser);
 
-  // MAC Address
-  const mac = dig(detail, "macAddress", "macAddr", "primaryMac");
-  if (mac) config.mac_address = String(mac);
+  // MAC address from NICs
+  const nics = audit?.nics;
+  if (Array.isArray(nics) && nics.length > 0) {
+    const mainNic = nics.find((n: any) => n.type === "Ethernet") ?? nics[0];
+    if (mainNic?.macAddress) config.mac_address = String(mainNic.macAddress);
+  }
 
   return config;
 }
