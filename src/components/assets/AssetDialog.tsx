@@ -235,7 +235,7 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className={cn(
               "grid w-full",
-              asset ? (requiredHardwareTab ? "grid-cols-6" : "grid-cols-5") : (requiredHardwareTab ? "grid-cols-4" : "grid-cols-3")
+              asset ? (requiredHardwareTab ? "grid-cols-5" : "grid-cols-4") : (requiredHardwareTab ? "grid-cols-3" : "grid-cols-2")
             )}>
               <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
               {requiredHardwareTab && <TabsTrigger value="hardware">Hardware</TabsTrigger>}
