@@ -280,8 +280,10 @@ Deno.serve(async (req) => {
 
     // 3. Fetch hardware details for all devices
     const uids = devices.map((d: any) => String(d.uid ?? d.deviceUid ?? d.device_uid ?? d.id ?? "")).filter(Boolean);
-    console.log(`[FullSync] Buscando detalhes de hardware para ${uids.length} dispositivos...`);
-    const detailsMap = await fetchDetailsBatch(dattoApiUrl, accessToken, uids, 5);
+    // Fetch audit for first 3 devices as diagnostic (to discover field names)
+    const auditUids = new Set(uids.slice(0, 3));
+    console.log(`[FullSync] Buscando detalhes de hardware para ${uids.length} dispositivos (audit para ${auditUids.size})...`);
+    const detailsMap = await fetchDetailsBatch(dattoApiUrl, accessToken, uids, 5, auditUids);
     console.log(`[FullSync] Detalhes obtidos para ${detailsMap.size} dispositivos.`);
 
     // Diagnostic: log first device detail to discover field names
