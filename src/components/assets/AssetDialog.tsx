@@ -48,23 +48,16 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     company_id: '',
     nome: '',
     tipo: '',
     categoria_id: '',
-    subcategoria_id: '',
     fabricante: '',
     modelo: '',
     numero_serie: '',
-    tag_patrimonial: '',
     local: '',
-    setor: '',
     sistema_operacional: '',
-    estado: 'em_uso' as const,
-    data_compra: '',
-    garantia_fim: '',
     observacoes: '',
     datto_device_id: '',
     datto_site_id: '',

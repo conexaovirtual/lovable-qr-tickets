@@ -78,13 +78,10 @@ export const exportInventoryToPDF = (assets: any[]) => {
       'Fabricante',
       'Modelo',
       'Serial',
-      'Tag',
-      'Estado',
       'Processador',
       'RAM',
       'S.O.',
-      'Local',
-      'Compra'
+      'Local'
     ]],
     body: tableData,
     startY: 40,
