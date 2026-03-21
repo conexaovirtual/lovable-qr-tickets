@@ -332,45 +332,6 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="subcategoria">Subcategoria</Label>
-                  <Select
-                    value={formData.subcategoria_id}
-                    onValueChange={(value) => setFormData({ ...formData, subcategoria_id: value })}
-                    disabled={!formData.categoria_id}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={formData.categoria_id ? "Selecione uma subcategoria" : "Selecione uma categoria primeiro"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subcategories.map((sub) => (
-                        <SelectItem key={sub.id} value={sub.id}>
-                          {sub.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="estado">Estado *</Label>
-                  <Select
-                    required
-                    value={formData.estado}
-                    onValueChange={(value: any) => setFormData({ ...formData, estado: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="em_uso">Em Uso</SelectItem>
-                      <SelectItem value="estoque">Estoque</SelectItem>
-                      <SelectItem value="manutencao">Manutenção</SelectItem>
-                      <SelectItem value="baixado">Baixado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <div className="space-y-2 md:col-span-2">
                   <Label>Fabricante</Label>
                   <Input
