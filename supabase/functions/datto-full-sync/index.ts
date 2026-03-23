@@ -356,6 +356,7 @@ Deno.serve(async (req) => {
           noCompany++;
           const normSite = normalize(siteName);
           if (normSite && !unmatchedSites.includes(normSite)) unmatchedSites.push(normSite);
+          unmatchedDevices.push({ hostname, site: siteName, uid, deviceId });
           continue;
         }
 
