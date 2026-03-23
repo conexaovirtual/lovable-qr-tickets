@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { PublicTicketActionsDialog } from "@/components/tickets/PublicTicketActionsDialog";
+
 
 export default function PublicTicket() {
   const [searchParams] = useSearchParams();
