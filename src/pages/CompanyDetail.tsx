@@ -363,6 +363,21 @@ export default function CompanyDetail() {
             </Card>
           </TabsContent>
 
+          {/* Aba WhatsApp */}
+          <TabsContent value="whatsapp">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  Contatos WhatsApp
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CompanyWhatsAppContacts companyId={id!} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Aba Técnicos */}
           <TabsContent value="technicians">
             <Card>
