@@ -24,11 +24,55 @@ export const CompanyCard = memo(({ company, onEdit, onUpdate, canDelete }: Compa
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      // Remove linked whatsapp_contacts first
-      await supabase.from('whatsapp_contacts').delete().eq('company_id', company.id);
-      // Remove linked visit_schedules
-      await supabase.from('visit_schedules').delete().eq('company_id', company.id);
+      // Get ticket IDs for this company to clean up comments and attachments
+      const { data: tickets } = await supabase.from('tickets').select('id').eq('company_id', company.id);
+      const ticketIds = tickets?.map(t => t.id) || [];
       
+      if (ticketIds.length > 0) {
+        await supabase.from('ticket_comments').delete().in('ticket_id', ticketIds);
+        await supabase.from('ticket_attachments').delete().in('ticket_id', ticketIds);
+      }
+
+      // Get asset IDs for changelog cleanup
+      const { data: assets } = await supabase.from('assets').select('id').eq('company_id', company.id);
+      const assetIds = assets?.map(a => a.id) || [];
+
+      if (assetIds.length > 0) {
+        await supabase.from('asset_changelog').delete().in('asset_id', assetIds);
+        await supabase.from('asset_relationships').delete().in('parent_asset_id', assetIds);
+        await supabase.from('asset_relationships').delete().in('child_asset_id', assetIds);
+        await supabase.from('ai_predictions').delete().in('asset_id', assetIds);
+        await supabase.from('datto_alerts_log').delete().in('asset_id', assetIds);
+      }
+
+      // Get service order IDs
+      const { data: serviceOrders } = await supabase.from('service_orders').select('id').eq('company_id', company.id);
+      const soIds = serviceOrders?.map(s => s.id) || [];
+
+      if (soIds.length > 0) {
+        await supabase.from('service_order_history').delete().in('service_order_id', soIds);
+        await supabase.from('contract_hour_entries').delete().in('service_order_id', soIds);
+      }
+
+      // Get contract IDs
+      const { data: contracts } = await supabase.from('contracts').select('id').eq('company_id', company.id);
+      const contractIds = contracts?.map(c => c.id) || [];
+
+      if (contractIds.length > 0) {
+        await supabase.from('contract_hour_entries').delete().in('contract_id', contractIds);
+      }
+
+      // Remove all related records in order
+      await supabase.from('whatsapp_contacts').delete().eq('company_id', company.id);
+      await supabase.from('visit_schedules').delete().eq('company_id', company.id);
+      await supabase.from('daily_service_records').delete().eq('company_id', company.id);
+      await supabase.from('tickets').delete().eq('company_id', company.id);
+      await supabase.from('service_orders').delete().eq('company_id', company.id);
+      await supabase.from('assets').delete().eq('company_id', company.id);
+      await supabase.from('contracts').delete().eq('company_id', company.id);
+      await supabase.from('cost_centers').delete().eq('company_id', company.id);
+      await supabase.from('projects').delete().eq('company_id', company.id);
+
       const { error } = await supabase.from('companies').delete().eq('id', company.id);
       if (error) {
         toast({ title: 'Erro ao excluir empresa', description: error.message, variant: 'destructive' });
