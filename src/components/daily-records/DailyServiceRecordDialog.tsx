@@ -81,6 +81,7 @@ export function DailyServiceRecordDialog({
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
+  const [pendingAssetId, setPendingAssetId] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [enderecoCliente, setEnderecoCliente] = useState("");
   const [gpsInicio, setGpsInicio] = useState<GeoPosition | null>(null);
@@ -104,6 +105,17 @@ export function DailyServiceRecordDialog({
       observacoes: "",
     },
   });
+
+  // When assets finish loading, apply the pending asset_id
+  useEffect(() => {
+    if (pendingAssetId && assets.length > 0) {
+      const found = assets.find(a => a.id === pendingAssetId);
+      if (found) {
+        form.setValue("asset_id", pendingAssetId);
+      }
+      setPendingAssetId(null);
+    }
+  }, [assets, pendingAssetId]);
 
   useEffect(() => {
     if (open) {
@@ -167,12 +179,16 @@ export function DailyServiceRecordDialog({
       if (error) throw error;
 
       if (data) {
-        // Carregar ativos da empresa ANTES de resetar o form
-        await loadAssets(data.company_id);
+        // Store the asset_id to apply after assets load
+        const recordAssetId = data.asset_id || "";
         
+        // Start loading assets for this company
+        loadAssets(data.company_id);
+        
+        // Reset form WITHOUT asset_id (will be set via pendingAssetId)
         form.reset({
           company_id: data.company_id,
-          asset_id: data.asset_id || "",
+          asset_id: "",
           data_atendimento: data.data_atendimento,
           hora_inicio: data.hora_inicio,
           hora_fim: data.hora_fim || "",
@@ -183,6 +199,11 @@ export function DailyServiceRecordDialog({
           status: data.status as "em_andamento" | "concluido" | "pendente",
           observacoes: data.observacoes || "",
         });
+        
+        // Queue asset_id to be set once assets are loaded
+        if (recordAssetId) {
+          setPendingAssetId(recordAssetId);
+        }
         
         // Carregar endereço do cliente
         setEnderecoCliente((data as any).endereco_cliente || "");
