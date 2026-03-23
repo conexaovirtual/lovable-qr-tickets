@@ -78,6 +78,7 @@ Deno.serve(async (req) => {
     authorizeUrl.searchParams.set("client_id", "public-client");
     authorizeUrl.searchParams.set("redirect_uri", redirectUri);
     authorizeUrl.searchParams.set("state", state);
+    authorizeUrl.searchParams.set("scope", "offline_access");
 
     console.log("[Datto OAuth Start] authorize_url generated for user:", userId);
 
