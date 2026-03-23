@@ -173,10 +173,14 @@ export default function CompanyDetail() {
       {/* Conteúdo com Abas */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+          <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="tickets">Tickets</TabsTrigger>
             <TabsTrigger value="assets">Ativos</TabsTrigger>
+            <TabsTrigger value="whatsapp">
+              <MessageSquare className="h-4 w-4 mr-1" />
+              WhatsApp
+            </TabsTrigger>
             <TabsTrigger value="technicians">Técnicos</TabsTrigger>
           </TabsList>
 
