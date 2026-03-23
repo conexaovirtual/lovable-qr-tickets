@@ -310,10 +310,35 @@ Deno.serve(async (req) => {
     const now = new Date().toISOString();
     let updated = 0;
     let created = 0;
-    let noCompany = 0;
-    const unmatchedSites: string[] = [];
+    let companiesCreated = 0;
     const createdDevices: { id: string; nome: string; companyId: string; companyName: string; tipo: string }[] = [];
-    const unmatchedDevices: { hostname: string; site: string; uid: string; deviceId: string }[] = [];
+    const createdCompanies: { id: string; nome: string }[] = [];
+
+    // Helper: find or create company
+    async function findOrCreateCompanyId(siteName: string): Promise<string | null> {
+      if (!siteName) return null;
+      // Try fuzzy match first
+      const existingId = findCompanyId(siteName);
+      if (existingId) return existingId;
+      // Auto-create company from Datto site name
+      const nomeFantasia = siteName.trim();
+      if (!nomeFantasia) return null;
+      console.log(`[FullSync] Criando empresa automaticamente: "${nomeFantasia}"`);
+      const { data: newCompany, error } = await supabase.from("companies").insert({
+        nome_fantasia: nomeFantasia,
+        tipo_contrato: "avulso",
+        status: true,
+      }).select("id, nome_fantasia").single();
+      if (error || !newCompany) {
+        console.error(`[FullSync] Erro ao criar empresa "${nomeFantasia}":`, error?.message);
+        return null;
+      }
+      // Add to local list so subsequent devices in same site reuse it
+      companyList.push(newCompany);
+      createdCompanies.push({ id: newCompany.id, nome: newCompany.nome_fantasia });
+      companiesCreated++;
+      return newCompany.id;
+    }
 
     for (const device of devices) {
       const uid = String(device.uid ?? device.deviceUid ?? device.device_uid ?? "");
