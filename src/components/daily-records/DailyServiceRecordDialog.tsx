@@ -216,6 +216,7 @@ export function DailyServiceRecordDialog({
             timestamp: Date.now(),
           });
         }
+        if ((data as any).latitude_fim && (data as any).longitude_fim) {
           setGpsFim({
             latitude: (data as any).latitude_fim,
             longitude: (data as any).longitude_fim,
