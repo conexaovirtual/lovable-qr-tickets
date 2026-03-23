@@ -1,10 +1,11 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { QrCode, Edit, Package, Building2, Eye, Download, Printer } from 'lucide-react';
+import { QrCode, Edit, Package, Building2, Eye, Download, Printer, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import QRCode from 'qrcode';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -12,21 +13,35 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useState } from 'react';
 import { AssetLabelPrint } from './AssetLabelPrint';
 
 interface AssetCardProps {
   asset: any;
   onEdit: (asset: any) => void;
+  onDelete?: () => void;
 }
 
-export function AssetCard({ asset, onEdit }: AssetCardProps) {
+export function AssetCard({ asset, onEdit, onDelete }: AssetCardProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [showLabelPrint, setShowLabelPrint] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const canManage = profile?.roles?.some(r => ['admin_provedor', 'tecnico', 'gestor_cliente'].includes(r)) || false;
+  const canDelete = profile?.roles?.includes('admin_provedor') || false;
   const canViewDetails = profile?.roles?.some(r => ['admin_provedor', 'gestor_cliente'].includes(r)) || false;
 
   // Check if we're in preview environment
