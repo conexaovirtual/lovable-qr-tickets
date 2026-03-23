@@ -375,13 +375,9 @@ Deno.serve(async (req) => {
         await supabase.from("assets").update(updateData).eq("id", existingAsset.id);
         updated++;
       } else {
-        // Create new — need company_id
-        const companyId = findCompanyId(siteName);
+        // Create new — find or auto-create company
+        const companyId = await findOrCreateCompanyId(siteName);
         if (!companyId) {
-          noCompany++;
-          const normSite = normalize(siteName);
-          if (normSite && !unmatchedSites.includes(normSite)) unmatchedSites.push(normSite);
-          unmatchedDevices.push({ hostname, site: siteName, uid, deviceId });
           continue;
         }
 
