@@ -12,6 +12,7 @@ import { ArrowLeft, Building2, Mail, Phone, MapPin, Clock, TrendingUp, AlertCirc
 import { CompanyTickets } from '@/components/companies/CompanyTickets';
 import { CompanyAssets } from '@/components/companies/CompanyAssets';
 import { CompanyTechnicians } from '@/components/companies/CompanyTechnicians';
+import { CompanyWhatsAppContacts } from '@/components/companies/CompanyWhatsAppContacts';
 import { useToast } from '@/hooks/use-toast';
 
 export default function CompanyDetail() {
