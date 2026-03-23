@@ -204,7 +204,18 @@ export function DailyServiceRecordDialog({
         if (recordAssetId) {
           setPendingAssetId(recordAssetId);
         }
-        if ((data as any).latitude_fim && (data as any).longitude_fim) {
+        
+        // Carregar endereço do cliente
+        setEnderecoCliente((data as any).endereco_cliente || "");
+        
+        // Restaurar GPS salvo
+        if ((data as any).latitude_inicio && (data as any).longitude_inicio) {
+          setGpsInicio({
+            latitude: (data as any).latitude_inicio,
+            longitude: (data as any).longitude_inicio,
+            timestamp: Date.now(),
+          });
+        }
           setGpsFim({
             latitude: (data as any).latitude_fim,
             longitude: (data as any).longitude_fim,
