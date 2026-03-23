@@ -44,14 +44,22 @@ interface UnmatchedDevice {
   deviceId: string;
 }
 
+interface CreatedCompany {
+  id: string;
+  nome: string;
+}
+
 interface FullSyncReport {
   total: number;
   detailsFetched: number;
   updated: number;
   created: number;
-  noCompany: number;
-  unmatchedSites: string[];
+  companiesCreated?: number;
   createdDevices?: CreatedDevice[];
+  createdCompanies?: CreatedCompany[];
+  // Legacy fields
+  noCompany?: number;
+  unmatchedSites?: string[];
   unmatchedDevices?: UnmatchedDevice[];
 }
 
@@ -333,11 +341,11 @@ export function DattoMonitoringPanel() {
                 <p className="text-muted-foreground">Criados {syncReport.created > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showCreated ? 'rotate-180' : ''}`} />}</p>
               </div>
               <div
-                className={`text-center p-2 rounded bg-background ${syncReport.noCompany > 0 ? 'cursor-pointer hover:ring-2 ring-amber-400 transition-all' : ''}`}
-                onClick={() => syncReport.noCompany > 0 && setShowUnmatched(!showUnmatched)}
+                className={`text-center p-2 rounded bg-background ${(syncReport.companiesCreated ?? 0) > 0 ? 'cursor-pointer hover:ring-2 ring-blue-400 transition-all' : ''}`}
+                onClick={() => (syncReport.companiesCreated ?? 0) > 0 && setShowUnmatched(!showUnmatched)}
               >
-                <p className="text-lg font-bold text-amber-600">{syncReport.noCompany}</p>
-                <p className="text-muted-foreground">Sem empresa {syncReport.noCompany > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showUnmatched ? 'rotate-180' : ''}`} />}</p>
+                <p className="text-lg font-bold text-blue-600">{syncReport.companiesCreated ?? syncReport.noCompany ?? 0}</p>
+                <p className="text-muted-foreground">Empresas criadas {(syncReport.companiesCreated ?? 0) > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showUnmatched ? 'rotate-180' : ''}`} />}</p>
               </div>
             </div>
 
@@ -370,7 +378,31 @@ export function DattoMonitoringPanel() {
               </div>
             )}
 
-            {/* Unmatched devices detail */}
+            {/* Created companies detail */}
+            {showUnmatched && syncReport.createdCompanies && syncReport.createdCompanies.length > 0 && (
+              <div className="border-t border-blue-200 dark:border-blue-800 pt-2">
+                <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-2">
+                  Empresas criadas automaticamente ({syncReport.createdCompanies.length})
+                </p>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1">
+                    {syncReport.createdCompanies.map((company, idx) => (
+                      <div
+                        key={company.id || idx}
+                        className="flex items-center gap-2 p-1.5 rounded text-xs bg-background hover:bg-accent/50 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/companies/${company.id}`)}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                        <span className="font-medium">{company.nome}</span>
+                        <ExternalLink className="h-3 w-3 text-muted-foreground ml-auto shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+
+            {/* Legacy: Unmatched devices from old reports */}
             {showUnmatched && syncReport.unmatchedDevices && syncReport.unmatchedDevices.length > 0 && (
               <div className="border-t border-amber-200 dark:border-amber-800 pt-2">
                 <p className="text-xs font-medium text-amber-700 dark:text-amber-300 mb-2">
@@ -390,11 +422,6 @@ export function DattoMonitoringPanel() {
                     ))}
                   </div>
                 </ScrollArea>
-                {syncReport.unmatchedSites.length > 0 && (
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    Sites sem correspondência: {syncReport.unmatchedSites.join(', ')}
-                  </p>
-                )}
               </div>
             )}
           </div>
