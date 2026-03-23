@@ -214,6 +214,16 @@ export function DailyServiceRecordDialog({
     }
   };
 
+  const notifyClientAboutDailyRecord = async (dailyRecordId: string, status: string, solucao?: string) => {
+    try {
+      await supabase.functions.invoke('notify-daily-record-status', {
+        body: { daily_record_id: dailyRecordId, new_status: status, observacao: solucao },
+      });
+    } catch (err) {
+      console.error('WhatsApp notification error:', err);
+    }
+  };
+
   const onSubmit = async (data: FormData) => {
     if (!profile) return;
 
@@ -250,6 +260,9 @@ export function DailyServiceRecordDialog({
         if (error) throw error;
         toast.success("Atendimento atualizado com sucesso!");
         
+        // Notificar cliente via WhatsApp sobre mudança de status
+        notifyClientAboutDailyRecord(recordId, data.status, data.solucao);
+        
         // Gerar artigo de conhecimento ao concluir com solução
         if (data.status === 'concluido' && data.solucao?.trim()) {
           supabase.functions.invoke('ai-knowledge-generator', {
@@ -257,12 +270,19 @@ export function DailyServiceRecordDialog({
           }).catch(err => console.error('Knowledge generation error:', err));
         }
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from("daily_service_records")
-          .insert([payload]);
+          .insert([payload])
+          .select('id, ticket_id')
+          .single();
 
         if (error) throw error;
         toast.success("Atendimento registrado com sucesso!");
+        
+        // Notificar cliente sobre novo atendimento
+        if (inserted) {
+          notifyClientAboutDailyRecord(inserted.id, data.status);
+        }
       }
 
       onOpenChange(false);
