@@ -7,6 +7,7 @@ const CALLBACK_RESULT_KEY = 'datto_oauth_result';
 export default function DattoCallback() {
   const [state, setState] = useState<CallbackState>('processing');
   const [message, setMessage] = useState('Processando autorização do Datto RMM...');
+  const [details, setDetails] = useState<string | null>(null);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -28,6 +29,7 @@ export default function DattoCallback() {
       window.opener?.postMessage(payload, '*');
       setState('error');
       setMessage('A autorização foi recusada ou falhou no Datto RMM.');
+      setDetails(errorDescription || error);
       return;
     }
 
@@ -43,6 +45,7 @@ export default function DattoCallback() {
 
     setState('error');
     setMessage('Não foi possível concluir a autorização do Datto RMM.');
+    setDetails('O retorno não trouxe código de autorização.');
   }, []);
 
   return (
@@ -52,6 +55,7 @@ export default function DattoCallback() {
           <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
         )}
         <p className="text-muted-foreground">{message}</p>
+        {details && <p className="text-xs text-muted-foreground">Detalhe: {details}</p>}
         <p className="text-xs text-muted-foreground">
           {state === 'error' ? 'Você já pode fechar esta janela.' : 'Esta janela será fechada automaticamente.'}
         </p>
