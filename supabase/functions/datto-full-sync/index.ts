@@ -389,6 +389,8 @@ Deno.serve(async (req) => {
       created,
       noCompany,
       unmatchedSites: unmatchedSites.slice(0, 20),
+      createdDevices: createdDevices.slice(0, 50),
+      unmatchedDevices: unmatchedDevices.slice(0, 50),
     };
 
     console.log("[FullSync] Relatório:", JSON.stringify(report));
