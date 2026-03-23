@@ -135,6 +135,18 @@ export function ServiceOrderExecutionDialog({
         console.error("Erro ao registrar histórico:", historyError);
       }
 
+      // Notificar cliente via WhatsApp (fire and forget)
+      supabase.functions.invoke("notify-os-status", {
+        body: {
+          service_order_id: serviceOrder.id,
+          new_status: novoStatus,
+          observacao: data.observacoes_execucao,
+        },
+      }).then(res => {
+        if (res.error) console.error("Erro ao notificar cliente:", res.error);
+        else console.log("Notificação WhatsApp enviada:", res.data);
+      }).catch(err => console.error("Erro ao chamar notify-os-status:", err));
+
       toast({
         title: "Execução registrada!",
         description: `OS #${serviceOrder.numero_os} ${data.finalizar ? "finalizada" : "marcada como executada"}.`,

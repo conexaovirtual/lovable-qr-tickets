@@ -303,6 +303,16 @@ export function ServiceOrderCreateDialog({
         observacao: "OS criada",
       });
 
+      // Notificar cliente via WhatsApp (fire and forget)
+      supabase.functions.invoke("notify-os-status", {
+        body: {
+          service_order_id: osData.id,
+          new_status: "agendada",
+        },
+      }).then(res => {
+        if (res.error) console.error("Erro ao notificar cliente:", res.error);
+      }).catch(err => console.error("Erro ao chamar notify-os-status:", err));
+
       toast({
         title: "Ordem de Serviço criada!",
         description: `OS #${osData.numero_os} agendada para ${format(dataAgendada, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`,
