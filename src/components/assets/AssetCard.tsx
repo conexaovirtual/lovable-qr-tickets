@@ -85,6 +85,29 @@ export function AssetCard({ asset, onEdit, onDelete }: AssetCardProps) {
     });
   };
 
+  const handleDeleteAsset = async () => {
+    setDeleting(true);
+    try {
+      await supabase.from('asset_changelog').delete().eq('asset_id', asset.id);
+      await supabase.from('asset_relationships').delete().eq('parent_asset_id', asset.id);
+      await supabase.from('asset_relationships').delete().eq('child_asset_id', asset.id);
+      await supabase.from('ai_predictions').delete().eq('asset_id', asset.id);
+      await supabase.from('datto_alerts_log').delete().eq('asset_id', asset.id);
+
+      const { error } = await supabase.from('assets').delete().eq('id', asset.id);
+      if (error) {
+        toast({ title: 'Erro ao excluir ativo', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Ativo excluído com sucesso' });
+        onDelete?.();
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro ao excluir ativo', description: err.message, variant: 'destructive' });
+    }
+    setDeleting(false);
+    setDeleteOpen(false);
+  };
+
   const estadoLabels: Record<string, string> = {
     em_uso: 'Em Uso',
     estoque: 'Estoque',
