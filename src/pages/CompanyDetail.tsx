@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Building2, Mail, Phone, MapPin, Clock, TrendingUp, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Building2, Mail, Phone, MapPin, Clock, TrendingUp, AlertCircle, MessageSquare } from 'lucide-react';
 import { CompanyTickets } from '@/components/companies/CompanyTickets';
 import { CompanyAssets } from '@/components/companies/CompanyAssets';
 import { CompanyTechnicians } from '@/components/companies/CompanyTechnicians';
