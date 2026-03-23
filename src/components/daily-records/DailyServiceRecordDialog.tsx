@@ -81,6 +81,7 @@ export function DailyServiceRecordDialog({
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
+  const [pendingAssetId, setPendingAssetId] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [enderecoCliente, setEnderecoCliente] = useState("");
   const [gpsInicio, setGpsInicio] = useState<GeoPosition | null>(null);
