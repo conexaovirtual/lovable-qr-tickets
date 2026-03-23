@@ -191,9 +191,36 @@ export function AssetCard({ asset, onEdit, onDelete }: AssetCardProps) {
               <Edit className="h-4 w-4" />
             </Button>
           )}
+          {canDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
+
+    <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir ativo</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir <strong>{asset.nome}</strong>? Esta ação não pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDeleteAsset} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+            {deleting ? 'Excluindo...' : 'Excluir'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <Dialog open={showQRModal} onOpenChange={setShowQRModal}>
       <DialogContent className="sm:max-w-md">
