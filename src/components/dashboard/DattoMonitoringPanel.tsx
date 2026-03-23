@@ -78,7 +78,12 @@ export function DattoMonitoringPanel() {
       return;
     }
 
-    toast.error(payload.error_description || payload.error || 'Erro na autorização do Datto');
+    if (payload.type === 'datto-oauth-callback-error') {
+      toast.error(payload.error_description || payload.error || 'Erro na autorização do Datto');
+      return;
+    }
+
+    toast.error('Erro na autorização do Datto');
   };
 
   useEffect(() => {
@@ -111,8 +116,10 @@ export function DattoMonitoringPanel() {
     window.addEventListener('message', handleMessage);
     window.addEventListener('storage', handleStorage);
 
-    return () => window.removeEventListener('message', handleMessage);
-    return () => window.removeEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const loadData = async () => {
