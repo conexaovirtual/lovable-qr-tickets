@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
-import { Activity, CheckCircle2, AlertTriangle, WifiOff, ExternalLink, KeyRound, RefreshCw, ScanSearch } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Activity, CheckCircle2, AlertTriangle, WifiOff, ExternalLink, KeyRound, RefreshCw, ScanSearch, ChevronDown, X, Monitor, Server, Printer, HardDrive } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -27,6 +29,21 @@ interface RecentAlert {
   created_at: string;
 }
 
+interface CreatedDevice {
+  id: string;
+  nome: string;
+  companyId: string;
+  companyName: string;
+  tipo: string;
+}
+
+interface UnmatchedDevice {
+  hostname: string;
+  site: string;
+  uid: string;
+  deviceId: string;
+}
+
 interface FullSyncReport {
   total: number;
   detailsFetched: number;
@@ -34,6 +51,8 @@ interface FullSyncReport {
   created: number;
   noCompany: number;
   unmatchedSites: string[];
+  createdDevices?: CreatedDevice[];
+  unmatchedDevices?: UnmatchedDevice[];
 }
 
 type DattoOAuthCallbackPayload =
@@ -41,6 +60,16 @@ type DattoOAuthCallbackPayload =
   | { type: 'datto-oauth-callback-error'; error?: string; error_description?: string; ts?: number };
 
 const CALLBACK_RESULT_KEY = 'datto_oauth_result';
+const SYNC_REPORT_KEY = 'datto_last_sync_report';
+
+const deviceTypeIcon = (tipo: string) => {
+  switch (tipo) {
+    case 'servidor': return Server;
+    case 'impressora': return Printer;
+    case 'switch': case 'roteador': return HardDrive;
+    default: return Monitor;
+  }
+};
 
 export function DattoMonitoringPanel() {
   const navigate = useNavigate();
@@ -51,7 +80,14 @@ export function DattoMonitoringPanel() {
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isFullSyncing, setIsFullSyncing] = useState(false);
-  const [syncReport, setSyncReport] = useState<FullSyncReport | null>(null);
+  const [syncReport, setSyncReport] = useState<FullSyncReport | null>(() => {
+    try {
+      const saved = localStorage.getItem(SYNC_REPORT_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const [showCreated, setShowCreated] = useState(false);
+  const [showUnmatched, setShowUnmatched] = useState(false);
   const processedOAuthResultRef = useRef<string | null>(null);
 
   const parseOAuthPayload = (value: string): DattoOAuthCallbackPayload | null => {
@@ -203,6 +239,7 @@ export function DattoMonitoringPanel() {
       if (!data?.success) throw new Error(data?.error || 'Erro na varredura');
       const report = data.report as FullSyncReport;
       setSyncReport(report);
+      localStorage.setItem(SYNC_REPORT_KEY, JSON.stringify(report));
       toast.success(`Varredura concluída: ${report.created} criados, ${report.updated} atualizados`);
       loadData();
     } catch (err: any) {
@@ -210,6 +247,11 @@ export function DattoMonitoringPanel() {
     } finally {
       setIsFullSyncing(false);
     }
+  };
+
+  const dismissReport = () => {
+    setSyncReport(null);
+    localStorage.removeItem(SYNC_REPORT_KEY);
   };
 
   if (loading) return <Skeleton className="h-48 mb-6" />;
@@ -263,12 +305,17 @@ export function DattoMonitoringPanel() {
           </div>
         )}
 
-        {/* Full sync report */}
+        {/* Full sync report - PERSISTS */}
         {syncReport && !isFullSyncing && (
-          <div className="space-y-2 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
-            <p className="text-sm font-medium text-green-700 dark:text-green-300">
-              ✅ Varredura concluída
-            </p>
+          <div className="space-y-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                ✅ Última varredura concluída
+              </p>
+              <Button variant="ghost" size="sm" onClick={dismissReport} className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="text-center p-2 rounded bg-background">
                 <p className="text-lg font-bold">{syncReport.total}</p>
@@ -278,19 +325,76 @@ export function DattoMonitoringPanel() {
                 <p className="text-lg font-bold text-blue-600">{syncReport.updated}</p>
                 <p className="text-muted-foreground">Atualizados</p>
               </div>
-              <div className="text-center p-2 rounded bg-background">
+              <div
+                className={`text-center p-2 rounded bg-background ${syncReport.created > 0 ? 'cursor-pointer hover:ring-2 ring-green-400 transition-all' : ''}`}
+                onClick={() => syncReport.created > 0 && setShowCreated(!showCreated)}
+              >
                 <p className="text-lg font-bold text-green-600">{syncReport.created}</p>
-                <p className="text-muted-foreground">Criados</p>
+                <p className="text-muted-foreground">Criados {syncReport.created > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showCreated ? 'rotate-180' : ''}`} />}</p>
               </div>
-              <div className="text-center p-2 rounded bg-background">
+              <div
+                className={`text-center p-2 rounded bg-background ${syncReport.noCompany > 0 ? 'cursor-pointer hover:ring-2 ring-amber-400 transition-all' : ''}`}
+                onClick={() => syncReport.noCompany > 0 && setShowUnmatched(!showUnmatched)}
+              >
                 <p className="text-lg font-bold text-amber-600">{syncReport.noCompany}</p>
-                <p className="text-muted-foreground">Sem empresa</p>
+                <p className="text-muted-foreground">Sem empresa {syncReport.noCompany > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showUnmatched ? 'rotate-180' : ''}`} />}</p>
               </div>
             </div>
-            {syncReport.unmatchedSites.length > 0 && (
-              <div className="text-xs text-muted-foreground mt-1">
-                <p className="font-medium">Sites sem correspondência:</p>
-                <p className="truncate">{syncReport.unmatchedSites.join(', ')}</p>
+
+            {/* Created devices detail */}
+            {showCreated && syncReport.createdDevices && syncReport.createdDevices.length > 0 && (
+              <div className="border-t border-green-200 dark:border-green-800 pt-2">
+                <p className="text-xs font-medium text-green-700 dark:text-green-300 mb-2">
+                  Dispositivos criados ({syncReport.createdDevices.length})
+                </p>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1">
+                    {syncReport.createdDevices.map((device, idx) => {
+                      const DeviceIcon = deviceTypeIcon(device.tipo);
+                      return (
+                        <div
+                          key={device.id || idx}
+                          className="flex items-center gap-2 p-1.5 rounded text-xs bg-background hover:bg-accent/50 cursor-pointer transition-colors"
+                          onClick={() => device.companyId && navigate(`/companies/${device.companyId}`)}
+                        >
+                          <DeviceIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="font-medium truncate">{device.nome}</span>
+                          <Badge variant="outline" className="text-[10px] shrink-0">{device.tipo}</Badge>
+                          <span className="text-muted-foreground ml-auto truncate max-w-[150px]">→ {device.companyName}</span>
+                          <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+
+            {/* Unmatched devices detail */}
+            {showUnmatched && syncReport.unmatchedDevices && syncReport.unmatchedDevices.length > 0 && (
+              <div className="border-t border-amber-200 dark:border-amber-800 pt-2">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-300 mb-2">
+                  Dispositivos sem empresa ({syncReport.unmatchedDevices.length})
+                </p>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1">
+                    {syncReport.unmatchedDevices.map((device, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 p-1.5 rounded text-xs bg-background"
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                        <span className="font-medium truncate">{device.hostname}</span>
+                        <span className="text-muted-foreground ml-auto truncate max-w-[200px]">Site: {device.site}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+                {syncReport.unmatchedSites.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Sites sem correspondência: {syncReport.unmatchedSites.join(', ')}
+                  </p>
+                )}
               </div>
             )}
           </div>
