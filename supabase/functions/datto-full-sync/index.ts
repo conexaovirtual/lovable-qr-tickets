@@ -312,6 +312,8 @@ Deno.serve(async (req) => {
     let created = 0;
     let noCompany = 0;
     const unmatchedSites: string[] = [];
+    const createdDevices: { id: string; nome: string; companyId: string; companyName: string; tipo: string }[] = [];
+    const unmatchedDevices: { hostname: string; site: string; uid: string; deviceId: string }[] = [];
 
     for (const device of devices) {
       const uid = String(device.uid ?? device.deviceUid ?? device.device_uid ?? "");
