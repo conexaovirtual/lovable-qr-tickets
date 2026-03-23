@@ -312,6 +312,8 @@ Deno.serve(async (req) => {
     let created = 0;
     let noCompany = 0;
     const unmatchedSites: string[] = [];
+    const createdDevices: { id: string; nome: string; companyId: string; companyName: string; tipo: string }[] = [];
+    const unmatchedDevices: { hostname: string; site: string; uid: string; deviceId: string }[] = [];
 
     for (const device of devices) {
       const uid = String(device.uid ?? device.deviceUid ?? device.device_uid ?? "");
@@ -354,11 +356,13 @@ Deno.serve(async (req) => {
           noCompany++;
           const normSite = normalize(siteName);
           if (normSite && !unmatchedSites.includes(normSite)) unmatchedSites.push(normSite);
+          unmatchedDevices.push({ hostname, site: siteName, uid, deviceId });
           continue;
         }
 
         const tipo = inferAssetType(hostname);
-        await supabase.from("assets").insert({
+        const companyName = companyList.find(c => c.id === companyId)?.nome_fantasia || "";
+        const { data: insertedAsset } = await supabase.from("assets").insert({
           nome: hostname,
           tipo,
           company_id: companyId,
@@ -372,7 +376,8 @@ Deno.serve(async (req) => {
           fabricante: fabricante ? String(fabricante) : null,
           modelo: modelo ? String(modelo) : null,
           estado: "em_uso",
-        });
+        }).select("id").single();
+        createdDevices.push({ id: insertedAsset?.id || "", nome: hostname, companyId, companyName, tipo });
         created++;
       }
     }
@@ -384,6 +389,8 @@ Deno.serve(async (req) => {
       created,
       noCompany,
       unmatchedSites: unmatchedSites.slice(0, 20),
+      createdDevices: createdDevices.slice(0, 50),
+      unmatchedDevices: unmatchedDevices.slice(0, 50),
     };
 
     console.log("[FullSync] Relatório:", JSON.stringify(report));
