@@ -150,7 +150,7 @@ export function AssetList({ onEdit, refreshTrigger }: AssetListProps) {
                   <div className="p-4 bg-muted/30">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {company.assets.map((asset: any) => (
-                        <AssetCard key={asset.id} asset={asset} onEdit={onEdit} />
+                        <AssetCard key={asset.id} asset={asset} onEdit={onEdit} onDelete={loadAssets} />
                       ))}
                     </div>
                   </div>
