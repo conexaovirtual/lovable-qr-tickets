@@ -361,7 +361,8 @@ Deno.serve(async (req) => {
         }
 
         const tipo = inferAssetType(hostname);
-        await supabase.from("assets").insert({
+        const companyName = companyList.find(c => c.id === companyId)?.nome_fantasia || "";
+        const { data: insertedAsset } = await supabase.from("assets").insert({
           nome: hostname,
           tipo,
           company_id: companyId,
@@ -375,7 +376,8 @@ Deno.serve(async (req) => {
           fabricante: fabricante ? String(fabricante) : null,
           modelo: modelo ? String(modelo) : null,
           estado: "em_uso",
-        });
+        }).select("id").single();
+        createdDevices.push({ id: insertedAsset?.id || "", nome: hostname, companyId, companyName, tipo });
         created++;
       }
     }
