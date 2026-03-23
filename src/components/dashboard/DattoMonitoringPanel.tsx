@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +36,12 @@ interface FullSyncReport {
   unmatchedSites: string[];
 }
 
+type DattoOAuthCallbackPayload =
+  | { type: 'datto-oauth-callback'; code: string; ts?: number }
+  | { type: 'datto-oauth-callback-error'; error?: string; error_description?: string; ts?: number };
+
+const CALLBACK_RESULT_KEY = 'datto_oauth_result';
+
 export function DattoMonitoringPanel() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DattoStats>({ online: 0, alert: 0, offline: 0 });
@@ -46,6 +52,39 @@ export function DattoMonitoringPanel() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isFullSyncing, setIsFullSyncing] = useState(false);
   const [syncReport, setSyncReport] = useState<FullSyncReport | null>(null);
+  const processedOAuthResultRef = useRef<string | null>(null);
+
+  const parseOAuthPayload = (value: string): DattoOAuthCallbackPayload | null => {
+    try {
+      const parsed = JSON.parse(value) as DattoOAuthCallbackPayload;
+      if (parsed?.type === 'datto-oauth-callback' || parsed?.type === 'datto-oauth-callback-error') {
+        return parsed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const consumeOAuthPayload = async (payload: DattoOAuthCallbackPayload) => {
+    const payloadValue = payload.type === 'datto-oauth-callback' ? payload.code : payload.error ?? payload.error_description ?? '';
+    const payloadId = `${payload.type}:${payloadValue}:${payload.ts ?? ''}`;
+    if (processedOAuthResultRef.current === payloadId) return;
+    processedOAuthResultRef.current = payloadId;
+    localStorage.removeItem(CALLBACK_RESULT_KEY);
+
+    if (payload.type === 'datto-oauth-callback' && payload.code) {
+      await exchangeCode(payload.code);
+      return;
+    }
+
+    if (payload.type === 'datto-oauth-callback-error') {
+      toast.error(payload.error_description || payload.error || 'Erro na autorização do Datto');
+      return;
+    }
+
+    toast.error('Erro na autorização do Datto');
+  };
 
   useEffect(() => {
     loadData();
@@ -53,12 +92,34 @@ export function DattoMonitoringPanel() {
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
-      if (event.data?.type === 'datto-oauth-callback' && event.data?.code) {
-        await exchangeCode(event.data.code);
+      if (event.origin !== window.location.origin) return;
+      const payload = event.data as DattoOAuthCallbackPayload;
+      if (payload?.type !== 'datto-oauth-callback' && payload?.type !== 'datto-oauth-callback-error') return;
+      await consumeOAuthPayload(payload);
+    };
+
+    const handleStorage = async (event: StorageEvent) => {
+      if (event.key !== CALLBACK_RESULT_KEY || !event.newValue) return;
+      const payload = parseOAuthPayload(event.newValue);
+      if (!payload) return;
+      await consumeOAuthPayload(payload);
+    };
+
+    const pendingPayload = localStorage.getItem(CALLBACK_RESULT_KEY);
+    if (pendingPayload) {
+      const payload = parseOAuthPayload(pendingPayload);
+      if (payload) {
+        void consumeOAuthPayload(payload);
       }
     };
+
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const loadData = async () => {
@@ -87,6 +148,9 @@ export function DattoMonitoringPanel() {
 
   const handleAuthorize = async () => {
     setIsAuthorizing(true);
+    processedOAuthResultRef.current = null;
+    localStorage.removeItem(CALLBACK_RESULT_KEY);
+
     try {
       const redirectUri = `${window.location.origin}/datto-callback`;
       const { data, error } = await supabase.functions.invoke('datto-oauth-start', { body: { redirect_uri: redirectUri } });
