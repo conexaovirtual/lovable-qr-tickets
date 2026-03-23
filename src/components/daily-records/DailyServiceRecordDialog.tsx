@@ -106,6 +106,17 @@ export function DailyServiceRecordDialog({
     },
   });
 
+  // When assets finish loading, apply the pending asset_id
+  useEffect(() => {
+    if (pendingAssetId && assets.length > 0) {
+      const found = assets.find(a => a.id === pendingAssetId);
+      if (found) {
+        form.setValue("asset_id", pendingAssetId);
+      }
+      setPendingAssetId(null);
+    }
+  }, [assets, pendingAssetId]);
+
   useEffect(() => {
     if (open) {
       loadCompanies();
