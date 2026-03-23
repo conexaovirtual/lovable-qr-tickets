@@ -44,14 +44,22 @@ interface UnmatchedDevice {
   deviceId: string;
 }
 
+interface CreatedCompany {
+  id: string;
+  nome: string;
+}
+
 interface FullSyncReport {
   total: number;
   detailsFetched: number;
   updated: number;
   created: number;
-  noCompany: number;
-  unmatchedSites: string[];
+  companiesCreated?: number;
   createdDevices?: CreatedDevice[];
+  createdCompanies?: CreatedCompany[];
+  // Legacy fields
+  noCompany?: number;
+  unmatchedSites?: string[];
   unmatchedDevices?: UnmatchedDevice[];
 }
 
