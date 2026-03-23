@@ -224,33 +224,12 @@ export default function PublicTicket() {
                 </div>
               </div>
               
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => setShowActionsDialog(true)}
-              >
-                Abrir Atendimento / Ordem de Serviço
-              </Button>
-              
               <p className="text-sm text-muted-foreground text-center">
-                Você pode fechar esta página agora.
+                Você pode fechar esta página agora. Nossa equipe técnica já foi notificada.
               </p>
             </div>
           </CardContent>
         </Card>
-
-        {createdTicket && (
-          <PublicTicketActionsDialog
-            open={showActionsDialog}
-            onOpenChange={setShowActionsDialog}
-            ticketId={createdTicket.id}
-            ticketNumber={createdTicket.numero}
-            companyId={company.id}
-            assetId={asset.id}
-            ticketTitle={`Chamado via QR Code - ${asset.nome}`}
-            ticketDescription={formData.descricao}
-          />
-        )}
       </div>
     );
   }
