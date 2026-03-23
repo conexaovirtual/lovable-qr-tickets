@@ -23,7 +23,7 @@ export default function PublicTicket() {
   const [asset, setAsset] = useState<any>(null);
   const [company, setCompany] = useState<any>(null);
   const [createdTicket, setCreatedTicket] = useState<any>(null);
-  const [showActionsDialog, setShowActionsDialog] = useState(false);
+  
 
   const [formData, setFormData] = useState({
     nome: "",
