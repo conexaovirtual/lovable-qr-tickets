@@ -1,10 +1,11 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { QrCode, Edit, Package, Building2, Eye, Download, Printer } from 'lucide-react';
+import { QrCode, Edit, Package, Building2, Eye, Download, Printer, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import QRCode from 'qrcode';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -12,21 +13,35 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useState } from 'react';
 import { AssetLabelPrint } from './AssetLabelPrint';
 
 interface AssetCardProps {
   asset: any;
   onEdit: (asset: any) => void;
+  onDelete?: () => void;
 }
 
-export function AssetCard({ asset, onEdit }: AssetCardProps) {
+export function AssetCard({ asset, onEdit, onDelete }: AssetCardProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [showLabelPrint, setShowLabelPrint] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const canManage = profile?.roles?.some(r => ['admin_provedor', 'tecnico', 'gestor_cliente'].includes(r)) || false;
+  const canDelete = profile?.roles?.includes('admin_provedor') || false;
   const canViewDetails = profile?.roles?.some(r => ['admin_provedor', 'gestor_cliente'].includes(r)) || false;
 
   // Check if we're in preview environment
@@ -68,6 +83,29 @@ export function AssetCard({ asset, onEdit }: AssetCardProps) {
       title: 'QR Code baixado',
       description: 'O QR Code foi salvo com sucesso',
     });
+  };
+
+  const handleDeleteAsset = async () => {
+    setDeleting(true);
+    try {
+      await supabase.from('asset_changelog').delete().eq('asset_id', asset.id);
+      await supabase.from('asset_relationships').delete().eq('parent_asset_id', asset.id);
+      await supabase.from('asset_relationships').delete().eq('child_asset_id', asset.id);
+      await supabase.from('ai_predictions').delete().eq('asset_id', asset.id);
+      await supabase.from('datto_alerts_log').delete().eq('asset_id', asset.id);
+
+      const { error } = await supabase.from('assets').delete().eq('id', asset.id);
+      if (error) {
+        toast({ title: 'Erro ao excluir ativo', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Ativo excluído com sucesso' });
+        onDelete?.();
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro ao excluir ativo', description: err.message, variant: 'destructive' });
+    }
+    setDeleting(false);
+    setDeleteOpen(false);
   };
 
   const estadoLabels: Record<string, string> = {
@@ -153,9 +191,36 @@ export function AssetCard({ asset, onEdit }: AssetCardProps) {
               <Edit className="h-4 w-4" />
             </Button>
           )}
+          {canDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
+
+    <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir ativo</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir <strong>{asset.nome}</strong>? Esta ação não pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDeleteAsset} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+            {deleting ? 'Excluindo...' : 'Excluir'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <Dialog open={showQRModal} onOpenChange={setShowQRModal}>
       <DialogContent className="sm:max-w-md">
