@@ -214,6 +214,16 @@ export function DailyServiceRecordDialog({
     }
   };
 
+  const notifyClientAboutDailyRecord = async (dailyRecordId: string, status: string, solucao?: string) => {
+    try {
+      await supabase.functions.invoke('notify-daily-record-status', {
+        body: { daily_record_id: dailyRecordId, new_status: status, observacao: solucao },
+      });
+    } catch (err) {
+      console.error('WhatsApp notification error:', err);
+    }
+  };
+
   const onSubmit = async (data: FormData) => {
     if (!profile) return;
 
