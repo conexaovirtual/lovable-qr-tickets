@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 const statusMessages: Record<string, string> = {
+  agendada: "📅 *Ordem de Serviço Criada*\n\nSua OS #{numero_os} foi registrada e está agendada. Em breve um técnico entrará em contato para confirmação.",
   confirmada: "✅ *Ordem de Serviço Confirmada*\n\nSua OS #{numero_os} foi confirmada pelo técnico e será atendida em breve.",
   em_execucao: "🔧 *Atendimento Iniciado*\n\nO técnico iniciou o atendimento da sua OS #{numero_os}. Acompanharemos você até a conclusão.",
   executada: "📋 *Atendimento Realizado*\n\nO atendimento da OS #{numero_os} foi concluído. Estamos finalizando os registros.",
