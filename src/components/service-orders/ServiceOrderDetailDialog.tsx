@@ -99,6 +99,18 @@ export function ServiceOrderDetailDialog({
         observacao,
       });
 
+      // Notificar cliente via WhatsApp (fire and forget)
+      supabase.functions.invoke("notify-os-status", {
+        body: {
+          service_order_id: serviceOrder.id,
+          new_status: newStatus,
+          observacao,
+        },
+      }).then(res => {
+        if (res.error) console.error("Erro ao notificar cliente:", res.error);
+        else console.log("Notificação WhatsApp enviada:", res.data);
+      }).catch(err => console.error("Erro ao chamar notify-os-status:", err));
+
       toast({
         title: "Status atualizado!",
         description: `OS #${serviceOrder.numero_os} agora está ${statusLabels[newStatus]}`,
