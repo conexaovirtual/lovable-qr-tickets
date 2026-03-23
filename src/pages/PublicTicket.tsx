@@ -138,7 +138,7 @@ export default function PublicTicket() {
 
       setCreatedTicket(ticket);
       setSuccess(true);
-      setShowActionsDialog(true);
+      
 
       // Chamar auto-resposta IA (fire and forget)
       supabase.functions.invoke('ai-auto-response', {
