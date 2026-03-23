@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -207,6 +208,43 @@ const handler = async (req: Request): Promise<Response> => {
     } catch (pushError) {
       console.error("Error sending push notification:", pushError);
       // Não falhar se o push falhar
+    }
+
+    // Auto-registrar contato WhatsApp se o contato for um telefone
+    try {
+      const digits = solicitanteContato.replace(/\D/g, "");
+      if (digits.length >= 10) {
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+
+        // Get company_id from the ticket
+        const { data: ticket } = await supabase
+          .from("tickets")
+          .select("company_id")
+          .eq("id", ticketId)
+          .single();
+
+        if (ticket?.company_id) {
+          const phone = digits.startsWith("55") && digits.length >= 12 ? digits : `55${digits}`;
+          
+          // Upsert: create or update contact
+          await supabase.from("whatsapp_contacts").upsert(
+            {
+              phone_number: phone,
+              contact_name: solicitanteNome,
+              company_id: ticket.company_id,
+              last_message_at: new Date().toISOString(),
+            },
+            { onConflict: "phone_number" }
+          );
+          console.log(`WhatsApp contact registered: ${phone} -> ${solicitanteNome}`);
+        }
+      }
+    } catch (contactError) {
+      console.error("Error registering WhatsApp contact:", contactError);
+      // Don't fail the main flow
     }
 
     return new Response(JSON.stringify({ success: true, emailResponse: data }), {

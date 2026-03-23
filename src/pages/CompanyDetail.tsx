@@ -8,10 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Building2, Mail, Phone, MapPin, Clock, TrendingUp, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Building2, Mail, Phone, MapPin, Clock, TrendingUp, AlertCircle, MessageSquare } from 'lucide-react';
 import { CompanyTickets } from '@/components/companies/CompanyTickets';
 import { CompanyAssets } from '@/components/companies/CompanyAssets';
 import { CompanyTechnicians } from '@/components/companies/CompanyTechnicians';
+import { CompanyWhatsAppContacts } from '@/components/companies/CompanyWhatsAppContacts';
 import { useToast } from '@/hooks/use-toast';
 
 export default function CompanyDetail() {
@@ -172,10 +173,14 @@ export default function CompanyDetail() {
       {/* Conteúdo com Abas */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+          <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="tickets">Tickets</TabsTrigger>
             <TabsTrigger value="assets">Ativos</TabsTrigger>
+            <TabsTrigger value="whatsapp">
+              <MessageSquare className="h-4 w-4 mr-1" />
+              WhatsApp
+            </TabsTrigger>
             <TabsTrigger value="technicians">Técnicos</TabsTrigger>
           </TabsList>
 
@@ -354,6 +359,21 @@ export default function CompanyDetail() {
               </CardHeader>
               <CardContent>
                 <CompanyAssets companyId={id!} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Aba WhatsApp */}
+          <TabsContent value="whatsapp">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  Contatos WhatsApp
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CompanyWhatsAppContacts companyId={id!} />
               </CardContent>
             </Card>
           </TabsContent>
