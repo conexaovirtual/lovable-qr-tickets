@@ -179,12 +179,16 @@ export function DailyServiceRecordDialog({
       if (error) throw error;
 
       if (data) {
-        // Carregar ativos da empresa ANTES de resetar o form
-        await loadAssets(data.company_id);
+        // Store the asset_id to apply after assets load
+        const recordAssetId = data.asset_id || "";
         
+        // Start loading assets for this company
+        loadAssets(data.company_id);
+        
+        // Reset form WITHOUT asset_id (will be set via pendingAssetId)
         form.reset({
           company_id: data.company_id,
-          asset_id: data.asset_id || "",
+          asset_id: "",
           data_atendimento: data.data_atendimento,
           hora_inicio: data.hora_inicio,
           hora_fim: data.hora_fim || "",
@@ -196,16 +200,9 @@ export function DailyServiceRecordDialog({
           observacoes: data.observacoes || "",
         });
         
-        // Carregar endereço do cliente
-        setEnderecoCliente((data as any).endereco_cliente || "");
-        
-        // Restaurar GPS salvo
-        if ((data as any).latitude_inicio && (data as any).longitude_inicio) {
-          setGpsInicio({
-            latitude: (data as any).latitude_inicio,
-            longitude: (data as any).longitude_inicio,
-            timestamp: Date.now(),
-          });
+        // Queue asset_id to be set once assets are loaded
+        if (recordAssetId) {
+          setPendingAssetId(recordAssetId);
         }
         if ((data as any).latitude_fim && (data as any).longitude_fim) {
           setGpsFim({
