@@ -1529,6 +1529,7 @@ export type Database = {
           data_execucao: string | null
           descricao_servicos: string
           endereco_atendimento: string | null
+          equipamento_descricao: string | null
           equipamentos_necessarios: string[] | null
           fotos: Json | null
           hora_agendada: string | null
@@ -1564,6 +1565,7 @@ export type Database = {
           data_execucao?: string | null
           descricao_servicos: string
           endereco_atendimento?: string | null
+          equipamento_descricao?: string | null
           equipamentos_necessarios?: string[] | null
           fotos?: Json | null
           hora_agendada?: string | null
@@ -1599,6 +1601,7 @@ export type Database = {
           data_execucao?: string | null
           descricao_servicos?: string
           endereco_atendimento?: string | null
+          equipamento_descricao?: string | null
           equipamentos_necessarios?: string[] | null
           fotos?: Json | null
           hora_agendada?: string | null

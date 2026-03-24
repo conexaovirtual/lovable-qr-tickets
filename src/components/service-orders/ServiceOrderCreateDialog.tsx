@@ -20,7 +20,8 @@ import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   company_id: z.string().min(1, "Selecione uma empresa"),
-  asset_id: z.string().min(1, "Selecione o ativo"),
+  asset_id: z.string().optional(),
+  equipamento_descricao: z.string().optional(),
   tipo_servico: z.enum(["corretivo", "preventivo", "instalacao", "consultoria"], {
     message: "Selecione o tipo de serviço",
   }),
@@ -114,7 +115,7 @@ export function ServiceOrderCreateDialog({
       
       const { data, error } = await supabase
         .from("companies")
-        .select("id, nome_fantasia, endereco")
+        .select("id, nome_fantasia, endereco, tipo_contrato")
         .eq("status", true)
         .order("nome_fantasia");
 
@@ -214,7 +215,7 @@ export function ServiceOrderCreateDialog({
   const loadCompanyDetails = async (companyId: string) => {
     const { data } = await supabase
       .from("companies")
-      .select("*")
+      .select("*, tipo_contrato")
       .eq("id", companyId)
       .single();
 
@@ -226,6 +227,9 @@ export function ServiceOrderCreateDialog({
       if (data.telefone) {
         form.setValue("telefone_contato", data.telefone);
       }
+      // Clear asset fields when switching company
+      form.setValue("asset_id", "");
+      form.setValue("equipamento_descricao", "");
     }
   };
 
@@ -257,7 +261,8 @@ export function ServiceOrderCreateDialog({
 
       const insertData: any = {
         company_id: values.company_id,
-        asset_id: values.asset_id,
+        asset_id: values.asset_id || null,
+        equipamento_descricao: values.equipamento_descricao || null,
         ticket_id: preSelectedTicketId || null,
         tipo_servico: values.tipo_servico,
         prioridade: values.prioridade,
@@ -398,7 +403,7 @@ export function ServiceOrderCreateDialog({
   const getFieldsForStep = (currentStep: number): (keyof z.infer<typeof formSchema>)[] => {
     switch (currentStep) {
       case 1:
-        return ["company_id", "asset_id", "tipo_servico", "prioridade", "descricao_servicos"];
+        return ["company_id", "tipo_servico", "prioridade", "descricao_servicos"];
       case 2:
         return ["data_agendada", "hora_agendada"];
       case 3:
@@ -472,49 +477,72 @@ export function ServiceOrderCreateDialog({
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="asset_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ativo/Equipamento *</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        value={field.value}
-                        disabled={!form.watch("company_id") || loadingAssets}
-                      >
+                {/* Show asset select for contract companies, text input for eventual */}
+                {selectedCompany?.tipo_contrato === 'contrato_manutencao' ? (
+                  <FormField
+                    control={form.control}
+                    name="asset_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ativo/Equipamento</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value}
+                          disabled={!form.watch("company_id") || loadingAssets}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={
+                                !form.watch("company_id") 
+                                  ? "Selecione uma empresa primeiro" 
+                                  : loadingAssets
+                                    ? "Carregando ativos..."
+                                    : assets.length === 0
+                                      ? "Nenhum ativo disponível"
+                                      : "Selecione o ativo"
+                              } />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="z-[100]">
+                            {assets.length === 0 ? (
+                              <div className="p-2 text-sm text-muted-foreground text-center">
+                                Nenhum ativo disponível para esta empresa
+                              </div>
+                            ) : (
+                              assets.map((asset) => (
+                                <SelectItem key={asset.id} value={asset.id}>
+                                  {asset.nome} - {asset.tipo}
+                                  {asset.tag_patrimonial && ` (${asset.tag_patrimonial})`}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="equipamento_descricao"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Equipamento (descrição manual)</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={
-                              !form.watch("company_id") 
-                                ? "Selecione uma empresa primeiro" 
-                                : loadingAssets
-                                  ? "Carregando ativos..."
-                                  : assets.length === 0
-                                    ? "Nenhum ativo disponível"
-                                    : "Selecione o ativo"
-                            } />
-                          </SelectTrigger>
+                          <Input 
+                            placeholder="Ex: Notebook Dell Inspiron, PC da recepção..." 
+                            {...field} 
+                          />
                         </FormControl>
-                        <SelectContent className="z-[100]">
-                          {assets.length === 0 ? (
-                            <div className="p-2 text-sm text-muted-foreground text-center">
-                              Nenhum ativo disponível para esta empresa
-                            </div>
-                          ) : (
-                            assets.map((asset) => (
-                              <SelectItem key={asset.id} value={asset.id}>
-                                {asset.nome} - {asset.tipo}
-                                {asset.tag_patrimonial && ` (${asset.tag_patrimonial})`}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormDescription>
+                          Empresa eventual — descreva o equipamento manualmente
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={form.control}
