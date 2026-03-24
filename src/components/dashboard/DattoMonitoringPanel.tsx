@@ -388,6 +388,29 @@ export function DattoMonitoringPanel() {
               </div>
             )}
 
+            {/* Deleted orphans detail */}
+            {showDeleted && syncReport.deletedOrphans && syncReport.deletedOrphans.length > 0 && (
+              <div className="border-t border-red-200 dark:border-red-800 pt-2">
+                <p className="text-xs font-medium text-red-700 dark:text-red-300 mb-2">
+                  Ativos removidos — sem correspondência no Datto ({syncReport.deletedOrphans.length})
+                </p>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1">
+                    {syncReport.deletedOrphans.map((orphan, idx) => {
+                      const DeviceIcon = deviceTypeIcon(orphan.tipo);
+                      return (
+                        <div key={idx} className="flex items-center gap-2 p-1.5 rounded text-xs bg-background">
+                          <DeviceIcon className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                          <span className="font-medium truncate">{orphan.nome}</span>
+                          <Badge variant="outline" className="text-[10px] shrink-0">{orphan.tipo}</Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+
             {/* Created companies detail */}
             {showUnmatched && syncReport.createdCompanies && syncReport.createdCompanies.length > 0 && (
               <div className="border-t border-blue-200 dark:border-blue-800 pt-2">
