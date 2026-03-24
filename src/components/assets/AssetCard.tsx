@@ -156,6 +156,24 @@ export function AssetCard({ asset, onEdit, onDelete }: AssetCardProps) {
               <span className="font-mono text-xs">{asset.numero_serie}</span>
             </div>
           )}
+          {asset.configuracoes?.ip_interno && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">IP Interno:</span>
+              <span className="font-mono text-xs">{asset.configuracoes.ip_interno}</span>
+            </div>
+          )}
+          {asset.configuracoes?.ip_externo && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">IP Externo:</span>
+              <span className="font-mono text-xs">{asset.configuracoes.ip_externo}</span>
+            </div>
+          )}
+          {asset.configuracoes?.mac_address && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">MAC:</span>
+              <span className="font-mono text-xs">{asset.configuracoes.mac_address}</span>
+            </div>
+          )}
           {asset.local && canViewDetails && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Local:</span>
