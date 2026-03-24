@@ -175,7 +175,11 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
       categoria_id: formData.categoria_id || null,
       datto_device_id: formData.datto_device_id || null,
       datto_site_id: formData.datto_site_id || null,
-      configuracoes: TIPOS_COM_HARDWARE.includes(formData.tipo) ? configs : null,
+      configuracoes: TIPOS_COM_HARDWARE.includes(formData.tipo) 
+        ? configs 
+        : (configs.ip_interno || configs.ip_externo || configs.mac_address) 
+          ? { ip_interno: configs.ip_interno, ip_externo: configs.ip_externo, mac_address: configs.mac_address }
+          : null,
     };
 
     let newAssetId: string | undefined;
