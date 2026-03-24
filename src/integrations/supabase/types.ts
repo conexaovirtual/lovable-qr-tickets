@@ -2610,6 +2610,7 @@ export type Database = {
         | "servidor"
         | "periferico"
         | "outro"
+        | "camera"
       canal_atendimento:
         | "whatsapp"
         | "ligacao"
@@ -2792,6 +2793,7 @@ export const Constants = {
         "servidor",
         "periferico",
         "outro",
+        "camera",
       ],
       canal_atendimento: [
         "whatsapp",
