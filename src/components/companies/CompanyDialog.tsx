@@ -229,12 +229,13 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         return { ...acc, [key]: value };
       }, {} as any);
 
-      // Adicionar logo_url ao payload
+      // Adicionar logo_url e datto_site_id ao payload
       if (logoUrl) {
         cleanedData.logo_url = logoUrl;
       } else {
         cleanedData.logo_url = null;
       }
+      cleanedData.datto_site_id = dattoSiteId.trim() || null;
 
       if (company) {
         // Se CNPJ foi alterado, verificar duplicidade
