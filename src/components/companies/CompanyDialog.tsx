@@ -696,6 +696,20 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                 )}
               />
 
+
+              <div className="md:col-span-2">
+                <label className="text-sm font-medium">Datto RMM Site ID</label>
+                <Input
+                  value={dattoSiteId}
+                  onChange={(e) => setDattoSiteId(e.target.value)}
+                  placeholder="Ex: 128495 (preenchido automaticamente pela varredura)"
+                  className="mt-1.5"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Vincula esta empresa a um Site específico do Datto RMM para sincronização precisa
+                </p>
+              </div>
+
               <FormField
                 control={form.control}
                 name="status"
