@@ -306,6 +306,8 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                       <SelectItem value="switch">Switch 🔌</SelectItem>
                       <SelectItem value="servidor">Servidor 🗄️</SelectItem>
                       <SelectItem value="periferico">Periférico 🎥</SelectItem>
+                      <SelectItem value="camera">Câmera/DVR 📹</SelectItem>
+                      <SelectItem value="outro">Outro 📦</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
