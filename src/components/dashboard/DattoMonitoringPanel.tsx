@@ -98,6 +98,7 @@ export function DattoMonitoringPanel() {
   });
   const [showCreated, setShowCreated] = useState(false);
   const [showUnmatched, setShowUnmatched] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
   const processedOAuthResultRef = useRef<string | null>(null);
 
   const parseOAuthPayload = (value: string): DattoOAuthCallbackPayload | null => {
