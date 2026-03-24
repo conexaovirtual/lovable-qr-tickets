@@ -390,9 +390,6 @@ Deno.serve(async (req) => {
       // Check if asset exists
       const existingAsset = assetByUid.get(uid) || assetById.get(deviceId);
 
-      // Track synced asset IDs for orphan cleanup
-      const syncedAssetIds = new Set<string>();
-
       if (existingAsset) {
         syncedAssetIds.add(existingAsset.id);
         // Update existing
