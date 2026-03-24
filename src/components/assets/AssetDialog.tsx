@@ -410,14 +410,13 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                 </div>
               </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Observações</Label>
-                  <Textarea
-                    value={formData.observacoes}
-                    onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                    rows={3}
-                  />
-                </div>
+              <div className="space-y-2 mt-4">
+                <Label>Observações</Label>
+                <Textarea
+                  value={formData.observacoes}
+                  onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                  rows={3}
+                />
               </div>
             </TabsContent>
 
