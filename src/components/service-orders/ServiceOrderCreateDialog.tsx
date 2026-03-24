@@ -20,7 +20,8 @@ import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   company_id: z.string().min(1, "Selecione uma empresa"),
-  asset_id: z.string().min(1, "Selecione o ativo"),
+  asset_id: z.string().optional(),
+  equipamento_descricao: z.string().optional(),
   tipo_servico: z.enum(["corretivo", "preventivo", "instalacao", "consultoria"], {
     message: "Selecione o tipo de serviço",
   }),
