@@ -474,49 +474,72 @@ export function ServiceOrderCreateDialog({
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="asset_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ativo/Equipamento *</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        value={field.value}
-                        disabled={!form.watch("company_id") || loadingAssets}
-                      >
+                {/* Show asset select for contract companies, text input for eventual */}
+                {selectedCompany?.tipo_contrato === 'contrato_manutencao' ? (
+                  <FormField
+                    control={form.control}
+                    name="asset_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ativo/Equipamento</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value}
+                          disabled={!form.watch("company_id") || loadingAssets}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={
+                                !form.watch("company_id") 
+                                  ? "Selecione uma empresa primeiro" 
+                                  : loadingAssets
+                                    ? "Carregando ativos..."
+                                    : assets.length === 0
+                                      ? "Nenhum ativo disponível"
+                                      : "Selecione o ativo"
+                              } />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="z-[100]">
+                            {assets.length === 0 ? (
+                              <div className="p-2 text-sm text-muted-foreground text-center">
+                                Nenhum ativo disponível para esta empresa
+                              </div>
+                            ) : (
+                              assets.map((asset) => (
+                                <SelectItem key={asset.id} value={asset.id}>
+                                  {asset.nome} - {asset.tipo}
+                                  {asset.tag_patrimonial && ` (${asset.tag_patrimonial})`}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="equipamento_descricao"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Equipamento (descrição manual)</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={
-                              !form.watch("company_id") 
-                                ? "Selecione uma empresa primeiro" 
-                                : loadingAssets
-                                  ? "Carregando ativos..."
-                                  : assets.length === 0
-                                    ? "Nenhum ativo disponível"
-                                    : "Selecione o ativo"
-                            } />
-                          </SelectTrigger>
+                          <Input 
+                            placeholder="Ex: Notebook Dell Inspiron, PC da recepção..." 
+                            {...field} 
+                          />
                         </FormControl>
-                        <SelectContent className="z-[100]">
-                          {assets.length === 0 ? (
-                            <div className="p-2 text-sm text-muted-foreground text-center">
-                              Nenhum ativo disponível para esta empresa
-                            </div>
-                          ) : (
-                            assets.map((asset) => (
-                              <SelectItem key={asset.id} value={asset.id}>
-                                {asset.nome} - {asset.tipo}
-                                {asset.tag_patrimonial && ` (${asset.tag_patrimonial})`}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormDescription>
+                          Empresa eventual — descreva o equipamento manualmente
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={form.control}
