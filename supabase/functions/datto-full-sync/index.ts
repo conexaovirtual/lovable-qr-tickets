@@ -29,7 +29,7 @@ function inferAssetType(hostname: string): string {
   const h = hostname.toLowerCase();
   if (/srv|server|serv|dc\d|ad\d|hyperv|cluster/i.test(h)) return "servidor";
   if (/nb|note|lap|laptop/i.test(h)) return "notebook";
-  if (/cam|dvr|nvr|cftv/i.test(h)) return "camera";
+  if (/\bcam\d|cameras?[-_]|dvr|nvr|cftv/i.test(h)) return "camera";
   if (/print|imp|mfp/i.test(h)) return "impressora";
   if (/sw|switch/i.test(h)) return "switch";
   if (/ap|wifi|roteador|router|mikrotik/i.test(h)) return "roteador";
