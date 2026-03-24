@@ -54,9 +54,11 @@ interface FullSyncReport {
   detailsFetched: number;
   updated: number;
   created: number;
+  deleted?: number;
   companiesCreated?: number;
   createdDevices?: CreatedDevice[];
   createdCompanies?: CreatedCompany[];
+  deletedOrphans?: { nome: string; tipo: string }[];
   // Legacy fields
   noCompany?: number;
   unmatchedSites?: string[];
@@ -96,6 +98,7 @@ export function DattoMonitoringPanel() {
   });
   const [showCreated, setShowCreated] = useState(false);
   const [showUnmatched, setShowUnmatched] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
   const processedOAuthResultRef = useRef<string | null>(null);
 
   const parseOAuthPayload = (value: string): DattoOAuthCallbackPayload | null => {
@@ -248,7 +251,7 @@ export function DattoMonitoringPanel() {
       const report = data.report as FullSyncReport;
       setSyncReport(report);
       localStorage.setItem(SYNC_REPORT_KEY, JSON.stringify(report));
-      toast.success(`Varredura concluída: ${report.created} criados, ${report.updated} atualizados`);
+      toast.success(`Varredura concluída: ${report.created} criados, ${report.updated} atualizados, ${report.deleted ?? 0} removidos`);
       loadData();
     } catch (err: any) {
       toast.error(err.message || 'Erro na varredura completa');
@@ -324,7 +327,7 @@ export function DattoMonitoringPanel() {
                 <X className="h-3 w-3" />
               </Button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
               <div className="text-center p-2 rounded bg-background">
                 <p className="text-lg font-bold">{syncReport.total}</p>
                 <p className="text-muted-foreground">Total Datto</p>
@@ -341,11 +344,18 @@ export function DattoMonitoringPanel() {
                 <p className="text-muted-foreground">Criados {syncReport.created > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showCreated ? 'rotate-180' : ''}`} />}</p>
               </div>
               <div
+                className={`text-center p-2 rounded bg-background ${(syncReport.deleted ?? 0) > 0 ? 'cursor-pointer hover:ring-2 ring-red-400 transition-all' : ''}`}
+                onClick={() => (syncReport.deleted ?? 0) > 0 && setShowDeleted(!showDeleted)}
+              >
+                <p className="text-lg font-bold text-red-600">{syncReport.deleted ?? 0}</p>
+                <p className="text-muted-foreground">Removidos {(syncReport.deleted ?? 0) > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showDeleted ? 'rotate-180' : ''}`} />}</p>
+              </div>
+              <div
                 className={`text-center p-2 rounded bg-background ${(syncReport.companiesCreated ?? 0) > 0 ? 'cursor-pointer hover:ring-2 ring-blue-400 transition-all' : ''}`}
                 onClick={() => (syncReport.companiesCreated ?? 0) > 0 && setShowUnmatched(!showUnmatched)}
               >
                 <p className="text-lg font-bold text-blue-600">{syncReport.companiesCreated ?? syncReport.noCompany ?? 0}</p>
-                <p className="text-muted-foreground">Empresas criadas {(syncReport.companiesCreated ?? 0) > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showUnmatched ? 'rotate-180' : ''}`} />}</p>
+                <p className="text-muted-foreground">Empresas {(syncReport.companiesCreated ?? 0) > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showUnmatched ? 'rotate-180' : ''}`} />}</p>
               </div>
             </div>
 
@@ -370,6 +380,29 @@ export function DattoMonitoringPanel() {
                           <Badge variant="outline" className="text-[10px] shrink-0">{device.tipo}</Badge>
                           <span className="text-muted-foreground ml-auto truncate max-w-[150px]">→ {device.companyName}</span>
                           <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+
+            {/* Deleted orphans detail */}
+            {showDeleted && syncReport.deletedOrphans && syncReport.deletedOrphans.length > 0 && (
+              <div className="border-t border-red-200 dark:border-red-800 pt-2">
+                <p className="text-xs font-medium text-red-700 dark:text-red-300 mb-2">
+                  Ativos removidos — sem correspondência no Datto ({syncReport.deletedOrphans.length})
+                </p>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1">
+                    {syncReport.deletedOrphans.map((orphan, idx) => {
+                      const DeviceIcon = deviceTypeIcon(orphan.tipo);
+                      return (
+                        <div key={idx} className="flex items-center gap-2 p-1.5 rounded text-xs bg-background">
+                          <DeviceIcon className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                          <span className="font-medium truncate">{orphan.nome}</span>
+                          <Badge variant="outline" className="text-[10px] shrink-0">{orphan.tipo}</Badge>
                         </div>
                       );
                     })}

@@ -328,6 +328,7 @@ Deno.serve(async (req) => {
     let companiesCreated = 0;
     const createdDevices: { id: string; nome: string; companyId: string; companyName: string; tipo: string }[] = [];
     const createdCompanies: { id: string; nome: string }[] = [];
+    const syncedAssetIds = new Set<string>();
 
     // Helper: find or create company
     async function findOrCreateCompanyId(siteName: string, siteId?: string): Promise<string | null> {
@@ -390,6 +391,7 @@ Deno.serve(async (req) => {
       const existingAsset = assetByUid.get(uid) || assetById.get(deviceId);
 
       if (existingAsset) {
+        syncedAssetIds.add(existingAsset.id);
         // Update existing
         const updateData: Record<string, unknown> = {
           datto_status: dattoStatus,
@@ -401,6 +403,13 @@ Deno.serve(async (req) => {
         if (serial) updateData.numero_serie = String(serial);
         if (fabricante) updateData.fabricante = String(fabricante);
         if (modelo) updateData.modelo = String(modelo);
+
+        // Auto-correct asset type based on hostname
+        const inferredType = inferAssetType(hostname);
+        const SYNC_TYPES = new Set(["desktop", "notebook", "servidor"]);
+        if (SYNC_TYPES.has(inferredType)) {
+          updateData.tipo = inferredType;
+        }
 
         await supabase.from("assets").update(updateData).eq("id", existingAsset.id);
         updated++;
@@ -428,19 +437,50 @@ Deno.serve(async (req) => {
           modelo: modelo ? String(modelo) : null,
           estado: "em_uso",
         }).select("id").single();
+        if (insertedAsset?.id) syncedAssetIds.add(insertedAsset.id);
         createdDevices.push({ id: insertedAsset?.id || "", nome: hostname, companyId, companyName, tipo });
         created++;
       }
     }
+
+    // 6. Orphan cleanup — remove desktops/notebooks/servidores that exist in platform but NOT in Datto
+    const SYNC_TYPES_CLEANUP = ["desktop", "notebook", "servidor"];
+    const { data: allSyncableAssets } = await supabase
+      .from("assets")
+      .select("id, nome, tipo, company_id")
+      .in("tipo", SYNC_TYPES_CLEANUP);
+
+    const orphans: { id: string; nome: string; tipo: string }[] = [];
+    for (const asset of allSyncableAssets || []) {
+      if (!syncedAssetIds.has(asset.id)) {
+        orphans.push({ id: asset.id, nome: asset.nome, tipo: asset.tipo });
+      }
+    }
+
+    let deleted = 0;
+    for (const orphan of orphans) {
+      // Clean dependent records first
+      await Promise.all([
+        supabase.from("asset_changelog").delete().eq("asset_id", orphan.id),
+        supabase.from("asset_relationships").delete().or(`parent_asset_id.eq.${orphan.id},child_asset_id.eq.${orphan.id}`),
+        supabase.from("ai_predictions").delete().eq("asset_id", orphan.id),
+        supabase.from("datto_alerts_log").delete().eq("asset_id", orphan.id),
+      ]);
+      const { error } = await supabase.from("assets").delete().eq("id", orphan.id);
+      if (!error) deleted++;
+    }
+    console.log(`[FullSync] Órfãos removidos: ${deleted} de ${orphans.length} encontrados.`);
 
     const report = {
       total: devices.length,
       detailsFetched: detailsMap.size,
       updated,
       created,
+      deleted,
       companiesCreated,
       createdDevices: createdDevices.slice(0, 50),
       createdCompanies: createdCompanies.slice(0, 50),
+      deletedOrphans: orphans.slice(0, 50).map(o => ({ nome: o.nome, tipo: o.tipo })),
     };
 
     console.log("[FullSync] Relatório:", JSON.stringify(report));
