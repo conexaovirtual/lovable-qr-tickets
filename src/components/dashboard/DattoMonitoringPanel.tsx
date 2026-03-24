@@ -327,7 +327,7 @@ export function DattoMonitoringPanel() {
                 <X className="h-3 w-3" />
               </Button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
               <div className="text-center p-2 rounded bg-background">
                 <p className="text-lg font-bold">{syncReport.total}</p>
                 <p className="text-muted-foreground">Total Datto</p>
@@ -344,11 +344,18 @@ export function DattoMonitoringPanel() {
                 <p className="text-muted-foreground">Criados {syncReport.created > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showCreated ? 'rotate-180' : ''}`} />}</p>
               </div>
               <div
+                className={`text-center p-2 rounded bg-background ${(syncReport.deleted ?? 0) > 0 ? 'cursor-pointer hover:ring-2 ring-red-400 transition-all' : ''}`}
+                onClick={() => (syncReport.deleted ?? 0) > 0 && setShowDeleted(!showDeleted)}
+              >
+                <p className="text-lg font-bold text-red-600">{syncReport.deleted ?? 0}</p>
+                <p className="text-muted-foreground">Removidos {(syncReport.deleted ?? 0) > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showDeleted ? 'rotate-180' : ''}`} />}</p>
+              </div>
+              <div
                 className={`text-center p-2 rounded bg-background ${(syncReport.companiesCreated ?? 0) > 0 ? 'cursor-pointer hover:ring-2 ring-blue-400 transition-all' : ''}`}
                 onClick={() => (syncReport.companiesCreated ?? 0) > 0 && setShowUnmatched(!showUnmatched)}
               >
                 <p className="text-lg font-bold text-blue-600">{syncReport.companiesCreated ?? syncReport.noCompany ?? 0}</p>
-                <p className="text-muted-foreground">Empresas criadas {(syncReport.companiesCreated ?? 0) > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showUnmatched ? 'rotate-180' : ''}`} />}</p>
+                <p className="text-muted-foreground">Empresas {(syncReport.companiesCreated ?? 0) > 0 && <ChevronDown className={`inline h-3 w-3 transition-transform ${showUnmatched ? 'rotate-180' : ''}`} />}</p>
               </div>
             </div>
 
