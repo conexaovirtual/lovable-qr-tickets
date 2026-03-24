@@ -374,6 +374,7 @@ Deno.serve(async (req) => {
       const deviceId = String(device.id ?? device.deviceId ?? device.device_id ?? "");
       const hostname = String(device.hostname ?? device.deviceName ?? device.name ?? "Sem nome");
       const siteName = String(device.siteName ?? device.site_name ?? device.siteDescription ?? "");
+      const siteId = String(device.siteId ?? device.site_id ?? device.siteUid ?? "");
       const isOnline = device.online === true || String(device.online).toLowerCase() === "true" || String(device.status).toLowerCase() === "online";
 
       const detail = detailsMap.get(uid) || detailsMap.get(deviceId);
