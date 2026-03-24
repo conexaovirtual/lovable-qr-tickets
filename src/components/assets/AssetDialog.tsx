@@ -374,6 +374,41 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
                     placeholder="Ex: Sala 101"
                   />
                 </div>
+              </div>
+
+              {/* Rede / Identificação de IP */}
+              <div className="p-4 border rounded-lg space-y-3 mt-4">
+                <h3 className="font-semibold flex items-center gap-2 text-sm">
+                  <Network className="h-4 w-4" />
+                  Rede
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label>IP Interno</Label>
+                    <Input
+                      value={configs.ip_interno || ''}
+                      onChange={(e) => setConfigs({...configs, ip_interno: e.target.value})}
+                      placeholder="Ex: 192.168.1.100"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>IP Externo</Label>
+                    <Input
+                      value={configs.ip_externo || ''}
+                      onChange={(e) => setConfigs({...configs, ip_externo: e.target.value})}
+                      placeholder="Ex: 177.200.35.87"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>MAC Address</Label>
+                    <Input
+                      value={configs.mac_address || ''}
+                      onChange={(e) => setConfigs({...configs, mac_address: e.target.value})}
+                      placeholder="Ex: 00:E0:4C:2E:00:63"
+                    />
+                  </div>
+                </div>
+              </div>
 
                 <div className="space-y-2 md:col-span-2">
                   <Label>Observações</Label>
