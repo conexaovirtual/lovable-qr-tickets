@@ -400,7 +400,7 @@ export function ServiceOrderCreateDialog({
   const getFieldsForStep = (currentStep: number): (keyof z.infer<typeof formSchema>)[] => {
     switch (currentStep) {
       case 1:
-        return ["company_id", "asset_id", "tipo_servico", "prioridade", "descricao_servicos"];
+        return ["company_id", "tipo_servico", "prioridade", "descricao_servicos"];
       case 2:
         return ["data_agendada", "hora_agendada"];
       case 3:
