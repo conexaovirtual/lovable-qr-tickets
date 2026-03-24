@@ -54,9 +54,11 @@ interface FullSyncReport {
   detailsFetched: number;
   updated: number;
   created: number;
+  deleted?: number;
   companiesCreated?: number;
   createdDevices?: CreatedDevice[];
   createdCompanies?: CreatedCompany[];
+  deletedOrphans?: { nome: string; tipo: string }[];
   // Legacy fields
   noCompany?: number;
   unmatchedSites?: string[];
