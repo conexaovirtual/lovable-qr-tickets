@@ -99,6 +99,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       setCompanySituation(null);
       setLogoUrl(null);
       setCnpjEditConfirmed(false);
+      setDattoSiteId('');
     }
   }, [company, form]);
 
