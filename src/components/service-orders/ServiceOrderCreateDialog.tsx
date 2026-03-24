@@ -115,7 +115,7 @@ export function ServiceOrderCreateDialog({
       
       const { data, error } = await supabase
         .from("companies")
-        .select("id, nome_fantasia, endereco")
+        .select("id, nome_fantasia, endereco, tipo_contrato")
         .eq("status", true)
         .order("nome_fantasia");
 
