@@ -389,7 +389,11 @@ Deno.serve(async (req) => {
       // Check if asset exists
       const existingAsset = assetByUid.get(uid) || assetById.get(deviceId);
 
+      // Track synced asset IDs for orphan cleanup
+      const syncedAssetIds = new Set<string>();
+
       if (existingAsset) {
+        syncedAssetIds.add(existingAsset.id);
         // Update existing
         const updateData: Record<string, unknown> = {
           datto_status: dattoStatus,
@@ -401,6 +405,13 @@ Deno.serve(async (req) => {
         if (serial) updateData.numero_serie = String(serial);
         if (fabricante) updateData.fabricante = String(fabricante);
         if (modelo) updateData.modelo = String(modelo);
+
+        // Auto-correct asset type based on hostname
+        const inferredType = inferAssetType(hostname);
+        const SYNC_TYPES = new Set(["desktop", "notebook", "servidor"]);
+        if (SYNC_TYPES.has(inferredType)) {
+          updateData.tipo = inferredType;
+        }
 
         await supabase.from("assets").update(updateData).eq("id", existingAsset.id);
         updated++;
