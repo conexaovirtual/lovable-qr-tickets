@@ -43,6 +43,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [cnpjEditConfirmed, setCnpjEditConfirmed] = useState(false);
+  const [dattoSiteId, setDattoSiteId] = useState<string>('');
   const debounceTimerRef = useRef<NodeJS.Timeout>();
   
   const form = useForm<CompanyFormData>({
