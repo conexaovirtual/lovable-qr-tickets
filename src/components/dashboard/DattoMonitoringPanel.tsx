@@ -250,7 +250,7 @@ export function DattoMonitoringPanel() {
       const report = data.report as FullSyncReport;
       setSyncReport(report);
       localStorage.setItem(SYNC_REPORT_KEY, JSON.stringify(report));
-      toast.success(`Varredura concluída: ${report.created} criados, ${report.updated} atualizados`);
+      toast.success(`Varredura concluída: ${report.created} criados, ${report.updated} atualizados, ${report.deleted ?? 0} removidos`);
       loadData();
     } catch (err: any) {
       toast.error(err.message || 'Erro na varredura completa');
