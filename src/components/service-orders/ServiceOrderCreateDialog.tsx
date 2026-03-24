@@ -258,7 +258,8 @@ export function ServiceOrderCreateDialog({
 
       const insertData: any = {
         company_id: values.company_id,
-        asset_id: values.asset_id,
+        asset_id: values.asset_id || null,
+        equipamento_descricao: values.equipamento_descricao || null,
         ticket_id: preSelectedTicketId || null,
         tipo_servico: values.tipo_servico,
         prioridade: values.prioridade,
