@@ -215,7 +215,7 @@ export function ServiceOrderCreateDialog({
   const loadCompanyDetails = async (companyId: string) => {
     const { data } = await supabase
       .from("companies")
-      .select("*")
+      .select("*, tipo_contrato")
       .eq("id", companyId)
       .single();
 
@@ -227,6 +227,9 @@ export function ServiceOrderCreateDialog({
       if (data.telefone) {
         form.setValue("telefone_contato", data.telefone);
       }
+      // Clear asset fields when switching company
+      form.setValue("asset_id", "");
+      form.setValue("equipamento_descricao", "");
     }
   };
 
