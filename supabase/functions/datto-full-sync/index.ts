@@ -298,10 +298,22 @@ Deno.serve(async (req) => {
       if (a.datto_device_id) assetById.set(String(a.datto_device_id), a);
     }
 
-    const { data: companies } = await supabase.from("companies").select("id, nome_fantasia");
+    const { data: companies } = await supabase.from("companies").select("id, nome_fantasia, datto_site_id");
     const companyList = companies || [];
 
-    function findCompanyId(siteName: string): string | null {
+    // Build maps for quick lookup
+    const companyBySiteId = new Map<string, any>();
+    for (const c of companyList) {
+      if (c.datto_site_id) companyBySiteId.set(String(c.datto_site_id), c);
+    }
+
+    function findCompanyId(siteName: string, siteId?: string): string | null {
+      // 1. Try exact match by Datto Site ID first
+      if (siteId) {
+        const byId = companyBySiteId.get(String(siteId));
+        if (byId) return byId.id;
+      }
+      // 2. Fallback to fuzzy match by name
       if (!siteName) return null;
       for (const c of companyList) {
         if (fuzzyMatch(siteName, c.nome_fantasia)) return c.id;
@@ -318,26 +330,40 @@ Deno.serve(async (req) => {
     const createdCompanies: { id: string; nome: string }[] = [];
 
     // Helper: find or create company
-    async function findOrCreateCompanyId(siteName: string): Promise<string | null> {
-      if (!siteName) return null;
-      // Try fuzzy match first
-      const existingId = findCompanyId(siteName);
-      if (existingId) return existingId;
+    async function findOrCreateCompanyId(siteName: string, siteId?: string): Promise<string | null> {
+      if (!siteName && !siteId) return null;
+      // Try exact/fuzzy match first
+      const existingId = findCompanyId(siteName, siteId);
+      if (existingId) {
+        // Auto-save datto_site_id on the company if not set yet
+        if (siteId) {
+          const company = companyList.find(c => c.id === existingId);
+          if (company && !company.datto_site_id) {
+            await supabase.from("companies").update({ datto_site_id: String(siteId) }).eq("id", existingId);
+            company.datto_site_id = String(siteId);
+            companyBySiteId.set(String(siteId), company);
+          }
+        }
+        return existingId;
+      }
       // Auto-create company from Datto site name
       const nomeFantasia = siteName.trim();
       if (!nomeFantasia) return null;
-      console.log(`[FullSync] Criando empresa automaticamente: "${nomeFantasia}"`);
-      const { data: newCompany, error } = await supabase.from("companies").insert({
+      console.log(`[FullSync] Criando empresa automaticamente: "${nomeFantasia}" (siteId: ${siteId})`);
+      const insertData: Record<string, unknown> = {
         nome_fantasia: nomeFantasia,
         tipo_contrato: "avulso",
         status: true,
-      }).select("id, nome_fantasia").single();
+      };
+      if (siteId) insertData.datto_site_id = String(siteId);
+      const { data: newCompany, error } = await supabase.from("companies").insert(insertData).select("id, nome_fantasia, datto_site_id").single();
       if (error || !newCompany) {
         console.error(`[FullSync] Erro ao criar empresa "${nomeFantasia}":`, error?.message);
         return null;
       }
       // Add to local list so subsequent devices in same site reuse it
       companyList.push(newCompany);
+      if (newCompany.datto_site_id) companyBySiteId.set(String(newCompany.datto_site_id), newCompany);
       createdCompanies.push({ id: newCompany.id, nome: newCompany.nome_fantasia });
       companiesCreated++;
       return newCompany.id;
