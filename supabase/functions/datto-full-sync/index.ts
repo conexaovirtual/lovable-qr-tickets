@@ -476,9 +476,11 @@ Deno.serve(async (req) => {
       detailsFetched: detailsMap.size,
       updated,
       created,
+      deleted,
       companiesCreated,
       createdDevices: createdDevices.slice(0, 50),
       createdCompanies: createdCompanies.slice(0, 50),
+      deletedOrphans: orphans.slice(0, 50).map(o => ({ nome: o.nome, tipo: o.tipo })),
     };
 
     console.log("[FullSync] Relatório:", JSON.stringify(report));
