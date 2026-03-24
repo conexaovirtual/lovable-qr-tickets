@@ -328,6 +328,7 @@ Deno.serve(async (req) => {
     let companiesCreated = 0;
     const createdDevices: { id: string; nome: string; companyId: string; companyName: string; tipo: string }[] = [];
     const createdCompanies: { id: string; nome: string }[] = [];
+    const syncedAssetIds = new Set<string>();
 
     // Helper: find or create company
     async function findOrCreateCompanyId(siteName: string, siteId?: string): Promise<string | null> {
