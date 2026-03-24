@@ -80,6 +80,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       });
       setLogoUrl(company.logo_url || null);
       setCnpjEditConfirmed(false);
+      setDattoSiteId(company.datto_site_id || '');
     } else {
       form.reset({
         nome_fantasia: '',
