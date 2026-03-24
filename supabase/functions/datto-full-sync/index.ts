@@ -437,10 +437,39 @@ Deno.serve(async (req) => {
           modelo: modelo ? String(modelo) : null,
           estado: "em_uso",
         }).select("id").single();
+        if (insertedAsset?.id) syncedAssetIds.add(insertedAsset.id);
         createdDevices.push({ id: insertedAsset?.id || "", nome: hostname, companyId, companyName, tipo });
         created++;
       }
     }
+
+    // 6. Orphan cleanup — remove desktops/notebooks/servidores that exist in platform but NOT in Datto
+    const SYNC_TYPES_CLEANUP = ["desktop", "notebook", "servidor"];
+    const { data: allSyncableAssets } = await supabase
+      .from("assets")
+      .select("id, nome, tipo, company_id")
+      .in("tipo", SYNC_TYPES_CLEANUP);
+
+    const orphans: { id: string; nome: string; tipo: string }[] = [];
+    for (const asset of allSyncableAssets || []) {
+      if (!syncedAssetIds.has(asset.id)) {
+        orphans.push({ id: asset.id, nome: asset.nome, tipo: asset.tipo });
+      }
+    }
+
+    let deleted = 0;
+    for (const orphan of orphans) {
+      // Clean dependent records first
+      await Promise.all([
+        supabase.from("asset_changelog").delete().eq("asset_id", orphan.id),
+        supabase.from("asset_relationships").delete().or(`parent_asset_id.eq.${orphan.id},child_asset_id.eq.${orphan.id}`),
+        supabase.from("ai_predictions").delete().eq("asset_id", orphan.id),
+        supabase.from("datto_alerts_log").delete().eq("asset_id", orphan.id),
+      ]);
+      const { error } = await supabase.from("assets").delete().eq("id", orphan.id);
+      if (!error) deleted++;
+    }
+    console.log(`[FullSync] Órfãos removidos: ${deleted} de ${orphans.length} encontrados.`);
 
     const report = {
       total: devices.length,
