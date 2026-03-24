@@ -406,7 +406,7 @@ Deno.serve(async (req) => {
         updated++;
       } else {
         // Create new — find or auto-create company
-        const companyId = await findOrCreateCompanyId(siteName);
+        const companyId = await findOrCreateCompanyId(siteName, siteId);
         if (!companyId) {
           continue;
         }
