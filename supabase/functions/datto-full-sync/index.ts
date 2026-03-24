@@ -444,7 +444,14 @@ Deno.serve(async (req) => {
     }
 
     // 6. Orphan cleanup — remove desktops/notebooks/servidores that exist in platform but NOT in Datto
+    //    Only for companies with tipo_contrato = 'contrato_manutencao' (skip eventual companies)
     const SYNC_TYPES_CLEANUP = ["desktop", "notebook", "servidor"];
+    const { data: contractCompanyIds } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("tipo_contrato", "contrato_manutencao");
+    const contractIds = new Set((contractCompanyIds || []).map((c: any) => c.id));
+
     const { data: allSyncableAssets } = await supabase
       .from("assets")
       .select("id, nome, tipo, company_id")
@@ -452,7 +459,8 @@ Deno.serve(async (req) => {
 
     const orphans: { id: string; nome: string; tipo: string }[] = [];
     for (const asset of allSyncableAssets || []) {
-      if (!syncedAssetIds.has(asset.id)) {
+      // Only consider assets from contract companies as potential orphans
+      if (!syncedAssetIds.has(asset.id) && contractIds.has(asset.company_id)) {
         orphans.push({ id: asset.id, nome: asset.nome, tipo: asset.tipo });
       }
     }
