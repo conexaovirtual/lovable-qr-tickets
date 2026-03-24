@@ -43,6 +43,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [cnpjEditConfirmed, setCnpjEditConfirmed] = useState(false);
+  const [dattoSiteId, setDattoSiteId] = useState<string>('');
   const debounceTimerRef = useRef<NodeJS.Timeout>();
   
   const form = useForm<CompanyFormData>({
@@ -79,6 +80,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       });
       setLogoUrl(company.logo_url || null);
       setCnpjEditConfirmed(false);
+      setDattoSiteId(company.datto_site_id || '');
     } else {
       form.reset({
         nome_fantasia: '',
@@ -97,6 +99,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       setCompanySituation(null);
       setLogoUrl(null);
       setCnpjEditConfirmed(false);
+      setDattoSiteId('');
     }
   }, [company, form]);
 
@@ -226,12 +229,13 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         return { ...acc, [key]: value };
       }, {} as any);
 
-      // Adicionar logo_url ao payload
+      // Adicionar logo_url e datto_site_id ao payload
       if (logoUrl) {
         cleanedData.logo_url = logoUrl;
       } else {
         cleanedData.logo_url = null;
       }
+      cleanedData.datto_site_id = dattoSiteId.trim() || null;
 
       if (company) {
         // Se CNPJ foi alterado, verificar duplicidade
@@ -691,6 +695,20 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                   </FormItem>
                 )}
               />
+
+
+              <div className="md:col-span-2">
+                <label className="text-sm font-medium">Datto RMM Site ID</label>
+                <Input
+                  value={dattoSiteId}
+                  onChange={(e) => setDattoSiteId(e.target.value)}
+                  placeholder="Ex: 128495 (preenchido automaticamente pela varredura)"
+                  className="mt-1.5"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Vincula esta empresa a um Site específico do Datto RMM para sincronização precisa
+                </p>
+              </div>
 
               <FormField
                 control={form.control}
