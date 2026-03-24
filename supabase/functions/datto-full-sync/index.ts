@@ -23,6 +23,8 @@ function fuzzyMatch(a: string, b: string): boolean {
   return na === nb || na.includes(nb) || nb.includes(na);
 }
 
+const VALID_ASSET_TYPES = new Set(["desktop","notebook","impressora","monitor","roteador","switch","servidor","periferico","camera","outro"]);
+
 function inferAssetType(hostname: string): string {
   const h = hostname.toLowerCase();
   if (/srv|server|serv|dc\d|ad\d|hyperv|cluster/i.test(h)) return "servidor";
@@ -31,6 +33,7 @@ function inferAssetType(hostname: string): string {
   if (/print|imp|mfp/i.test(h)) return "impressora";
   if (/sw|switch/i.test(h)) return "switch";
   if (/ap|wifi|roteador|router|mikrotik/i.test(h)) return "roteador";
+  if (/mon|display/i.test(h)) return "monitor";
   return "desktop";
 }
 

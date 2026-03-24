@@ -99,6 +99,8 @@ export default function Inventory() {
                   <SelectItem value="desktop">Desktop</SelectItem><SelectItem value="notebook">Notebook</SelectItem>
                   <SelectItem value="impressora">Impressora</SelectItem><SelectItem value="servidor">Servidor</SelectItem>
                   <SelectItem value="monitor">Monitor</SelectItem><SelectItem value="roteador">Roteador</SelectItem>
+                  <SelectItem value="switch">Switch</SelectItem><SelectItem value="periferico">Periférico</SelectItem>
+                  <SelectItem value="camera">Câmera/DVR</SelectItem><SelectItem value="outro">Outro</SelectItem>
                 </SelectContent>
               </Select>
               <Input placeholder="Buscar modelo, serial..." value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} className="h-9" />
