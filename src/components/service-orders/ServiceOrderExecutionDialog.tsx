@@ -181,6 +181,9 @@ export function ServiceOrderExecutionDialog({
           <DialogTitle>Registrar Execução</DialogTitle>
           <DialogDescription>
             OS #{serviceOrder?.numero_os}
+            {serviceOrder?.equipamento_descricao && (
+              <span className="block text-xs mt-1">📟 Equipamento: {serviceOrder.equipamento_descricao}</span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
