@@ -441,9 +441,12 @@ export function ServiceOrderCreateDialog({
                      onValueChange={(value) => {
                           console.log('[ServiceOrderCreateDialog] Empresa selecionada:', value);
                           field.onChange(value);
+                          const company = companies.find(c => c.id === value);
+                          setSelectedCompany(company || null);
                           loadCompanyDetails(value);
                           loadAssets(value);
                           form.setValue("asset_id", "");
+                          form.setValue("equipamento_descricao", "");
                         }}
                         value={field.value}
                       >
@@ -478,7 +481,7 @@ export function ServiceOrderCreateDialog({
                 />
 
                 {/* Show asset select for contract companies, text input for eventual */}
-                {selectedCompany?.tipo_contrato === 'contrato_manutencao' ? (
+                {form.watch("company_id") && selectedCompany?.tipo_contrato === 'contrato_manutencao' ? (
                   <FormField
                     control={form.control}
                     name="asset_id"
@@ -522,7 +525,7 @@ export function ServiceOrderCreateDialog({
                       </FormItem>
                     )}
                   />
-                ) : (
+                ) : form.watch("company_id") ? (
                   <FormField
                     control={form.control}
                     name="equipamento_descricao"
@@ -542,7 +545,7 @@ export function ServiceOrderCreateDialog({
                       </FormItem>
                     )}
                   />
-                )}
+                ) : null}
 
                 <FormField
                   control={form.control}
