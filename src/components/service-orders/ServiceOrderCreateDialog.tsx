@@ -545,7 +545,7 @@ export function ServiceOrderCreateDialog({
                       </FormItem>
                     )}
                   />
-                )}
+                ) : null}
 
                 <FormField
                   control={form.control}
