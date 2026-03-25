@@ -43,10 +43,8 @@ export function ServiceOrderExecutionDialog({
 }: ServiceOrderExecutionDialogProps) {
   const [loading, setLoading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
-  const [gpsInicio, setGpsInicio] = useState<GeoPosition | null>(null);
-  const [gpsFim, setGpsFim] = useState<GeoPosition | null>(null);
-  const geoInicio = useGeolocation();
-  const geoFim = useGeolocation();
+  const [gpsLocal, setGpsLocal] = useState<GeoPosition | null>(null);
+  const geoLocal = useGeolocation();
   const { toast } = useToast();
 
   const form = useForm<ExecutionFormData>({
@@ -68,6 +66,15 @@ export function ServiceOrderExecutionDialog({
     }
   }, [serviceOrder]);
 
+  // Auto-capturar localização ao abrir o dialog
+  useEffect(() => {
+    if (open && !gpsLocal) {
+      geoLocal.captureLocation().then((pos) => {
+        if (pos) setGpsLocal(pos);
+      });
+    }
+  }, [open]);
+
   const onSubmit = async (data: ExecutionFormData) => {
     setLoading(true);
     try {
@@ -88,10 +95,10 @@ export function ServiceOrderExecutionDialog({
         status: novoStatus,
         fotos: uploadedImages,
         updated_at: new Date().toISOString(),
-        latitude_inicio: gpsInicio?.latitude || null,
-        longitude_inicio: gpsInicio?.longitude || null,
-        latitude_fim: gpsFim?.latitude || null,
-        longitude_fim: gpsFim?.longitude || null,
+        latitude_inicio: gpsLocal?.latitude || null,
+        longitude_inicio: gpsLocal?.longitude || null,
+        latitude_fim: null,
+        longitude_fim: null,
       };
 
       // Se há observações de execução, adiciona ao campo observacoes
@@ -174,6 +181,9 @@ export function ServiceOrderExecutionDialog({
           <DialogTitle>Registrar Execução</DialogTitle>
           <DialogDescription>
             OS #{serviceOrder?.numero_os}
+            {serviceOrder?.equipamento_descricao && (
+              <span className="block text-xs mt-1">📟 Equipamento: {serviceOrder.equipamento_descricao}</span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -275,31 +285,18 @@ export function ServiceOrderExecutionDialog({
             />
 
             <div className="space-y-3">
-              <label className="text-sm font-medium">Localização do Técnico</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <GeolocationCapture
-                  label="Check-in (Início)"
-                  position={gpsInicio}
-                  loading={geoInicio.loading}
-                  error={geoInicio.error}
-                  onCapture={async () => {
-                    const pos = await geoInicio.captureLocation();
-                    if (pos) setGpsInicio(pos);
-                  }}
-                  disabled={loading}
-                />
-                <GeolocationCapture
-                  label="Check-out (Fim)"
-                  position={gpsFim}
-                  loading={geoFim.loading}
-                  error={geoFim.error}
-                  onCapture={async () => {
-                    const pos = await geoFim.captureLocation();
-                    if (pos) setGpsFim(pos);
-                  }}
-                  disabled={loading}
-                />
-              </div>
+              <label className="text-sm font-medium">Localização do Atendimento</label>
+              <GeolocationCapture
+                label="Local do Serviço"
+                position={gpsLocal}
+                loading={geoLocal.loading}
+                error={geoLocal.error}
+                onCapture={async () => {
+                  const pos = await geoLocal.captureLocation();
+                  if (pos) setGpsLocal(pos);
+                }}
+                disabled={loading}
+              />
             </div>
 
             <div className="space-y-2">
