@@ -441,9 +441,12 @@ export function ServiceOrderCreateDialog({
                      onValueChange={(value) => {
                           console.log('[ServiceOrderCreateDialog] Empresa selecionada:', value);
                           field.onChange(value);
+                          const company = companies.find(c => c.id === value);
+                          setSelectedCompany(company || null);
                           loadCompanyDetails(value);
                           loadAssets(value);
                           form.setValue("asset_id", "");
+                          form.setValue("equipamento_descricao", "");
                         }}
                         value={field.value}
                       >
