@@ -481,7 +481,7 @@ export function ServiceOrderCreateDialog({
                 />
 
                 {/* Show asset select for contract companies, text input for eventual */}
-                {selectedCompany?.tipo_contrato === 'contrato_manutencao' ? (
+                {form.watch("company_id") && selectedCompany?.tipo_contrato === 'contrato_manutencao' ? (
                   <FormField
                     control={form.control}
                     name="asset_id"
