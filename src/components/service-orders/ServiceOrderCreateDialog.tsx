@@ -525,7 +525,7 @@ export function ServiceOrderCreateDialog({
                       </FormItem>
                     )}
                   />
-                ) : (
+                ) : form.watch("company_id") ? (
                   <FormField
                     control={form.control}
                     name="equipamento_descricao"
