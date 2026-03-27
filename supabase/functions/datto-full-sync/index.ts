@@ -454,7 +454,7 @@ Deno.serve(async (req) => {
 
     const { data: allSyncableAssets } = await supabase
       .from("assets")
-      .select("id, nome, tipo, company_id")
+      .select("id, nome, tipo, company_id, datto_device_uid, datto_device_id")
       .in("tipo", SYNC_TYPES_CLEANUP);
 
     const orphans: { id: string; nome: string; tipo: string }[] = [];
