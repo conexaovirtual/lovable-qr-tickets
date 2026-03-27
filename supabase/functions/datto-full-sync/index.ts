@@ -459,8 +459,10 @@ Deno.serve(async (req) => {
 
     const orphans: { id: string; nome: string; tipo: string }[] = [];
     for (const asset of allSyncableAssets || []) {
-      // Only consider assets from contract companies as potential orphans
-      if (!syncedAssetIds.has(asset.id) && contractIds.has(asset.company_id)) {
+      // Only consider assets from contract companies that HAVE a Datto link as potential orphans
+      // Assets without datto_device_uid/datto_device_id are manually created (e.g. Linux machines) and must be preserved
+      const hasDattoLink = asset.datto_device_uid || asset.datto_device_id;
+      if (!syncedAssetIds.has(asset.id) && contractIds.has(asset.company_id) && hasDattoLink) {
         orphans.push({ id: asset.id, nome: asset.nome, tipo: asset.tipo });
       }
     }
