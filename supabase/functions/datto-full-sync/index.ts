@@ -411,6 +411,15 @@ Deno.serve(async (req) => {
           updateData.tipo = inferredType;
         }
 
+        // Reassign company if Datto site maps to a different company
+        if (siteId) {
+          const correctCompanyId = await findOrCreateCompanyId(siteName, siteId);
+          if (correctCompanyId && correctCompanyId !== existingAsset.company_id) {
+            updateData.company_id = correctCompanyId;
+            console.log(`[FullSync] Reatribuindo "${hostname}" de empresa ${existingAsset.company_id} para ${correctCompanyId} (site ${siteId})`);
+          }
+        }
+
         await supabase.from("assets").update(updateData).eq("id", existingAsset.id);
         updated++;
       } else {
