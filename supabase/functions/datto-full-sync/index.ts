@@ -397,6 +397,7 @@ Deno.serve(async (req) => {
           datto_status: dattoStatus,
           datto_last_sync: now,
           updated_at: now,
+          ...(siteId ? { datto_site_id: siteId } : {}),
         };
         if (Object.keys(configuracoes).length > 0) updateData.configuracoes = configuracoes;
         if (os) updateData.sistema_operacional = String(os);
