@@ -438,6 +438,7 @@ Deno.serve(async (req) => {
           company_id: companyId,
           datto_device_uid: uid || null,
           datto_device_id: deviceId || null,
+          datto_site_id: siteId || null,
           datto_status: dattoStatus,
           datto_last_sync: now,
           configuracoes: Object.keys(configuracoes).length > 0 ? configuracoes : null,
