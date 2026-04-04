@@ -201,8 +201,18 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
     }
   }
 
+  // ─── Fetch existing conversation BEFORE upsert to check last_message_at ───
+  const { data: existingConv } = await supabase
+    .from("waba_conversations")
+    .select("id, ai_enabled, last_message_at")
+    .eq("phone_number", phoneNumber)
+    .limit(1)
+    .maybeSingle();
+
+  const previousLastMsgAt = existingConv?.last_message_at || null;
+  const previousAiEnabled = existingConv?.ai_enabled ?? true;
+
   // Upsert conversation
-  // Extract profile photo URL from raw payload
   const profilePhotoUrl = rawPayload?.profilePicUrl || rawPayload?.profilePic || rawPayload?.senderPhoto || null;
 
   const upsertData: any = {
@@ -227,8 +237,8 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
   }
 
   // ─── Auto-reactivate AI if disabled and last interaction was 30+ minutes ago ───
-  if (!conversation.ai_enabled) {
-    const lastMsgTime = new Date(conversation.last_message_at || 0).getTime();
+  if (!previousAiEnabled) {
+    const lastMsgTime = new Date(previousLastMsgAt || 0).getTime();
     const now = Date.now();
     const minutesSinceLastMsg = (now - lastMsgTime) / (1000 * 60);
     const REACTIVATION_THRESHOLD_MINUTES = 30;
