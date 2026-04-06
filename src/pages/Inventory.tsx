@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Plus, Download, MoreVertical, Info, Edit, Trash, FileText, FileSpreadsheet, Package } from 'lucide-react';
+import { AssetOriginBadge } from '@/components/assets/AssetOriginBadge';
 import { AssetDialog } from '@/components/assets/AssetDialog';
 import { AssetConfigDialog } from '@/components/assets/AssetConfigDialog';
 
@@ -22,7 +23,7 @@ export default function Inventory() {
   const { profile, loading } = useAuth();
   const [assets, setAssets] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
-  const [filters, setFilters] = useState({ company_id: '', tipo: '', search: '' });
+  const [filters, setFilters] = useState({ company_id: '', tipo: '', search: '', origin: '' });
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [editingAsset, setEditingAsset] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -50,6 +51,12 @@ export default function Inventory() {
       if (data) setAssets(data);
     } catch { toast.error('Erro ao carregar ativos'); } finally { setLoadingData(false); }
   };
+
+  const filteredByOrigin = assets.filter((asset) => {
+    if (!filters.origin || filters.origin === 'all') return true;
+    const hasDatto = !!(asset.datto_device_uid || asset.datto_device_id);
+    return filters.origin === 'datto' ? hasDatto : !hasDatto;
+  });
 
   const handleDelete = async (assetId: string) => {
     if (!confirm('Deseja realmente excluir este ativo?')) return;
@@ -105,6 +112,16 @@ export default function Inventory() {
               </Select>
               <Input placeholder="Buscar modelo, serial..." value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} className="h-9" />
             </div>
+            <div className="mt-2">
+              <Select value={filters.origin} onValueChange={(v) => setFilters({...filters, origin: v})}>
+                <SelectTrigger className="h-9 w-full md:w-48"><SelectValue placeholder="Todas origens" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas origens</SelectItem>
+                  <SelectItem value="datto">☁️ Datto</SelectItem>
+                  <SelectItem value="manual">✋ Manual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardContent>
         </Card>
 
@@ -112,19 +129,20 @@ export default function Inventory() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Empresa</TableHead><TableHead>Tipo</TableHead><TableHead>Fabricante/Modelo</TableHead>
+                <TableHead>Empresa</TableHead><TableHead>Tipo</TableHead><TableHead>Origem</TableHead><TableHead>Fabricante/Modelo</TableHead>
                 <TableHead>Serial</TableHead><TableHead>Config</TableHead><TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loadingData ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
-              ) : assets.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum ativo encontrado</TableCell></TableRow>
-              ) : assets.map((asset) => (
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+              ) : filteredByOrigin.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum ativo encontrado</TableCell></TableRow>
+              ) : filteredByOrigin.map((asset) => (
                 <TableRow key={asset.id}>
                   <TableCell className="font-medium">{asset.company?.nome_fantasia}</TableCell>
                   <TableCell><Badge variant="outline">{asset.tipo}</Badge></TableCell>
+                  <TableCell><AssetOriginBadge asset={asset} size="sm" /></TableCell>
                   <TableCell><p className="font-medium">{asset.fabricante}</p><p className="text-sm text-muted-foreground">{asset.modelo}</p></TableCell>
                   <TableCell><code className="text-xs bg-muted px-2 py-1 rounded">{asset.numero_serie || '-'}</code></TableCell>
                   <TableCell>{asset.configuracoes && <Button size="sm" variant="ghost" onClick={() => setSelectedAsset(asset)}><Info className="h-4 w-4" /></Button>}</TableCell>

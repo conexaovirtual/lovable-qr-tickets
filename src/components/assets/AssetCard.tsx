@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { QrCode, Edit, Package, Building2, Eye, Download, Printer, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { AssetOriginBadge } from './AssetOriginBadge';
 import QRCode from 'qrcode';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -128,6 +129,7 @@ export function AssetCard({ asset, onEdit, onDelete }: AssetCardProps) {
                 <Badge variant="outline" className="capitalize text-xs">
                   {asset.tipo}
                 </Badge>
+                <AssetOriginBadge asset={asset} size="sm" />
                 <span className="text-sm text-muted-foreground">
                   {asset.fabricante} {asset.modelo && `• ${asset.modelo}`}
                 </span>

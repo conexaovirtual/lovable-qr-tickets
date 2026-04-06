@@ -235,6 +235,16 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
             Preencha as informações do equipamento/patrimônio
           </DialogDescription>
         </DialogHeader>
+        {!asset?.datto_device_uid && !asset?.datto_device_id && asset && (
+          <div className="bg-muted/50 border rounded-md p-3 text-sm text-muted-foreground flex items-center gap-2">
+            ✋ <span>Este é um <strong>ativo manual</strong> — não será afetado pela sincronização com o Datto.</span>
+          </div>
+        )}
+        {!asset && (
+          <div className="bg-info/10 border border-info/20 rounded-md p-3 text-sm text-muted-foreground flex items-center gap-2">
+            ℹ️ <span>Ativos criados manualmente <strong>não serão deletados</strong> durante a sincronização com o Datto.</span>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className={cn(

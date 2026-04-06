@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AssetOriginBadge } from "@/components/assets/AssetOriginBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +34,7 @@ export default function CMDB() {
   const { data: assets = [], isLoading: loadingAssets } = useQuery({
     queryKey: ["cmdb-assets", filterCompany],
     queryFn: async () => {
-      let query = supabase.from("assets").select("id, nome, tipo, estado, company_id, companies(nome_fantasia)").order("nome");
+      let query = supabase.from("assets").select("id, nome, tipo, estado, company_id, datto_device_uid, datto_device_id, companies(nome_fantasia)").order("nome");
       if (filterCompany !== "all") query = query.eq("company_id", filterCompany);
       const { data } = await query;
       return data || [];
@@ -132,6 +133,7 @@ export default function CMDB() {
                       <div key={a.id} className="flex items-center gap-2 p-2 rounded-lg border bg-card">
                         <Icon className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium">{a.nome}</span>
+                        <AssetOriginBadge asset={a} size="sm" />
                         <Badge variant="destructive" className="text-[10px]">{depCount} dep.</Badge>
                       </div>
                     );
@@ -192,6 +194,7 @@ export default function CMDB() {
                       <div key={a.id} className="flex items-center gap-1.5 p-1.5 rounded border bg-card text-xs">
                         <Icon className="h-3 w-3 text-muted-foreground" />
                         <span>{a.nome}</span>
+                        <AssetOriginBadge asset={a} size="sm" />
                       </div>
                     );
                   })}

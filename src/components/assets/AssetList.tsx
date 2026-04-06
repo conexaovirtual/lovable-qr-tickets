@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface AssetListProps {
   onEdit: (asset: any) => void;
@@ -23,6 +24,7 @@ export function AssetList({ onEdit, refreshTrigger }: AssetListProps) {
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [originFilter, setOriginFilter] = useState('all');
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export function AssetList({ onEdit, refreshTrigger }: AssetListProps) {
 
   const filteredAssets = assets.filter((asset) => {
     const searchLower = search.toLowerCase();
-    return (
+    const matchesSearch = (
       asset.nome?.toLowerCase().includes(searchLower) ||
       asset.tag_patrimonial?.toLowerCase().includes(searchLower) ||
       asset.numero_serie?.toLowerCase().includes(searchLower) ||
@@ -55,6 +57,9 @@ export function AssetList({ onEdit, refreshTrigger }: AssetListProps) {
       asset.modelo?.toLowerCase().includes(searchLower) ||
       asset.company?.nome_fantasia?.toLowerCase().includes(searchLower)
     );
+    const hasDatto = !!(asset.datto_device_uid || asset.datto_device_id);
+    const matchesOrigin = originFilter === 'all' || (originFilter === 'datto' && hasDatto) || (originFilter === 'manual' && !hasDatto);
+    return matchesSearch && matchesOrigin;
   });
 
   // Agrupar ativos por empresa
@@ -102,14 +107,26 @@ export function AssetList({ onEdit, refreshTrigger }: AssetListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome, tag, série, tipo, modelo ou empresa..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, tag, série, tipo, modelo ou empresa..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={originFilter} onValueChange={setOriginFilter}>
+          <SelectTrigger className="w-full sm:w-44">
+            <SelectValue placeholder="Origem" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas origens</SelectItem>
+            <SelectItem value="datto">☁️ Datto</SelectItem>
+            <SelectItem value="manual">✋ Manual</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {companies.length === 0 ? (
