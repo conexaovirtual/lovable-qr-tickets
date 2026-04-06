@@ -20,7 +20,8 @@ import { AIExecutionReport } from "@/components/ai/AIExecutionReport";
 import { GeolocationCapture } from "@/components/ui/GeolocationCapture";
 import { UploadedImage } from "@/lib/imageUtils";
 import { toast } from "sonner";
-import { Loader2, MessageCircle, Phone, MapPin, FileDown, Monitor } from "lucide-react";
+import { Loader2, MessageCircle, Phone, MapPin, FileDown, Monitor, Plus } from "lucide-react";
+import { QuickAssetDialog } from "@/components/assets/QuickAssetDialog";
 import { format } from "date-fns";
 import { exportSingleDailyServiceToPDF } from "@/lib/exportSingleDailyService";
 
