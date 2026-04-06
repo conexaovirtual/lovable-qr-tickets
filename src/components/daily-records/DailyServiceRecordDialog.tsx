@@ -121,9 +121,14 @@ export function DailyServiceRecordDialog({
       if (recordId) {
         loadRecord();
       } else {
-        setGpsInicio(null);
-        setGpsFim(null);
+        setGpsLocal(null);
         setEnderecoCliente("");
+      }
+      // Auto-capturar localização ao abrir o dialog
+      if (!recordId) {
+        geoLocal.captureLocation().then((pos) => {
+          if (pos) setGpsLocal(pos);
+        });
       }
     }
   }, [open, recordId]);
@@ -208,16 +213,9 @@ export function DailyServiceRecordDialog({
         
         // Restaurar GPS salvo
         if ((data as any).latitude_inicio && (data as any).longitude_inicio) {
-          setGpsInicio({
+          setGpsLocal({
             latitude: (data as any).latitude_inicio,
             longitude: (data as any).longitude_inicio,
-            timestamp: Date.now(),
-          });
-        }
-        if ((data as any).latitude_fim && (data as any).longitude_fim) {
-          setGpsFim({
-            latitude: (data as any).latitude_fim,
-            longitude: (data as any).longitude_fim,
             timestamp: Date.now(),
           });
         }
@@ -264,10 +262,10 @@ export function DailyServiceRecordDialog({
         observacoes: data.observacoes || null,
         fotos: uploadedImages,
         endereco_cliente: enderecoCliente || null,
-        latitude_inicio: gpsInicio?.latitude || null,
-        longitude_inicio: gpsInicio?.longitude || null,
-        latitude_fim: gpsFim?.latitude || null,
-        longitude_fim: gpsFim?.longitude || null,
+        latitude_inicio: gpsLocal?.latitude || null,
+        longitude_inicio: gpsLocal?.longitude || null,
+        latitude_fim: null,
+        longitude_fim: null,
       };
 
       if (recordId) {
@@ -633,7 +631,7 @@ export function DailyServiceRecordDialog({
             <div className="space-y-3">
               <h4 className="text-sm font-medium flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                Localização
+                Localização do Atendimento
               </h4>
               
               {enderecoCliente && (
@@ -642,30 +640,17 @@ export function DailyServiceRecordDialog({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <GeolocationCapture
-                  label="Check-in (Início)"
-                  position={gpsInicio}
-                  loading={geoInicio.loading}
-                  error={geoInicio.error}
-                  onCapture={async () => {
-                    const pos = await geoInicio.captureLocation();
-                    if (pos) setGpsInicio(pos);
-                  }}
-                  disabled={loading}
-                />
-                <GeolocationCapture
-                  label="Check-out (Fim)"
-                  position={gpsFim}
-                  loading={geoFim.loading}
-                  error={geoFim.error}
-                  onCapture={async () => {
-                    const pos = await geoFim.captureLocation();
-                    if (pos) setGpsFim(pos);
-                  }}
-                  disabled={loading}
-                />
-              </div>
+              <GeolocationCapture
+                label="Local do Atendimento"
+                position={gpsLocal}
+                loading={geoLocal.loading}
+                error={geoLocal.error}
+                onCapture={async () => {
+                  const pos = await geoLocal.captureLocation();
+                  if (pos) setGpsLocal(pos);
+                }}
+                disabled={loading}
+              />
             </div>
 
             <ImageUpload
