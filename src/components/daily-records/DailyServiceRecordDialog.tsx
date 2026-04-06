@@ -249,7 +249,7 @@ export function DailyServiceRecordDialog({
 
       const payload: any = {
         company_id: data.company_id,
-        asset_id: data.asset_id,
+        asset_id: data.asset_id || null,
         data_atendimento: data.data_atendimento,
         hora_inicio: data.hora_inicio,
         canal: data.canal,
