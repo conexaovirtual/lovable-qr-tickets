@@ -45,7 +45,7 @@ const formSchema = z.object({
   hora_fim: z.string().optional(),
   canal: canalEnum,
   titulo: z.string().min(5, "Título deve ter no mínimo 5 caracteres"),
-  descricao: z.string().min(20, "Descrição deve ter no mínimo 20 caracteres"),
+  descricao: z.string().min(1, "Descrição é obrigatória"),
   solucao: z.string().optional(),
   status: statusEnum,
   observacoes: z.string().optional(),
