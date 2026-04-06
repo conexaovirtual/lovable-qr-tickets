@@ -1,45 +1,45 @@
 
 
-## Plano: Simplificar formulário de cadastro de ativos
+## Plano: Ativos Manuais vs Gerenciados pelo Datto
 
-### O que muda
+### Contexto
 
-Remover campos subutilizados e eliminar a aba "Adicionais", movendo "Sistema Operacional" para a aba "Dados Básicos". O formulário fica mais limpo e direto.
+Analisando o código de sincronização (`datto-full-sync`), a lógica de limpeza **já preserva** ativos sem vínculo Datto (`datto_device_uid`/`datto_device_id` nulos) — mesmo em empresas de contrato. O problema é que **a interface não deixa isso claro**, e falta uma distinção visual entre ativos gerenciados pelo Datto e ativos cadastrados manualmente.
 
-### Campos removidos
-- Subcategoria
-- Estado
-- Tag Patrimonial
-- Setor
-- Data de Compra
-- Garantia até
-- Aba "Adicionais" inteira
+### O que será feito
 
-### Campo movido
-- **Sistema Operacional** → vai para a aba "Dados Básicos"
+**1. Indicador visual "Datto" vs "Manual" na listagem de ativos**
+- Na `AssetList` e `AssetCard`, exibir um badge indicando a origem:
+  - **"Datto"** (azul) — quando `datto_device_uid` ou `datto_device_id` existe
+  - **"Manual"** (cinza) — quando não tem vínculo com Datto
+- No Inventário (`Inventory.tsx`), adicionar a mesma coluna/badge de origem
+- Adicionar filtro por origem (Datto / Manual / Todos) nas telas de listagem
 
-### Alterações
+**2. Formulário de ativo: campo de origem claro**
+- No `AssetDialog`, quando o ativo for criado manualmente, garantir que os campos `datto_device_uid`, `datto_device_id` e `datto_site_id` fiquem como `null`
+- Exibir um aviso informativo: "Ativos manuais não serão afetados pela sincronização com o Datto"
 
-**1. `src/components/assets/AssetDialog.tsx`**
-- Remover do `formData`: `subcategoria_id`, `estado`, `tag_patrimonial`, `setor`, `data_compra`, `garantia_fim`
-- Remover state `subcategories` e o `useEffect` que busca subcategorias
-- Remover do formulário os campos visuais de: subcategoria, estado, tag patrimonial, setor
-- Remover a aba "Adicionais" (`TabsTrigger` + `TabsContent value="additional"`)
-- Adicionar campo "Sistema Operacional" na aba "Dados Básicos" (após Modelo/Número de Série)
-- Mover "Observações" para a aba "Dados Básicos"
-- Ajustar grid das tabs (menos uma aba)
-- Limpar payload no `handleSubmit` (remover campos deletados, manter null para os que ficam no banco)
+**3. Proteção extra na sincronização (segurança adicional)**
+- Já existe proteção (linha 475-476 do sync), mas adicionar um log explícito: `[FullSync] Preservando X ativos manuais`
+- Isso dá mais visibilidade no relatório de sync
 
-**2. `src/pages/Inventory.tsx`** — Atualizar filtros e tabela
-- Remover filtro de "estado" do painel de filtros
-- Remover colunas "Tag" e "Estado" da tabela
-- Ajustar colSpan dos placeholders
+**4. CMDB: mostrar origem do ativo**
+- Na página CMDB, incluir badge de origem nos cards de ativos
 
-**3. `src/components/assets/AssetList.tsx`** — Verificar se exibe campos removidos (subcategoria, estado, tag, setor) e remover da visualização
+### Arquivos modificados
 
-**4. `src/lib/exportInventory.ts`** — Remover campos do CSV/PDF: Tag, Estado, Setor, Data Compra, Garantia
+| Arquivo | Alteração |
+|---|---|
+| `src/components/assets/AssetList.tsx` | Badge Datto/Manual + filtro de origem |
+| `src/components/assets/AssetCard.tsx` | Badge de origem |
+| `src/pages/Inventory.tsx` | Coluna/badge de origem + filtro |
+| `src/components/assets/AssetDialog.tsx` | Aviso informativo para ativos manuais |
+| `src/pages/CMDB.tsx` | Badge de origem nos cards |
+| `supabase/functions/datto-full-sync/index.ts` | Log de ativos manuais preservados no relatório |
 
-### Resumo
-- 4 arquivos alterados
-- Sem migração de banco (colunas permanecem, apenas não são mais exibidas/editadas no formulário)
+### Resultado
+
+- Você poderá cadastrar ativos de clientes eventuais (Hexa Tecnologia, máquinas Linux, etc.) com total segurança
+- A sincronização nunca vai deletar ativos sem vínculo Datto
+- Ficará visualmente claro quais ativos são monitorados e quais são manuais
 
