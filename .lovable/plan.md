@@ -1,45 +1,39 @@
 
 
-## Plano: Ativos Manuais vs Gerenciados pelo Datto
+## Plano: Cadastro Rápido de Ativo na Tela de Atendimento
 
-### Contexto
+### Problema
+Ao abrir um atendimento para empresas eventuais (como Hexa Tecnologia), se não existem ativos cadastrados, o técnico precisa sair da tela, ir em Ativos, cadastrar e voltar. Isso quebra o fluxo de trabalho.
 
-Analisando o código de sincronização (`datto-full-sync`), a lógica de limpeza **já preserva** ativos sem vínculo Datto (`datto_device_uid`/`datto_device_id` nulos) — mesmo em empresas de contrato. O problema é que **a interface não deixa isso claro**, e falta uma distinção visual entre ativos gerenciados pelo Datto e ativos cadastrados manualmente.
+### Solução
+Adicionar um botão "Cadastrar Ativo" ao lado do seletor de ativos no `DailyServiceRecordDialog`. Ao clicar, abre um mini-formulário inline (ou um dialog simplificado) com apenas os campos essenciais:
+- **Nome** (hostname/identificação)
+- **Tipo** (desktop, notebook, impressora, roteador, etc.)
 
-### O que será feito
+O ativo é criado como **Manual** (sem vínculo Datto) e automaticamente selecionado no formulário.
 
-**1. Indicador visual "Datto" vs "Manual" na listagem de ativos**
-- Na `AssetList` e `AssetCard`, exibir um badge indicando a origem:
-  - **"Datto"** (azul) — quando `datto_device_uid` ou `datto_device_id` existe
-  - **"Manual"** (cinza) — quando não tem vínculo com Datto
-- No Inventário (`Inventory.tsx`), adicionar a mesma coluna/badge de origem
-- Adicionar filtro por origem (Datto / Manual / Todos) nas telas de listagem
+### Implementação
 
-**2. Formulário de ativo: campo de origem claro**
-- No `AssetDialog`, quando o ativo for criado manualmente, garantir que os campos `datto_device_uid`, `datto_device_id` e `datto_site_id` fiquem como `null`
-- Exibir um aviso informativo: "Ativos manuais não serão afetados pela sincronização com o Datto"
+**1. Criar componente `QuickAssetDialog`**
+- Novo arquivo: `src/components/assets/QuickAssetDialog.tsx`
+- Dialog compacto com apenas: Nome, Tipo (select com os tipos existentes)
+- Recebe `companyId` como prop
+- Ao salvar, insere na tabela `assets` com `datto_device_uid = null`, `datto_device_id = null`
+- Retorna o ID do ativo criado via callback `onSuccess(assetId)`
 
-**3. Proteção extra na sincronização (segurança adicional)**
-- Já existe proteção (linha 475-476 do sync), mas adicionar um log explícito: `[FullSync] Preservando X ativos manuais`
-- Isso dá mais visibilidade no relatório de sync
+**2. Modificar `DailyServiceRecordDialog.tsx`**
+- Importar `QuickAssetDialog`
+- Adicionar botão "+ Novo Ativo" ao lado do select de ativos (visível quando uma empresa está selecionada)
+- Ao criar o ativo com sucesso: recarregar lista de ativos da empresa e selecionar automaticamente o novo ativo no formulário
+- O badge "Manual" já aparecerá nas listagens graças à implementação anterior
 
-**4. CMDB: mostrar origem do ativo**
-- Na página CMDB, incluir badge de origem nos cards de ativos
-
-### Arquivos modificados
+### Arquivos
 
 | Arquivo | Alteração |
 |---|---|
-| `src/components/assets/AssetList.tsx` | Badge Datto/Manual + filtro de origem |
-| `src/components/assets/AssetCard.tsx` | Badge de origem |
-| `src/pages/Inventory.tsx` | Coluna/badge de origem + filtro |
-| `src/components/assets/AssetDialog.tsx` | Aviso informativo para ativos manuais |
-| `src/pages/CMDB.tsx` | Badge de origem nos cards |
-| `supabase/functions/datto-full-sync/index.ts` | Log de ativos manuais preservados no relatório |
+| `src/components/assets/QuickAssetDialog.tsx` | Novo — dialog simplificado de cadastro rápido |
+| `src/components/daily-records/DailyServiceRecordDialog.tsx` | Botão "+ Novo Ativo" + integração com QuickAssetDialog |
 
 ### Resultado
-
-- Você poderá cadastrar ativos de clientes eventuais (Hexa Tecnologia, máquinas Linux, etc.) com total segurança
-- A sincronização nunca vai deletar ativos sem vínculo Datto
-- Ficará visualmente claro quais ativos são monitorados e quais são manuais
+O técnico poderá cadastrar ativos diretamente na tela de atendimento sem perder o contexto. Os ativos criados assim serão marcados como "Manual" e protegidos da sincronização Datto.
 
