@@ -17,12 +17,11 @@ const assetTypes: { value: AssetType; label: string }[] = [
   { value: "notebook", label: "Notebook" },
   { value: "servidor", label: "Servidor" },
   { value: "impressora", label: "Impressora" },
+  { value: "monitor", label: "Monitor" },
   { value: "roteador", label: "Roteador" },
   { value: "switch", label: "Switch" },
-  { value: "firewall", label: "Firewall" },
-  { value: "nobreak", label: "Nobreak" },
-  { value: "telefone_ip", label: "Telefone IP" },
-  { value: "access_point", label: "Access Point" },
+  { value: "camera", label: "Câmera" },
+  { value: "periferico", label: "Periférico" },
   { value: "outro", label: "Outro" },
 ];
 
