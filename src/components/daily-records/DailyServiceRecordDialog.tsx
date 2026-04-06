@@ -20,7 +20,8 @@ import { AIExecutionReport } from "@/components/ai/AIExecutionReport";
 import { GeolocationCapture } from "@/components/ui/GeolocationCapture";
 import { UploadedImage } from "@/lib/imageUtils";
 import { toast } from "sonner";
-import { Loader2, MessageCircle, Phone, MapPin, FileDown, Monitor } from "lucide-react";
+import { Loader2, MessageCircle, Phone, MapPin, FileDown, Monitor, Plus } from "lucide-react";
+import { QuickAssetDialog } from "@/components/assets/QuickAssetDialog";
 import { format } from "date-fns";
 import { exportSingleDailyServiceToPDF } from "@/lib/exportSingleDailyService";
 
@@ -80,6 +81,7 @@ export function DailyServiceRecordDialog({
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [quickAssetOpen, setQuickAssetOpen] = useState(false);
   const [assets, setAssets] = useState<any[]>([]);
   const [pendingAssetId, setPendingAssetId] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
@@ -372,7 +374,21 @@ export function DailyServiceRecordDialog({
               name="asset_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Ativo/Equipamento *</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Ativo/Equipamento</FormLabel>
+                    {form.watch("company_id") && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs gap-1 text-primary"
+                        onClick={() => setQuickAssetOpen(true)}
+                      >
+                        <Plus className="h-3 w-3" />
+                        Novo Ativo
+                      </Button>
+                    )}
+                  </div>
                   <Select 
                     onValueChange={field.onChange} 
                     value={field.value}
@@ -407,6 +423,16 @@ export function DailyServiceRecordDialog({
                   <FormMessage />
                 </FormItem>
               )}
+            />
+
+            <QuickAssetDialog
+              open={quickAssetOpen}
+              onOpenChange={setQuickAssetOpen}
+              companyId={form.watch("company_id")}
+              onSuccess={(assetId) => {
+                loadAssets(form.watch("company_id"));
+                setPendingAssetId(assetId);
+              }}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
