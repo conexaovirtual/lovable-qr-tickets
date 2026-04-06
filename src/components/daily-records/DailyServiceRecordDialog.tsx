@@ -84,10 +84,8 @@ export function DailyServiceRecordDialog({
   const [pendingAssetId, setPendingAssetId] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [enderecoCliente, setEnderecoCliente] = useState("");
-  const [gpsInicio, setGpsInicio] = useState<GeoPosition | null>(null);
-  const [gpsFim, setGpsFim] = useState<GeoPosition | null>(null);
-  const geoInicio = useGeolocation();
-  const geoFim = useGeolocation();
+  const [gpsLocal, setGpsLocal] = useState<GeoPosition | null>(null);
+  const geoLocal = useGeolocation();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
