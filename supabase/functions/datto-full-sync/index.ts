@@ -492,6 +492,12 @@ Deno.serve(async (req) => {
     }
     console.log(`[FullSync] Órfãos removidos: ${deleted} de ${orphans.length} encontrados.`);
 
+    // Count manual assets preserved
+    const manualAssetsPreserved = (allSyncableAssets || []).filter(
+      (a: any) => contractIds.has(a.company_id) && !a.datto_device_uid && !a.datto_device_id
+    ).length;
+    console.log(`[FullSync] Preservando ${manualAssetsPreserved} ativos manuais em empresas de contrato.`);
+
     const report = {
       total: devices.length,
       detailsFetched: detailsMap.size,
@@ -499,6 +505,7 @@ Deno.serve(async (req) => {
       created,
       deleted,
       companiesCreated,
+      manualAssetsPreserved,
       createdDevices: createdDevices.slice(0, 50),
       createdCompanies: createdCompanies.slice(0, 50),
       deletedOrphans: orphans.slice(0, 50).map(o => ({ nome: o.nome, tipo: o.tipo })),
