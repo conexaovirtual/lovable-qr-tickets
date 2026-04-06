@@ -14,6 +14,7 @@ const statusMessages: Record<string, string> = {
 };
 
 function formatPhone(contato: string): string | null {
+  if (!contato) return null;
   const digits = contato.replace(/\D/g, "");
   if (digits.length < 10) return null;
   if (digits.startsWith("55") && digits.length >= 12) return digits;
@@ -90,22 +91,43 @@ serve(async (req: Request) => {
       }
     }
 
-    // Fallback: try company WhatsApp
+    // Fallback 1: try company WhatsApp field
     if (!phone && record.company_id) {
       const { data: company } = await supabase
         .from("companies")
-        .select("whatsapp, nome_fantasia")
+        .select("whatsapp, telefone, nome_fantasia")
         .eq("id", record.company_id)
         .single();
 
-      if (company?.whatsapp) {
-        phone = formatPhone(company.whatsapp);
+      if (company) {
         contactName = contactName || company.nome_fantasia;
+        if (company.whatsapp) {
+          phone = formatPhone(company.whatsapp);
+        }
+        // Fallback 2: try company telefone
+        if (!phone && company.telefone) {
+          phone = formatPhone(company.telefone);
+        }
+      }
+    }
+
+    // Fallback 3: try whatsapp_contacts table
+    if (!phone && record.company_id) {
+      const { data: contacts } = await supabase
+        .from("whatsapp_contacts")
+        .select("phone_number, contact_name")
+        .eq("company_id", record.company_id)
+        .order("last_message_at", { ascending: false, nullsFirst: false })
+        .limit(1);
+
+      if (contacts && contacts.length > 0) {
+        phone = contacts[0].phone_number;
+        contactName = contactName || contacts[0].contact_name;
       }
     }
 
     if (!phone) {
-      console.log("No valid phone number found for daily record notification");
+      console.log("No valid phone number found for daily record notification. company_id:", record.company_id, "ticket_id:", record.ticket_id);
       return new Response(
         JSON.stringify({ skipped: true, reason: "No valid phone number found" }),
         { headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -114,11 +136,8 @@ serve(async (req: Request) => {
 
     // Build message
     let message = messageTemplate;
-
-    // Add title
     message += `\n\n📋 *Chamado:* ${record.titulo}`;
 
-    // Add company name
     if (record.company_id) {
       const { data: company } = await supabase
         .from("companies")
@@ -130,14 +149,12 @@ serve(async (req: Request) => {
       }
     }
 
-    // Add solution if concluded
     if (new_status === "concluido" && (observacao || record.solucao)) {
       message += `\n\n📝 *Solução:* ${observacao || record.solucao}`;
     }
 
     message += "\n\n_Conexão Virtual - Help Desk TI_";
 
-    // Send via Mabbix
     console.log(`Sending daily record notification to ${phone} (status: ${new_status})`);
 
     const response = await fetch(`${MABBIX_BACKEND_URL}/api/messages/send`, {
