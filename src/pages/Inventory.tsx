@@ -52,6 +52,12 @@ export default function Inventory() {
     } catch { toast.error('Erro ao carregar ativos'); } finally { setLoadingData(false); }
   };
 
+  const filteredByOrigin = assets.filter((asset) => {
+    if (!filters.origin || filters.origin === 'all') return true;
+    const hasDatto = !!(asset.datto_device_uid || asset.datto_device_id);
+    return filters.origin === 'datto' ? hasDatto : !hasDatto;
+  });
+
   const handleDelete = async (assetId: string) => {
     if (!confirm('Deseja realmente excluir este ativo?')) return;
     const { error } = await supabase.from('assets').delete().eq('id', assetId);
