@@ -39,7 +39,7 @@ const statusEnum = z.union([
 
 const formSchema = z.object({
   company_id: z.string().min(1, "Selecione uma empresa"),
-  asset_id: z.string().min(1, "Selecione o ativo"),
+  asset_id: z.string().optional().default(""),
   data_atendimento: z.string().min(1, "Data é obrigatória"),
   hora_inicio: z.string().min(1, "Horário de início é obrigatório"),
   hora_fim: z.string().optional(),
@@ -249,7 +249,7 @@ export function DailyServiceRecordDialog({
 
       const payload: any = {
         company_id: data.company_id,
-        asset_id: data.asset_id,
+        asset_id: data.asset_id || null,
         data_atendimento: data.data_atendimento,
         hora_inicio: data.hora_inicio,
         canal: data.canal,
