@@ -179,9 +179,15 @@ export function DailyServiceRecordDialog({
         .from("daily_service_records")
         .select("*")
         .eq("id", recordId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      
+      if (!data) {
+        toast.error("Registro não encontrado ou sem permissão de acesso");
+        onOpenChange(false);
+        return;
+      }
 
       if (data) {
         // Store the asset_id to apply after assets load
