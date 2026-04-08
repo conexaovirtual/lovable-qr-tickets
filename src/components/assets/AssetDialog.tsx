@@ -185,6 +185,52 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
     let newAssetId: string | undefined;
 
     if (asset) {
+      // Detectar campos alterados para o changelog
+      const fieldsToTrack: Record<string, string> = {
+        nome: 'Nome',
+        tipo: 'Tipo',
+        company_id: 'Empresa',
+        categoria_id: 'Categoria',
+        fabricante: 'Fabricante',
+        modelo: 'Modelo',
+        numero_serie: 'Número de Série',
+        local: 'Local',
+        sistema_operacional: 'Sistema Operacional',
+        observacoes: 'Observações',
+        datto_device_id: 'Datto Device ID',
+        datto_site_id: 'Datto Site ID',
+      };
+
+      const changes: { campo: string; valor_anterior: string | null; valor_novo: string | null }[] = [];
+      
+      for (const [key, label] of Object.entries(fieldsToTrack)) {
+        const oldVal = asset[key] || '';
+        const newVal = (payload as any)[key] || '';
+        if (String(oldVal) !== String(newVal)) {
+          changes.push({
+            campo: label,
+            valor_anterior: oldVal ? String(oldVal) : null,
+            valor_novo: newVal ? String(newVal) : null,
+          });
+        }
+      }
+
+      // Comparar configurações de hardware
+      const oldConfigs = asset.configuracoes || {};
+      const newConfigs = payload.configuracoes || {};
+      const configKeys = new Set([...Object.keys(oldConfigs), ...Object.keys(newConfigs)]);
+      for (const key of configKeys) {
+        const oldVal = oldConfigs[key];
+        const newVal = newConfigs[key];
+        if (String(oldVal ?? '') !== String(newVal ?? '')) {
+          changes.push({
+            campo: `Config: ${key}`,
+            valor_anterior: oldVal != null ? String(oldVal) : null,
+            valor_novo: newVal != null ? String(newVal) : null,
+          });
+        }
+      }
+
       const { error } = await supabase.from('assets').update(payload).eq('id', asset.id);
       
       if (error) {
@@ -194,8 +240,21 @@ export function AssetDialog({ open, onOpenChange, asset, preSelectedCompanyId, o
           variant: 'destructive',
         });
       } else {
+        // Registrar alterações no changelog
+        if (changes.length > 0 && profile?.id) {
+          const changelogEntries = changes.map((c) => ({
+            asset_id: asset.id,
+            changed_by: profile.id,
+            campo: c.campo,
+            valor_anterior: c.valor_anterior,
+            valor_novo: c.valor_novo,
+          }));
+          await supabase.from('asset_changelog').insert(changelogEntries);
+        }
+
         toast({
           title: 'Ativo atualizado',
+          description: changes.length > 0 ? `${changes.length} campo(s) alterado(s)` : undefined,
         });
         onOpenChange(false);
         onSuccess?.();
