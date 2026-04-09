@@ -255,6 +255,14 @@ export function DailyServiceRecordDialog({
     try {
       setLoading(true);
 
+      // Verificar se a sessão ainda está ativa antes de salvar
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast.error("Sessão expirada. Faça login novamente.");
+        setLoading(false);
+        return;
+      }
+
       const payload: any = {
         company_id: data.company_id,
         asset_id: data.asset_id || null,
