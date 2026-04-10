@@ -631,6 +631,26 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                 )}
               />
 
+              <div className="md:col-span-2">
+                <GeolocationCapture
+                  label="Localização GPS da Empresa"
+                  position={companyLatitude && companyLongitude ? {
+                    latitude: companyLatitude,
+                    longitude: companyLongitude,
+                    timestamp: Date.now(),
+                  } : null}
+                  loading={geoLoading}
+                  error={geoError}
+                  onCapture={async () => {
+                    const pos = await captureLocation();
+                    if (pos) {
+                      setCompanyLatitude(pos.latitude);
+                      setCompanyLongitude(pos.longitude);
+                    }
+                  }}
+                />
+              </div>
+
               <FormField
                 control={form.control}
                 name="sla_primeiro_atendimento_horas"
