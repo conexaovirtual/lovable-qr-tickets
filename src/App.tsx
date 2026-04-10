@@ -37,6 +37,7 @@ const Contracts = lazy(() => import("./pages/Contracts"));
 const CMDB = lazy(() => import("./pages/CMDB"));
 const NetworkMonitor = lazy(() => import("./pages/NetworkMonitor"));
 const DattoCallback = lazy(() => import("./pages/DattoCallback"));
+const OperationalDashboard = lazy(() => import("./pages/OperationalDashboard"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -95,6 +96,7 @@ const App = () => (
               <Route path="/contracts" element={<Contracts />} />
               <Route path="/cmdb" element={<CMDB />} />
               <Route path="/network-monitor" element={<NetworkMonitor />} />
+              <Route path="/operational" element={<OperationalDashboard />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
