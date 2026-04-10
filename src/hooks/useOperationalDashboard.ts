@@ -32,7 +32,7 @@ export function useOperationalDashboard(period: PeriodFilter = '14d') {
       const { data, error } = await supabase
         .from('tickets')
         .select('id, titulo, status, category_id, created_at, categories:category_id(nome)')
-        .in('status', ['novo', 'em_atendimento', 'aguardando_cliente', 'resolvido', 'fechado']);
+        .in('status', ['novo', 'em_atendimento', 'aguardando_usuario', 'aguardando_peca', 'resolvido', 'fechado', 'triagem', 'validando_cliente']);
       if (error) throw error;
       return data || [];
     },
