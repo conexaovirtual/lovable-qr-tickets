@@ -1,39 +1,79 @@
 
 
-## Plano: Cadastro Rápido de Ativo na Tela de Atendimento
+## Plano: Dashboard Operacional Completo
 
-### Problema
-Ao abrir um atendimento para empresas eventuais (como Hexa Tecnologia), se não existem ativos cadastrados, o técnico precisa sair da tela, ir em Ativos, cadastrar e voltar. Isso quebra o fluxo de trabalho.
+### Objetivo
+Criar uma nova página "Painel Operacional" que consolide em uma única tela: atendimentos diários, dispositivos online/offline, problemas mais recorrentes, distribuição por canal, e tendências — tudo com gráficos visuais.
 
-### Solução
-Adicionar um botão "Cadastrar Ativo" ao lado do seletor de ativos no `DailyServiceRecordDialog`. Ao clicar, abre um mini-formulário inline (ou um dialog simplificado) com apenas os campos essenciais:
-- **Nome** (hostname/identificação)
-- **Tipo** (desktop, notebook, impressora, roteador, etc.)
+### Dados Disponíveis (já existentes no banco)
+- **daily_service_records**: atendimentos diários com canal, status, empresa, data, ativo
+- **tickets**: chamados com categoria, status, empresa, SLA, datas
+- **assets**: ativos com `datto_status` (online/offline/alert)
+- **categories**: categorias de problemas
+- **companies**: empresas clientes
 
-O ativo é criado como **Manual** (sem vínculo Datto) e automaticamente selecionado no formulário.
+### Layout da Tela
+
+```text
+┌──────────────────────────────────────────────────┐
+│  PageHeader: Painel Operacional                  │
+│  Métricas: Atendimentos Hoje | Online | Offline  │
+├──────────────────────────────────────────────────┤
+│ [KPI Cards: 6 cards em linha]                    │
+│ Atend. Hoje | Atend. Semana | Online | Offline   │
+│ Chamados Abertos | Taxa Resolução               │
+├──────────────────────────────────────────────────┤
+│ [Gráfico Barras]          │ [Gráfico Pizza]      │
+│ Atendimentos por dia      │ Problemas mais       │
+│ (últimos 14 dias)         │ recorrentes (top 5)  │
+├──────────────────────────────────────────────────┤
+│ [Gráfico Barras Horiz.]   │ [Gráfico Pizza]      │
+│ Atendimentos por empresa  │ Distribuição por     │
+│ (top 10)                  │ canal                │
+├──────────────────────────────────────────────────┤
+│ [Gráfico Linha]           │ [Status Dispositivos]│
+│ Tendência semanal         │ Online vs Offline    │
+│ (últimas 8 semanas)       │ por empresa          │
+└──────────────────────────────────────────────────┘
+```
 
 ### Implementação
 
-**1. Criar componente `QuickAssetDialog`**
-- Novo arquivo: `src/components/assets/QuickAssetDialog.tsx`
-- Dialog compacto com apenas: Nome, Tipo (select com os tipos existentes)
-- Recebe `companyId` como prop
-- Ao salvar, insere na tabela `assets` com `datto_device_uid = null`, `datto_device_id = null`
-- Retorna o ID do ativo criado via callback `onSuccess(assetId)`
+**1. Criar hook `useOperationalDashboard.ts`**
+- Busca `daily_service_records` dos últimos 30 dias com joins em companies/categories
+- Busca `tickets` abertos e recentes
+- Busca `assets` com `datto_status` para online/offline
+- Calcula todas as métricas no client-side:
+  - Atendimentos por dia (últimos 14 dias)
+  - Top 5 problemas recorrentes (agrupando por título/descrição similar ou categoria do ticket vinculado)
+  - Distribuição por canal (whatsapp, ligação, acesso remoto, presencial)
+  - Atendimentos por empresa (top 10)
+  - Tendência semanal
+  - Dispositivos online vs offline
 
-**2. Modificar `DailyServiceRecordDialog.tsx`**
-- Importar `QuickAssetDialog`
-- Adicionar botão "+ Novo Ativo" ao lado do select de ativos (visível quando uma empresa está selecionada)
-- Ao criar o ativo com sucesso: recarregar lista de ativos da empresa e selecionar automaticamente o novo ativo no formulário
-- O badge "Manual" já aparecerá nas listagens graças à implementação anterior
+**2. Criar página `src/pages/OperationalDashboard.tsx`**
+- Usa o PageHeader padrão
+- 6 KPI cards no topo
+- 3 linhas de gráficos (Recharts: BarChart, PieChart, LineChart)
+- Filtro de período (7d / 14d / 30d)
+- Botão de refresh
+
+**3. Adicionar rota e menu**
+- Nova rota `/operational` no App.tsx
+- Link no sidebar com ícone LayoutDashboard
 
 ### Arquivos
 
 | Arquivo | Alteração |
 |---|---|
-| `src/components/assets/QuickAssetDialog.tsx` | Novo — dialog simplificado de cadastro rápido |
-| `src/components/daily-records/DailyServiceRecordDialog.tsx` | Botão "+ Novo Ativo" + integração com QuickAssetDialog |
+| `src/hooks/useOperationalDashboard.ts` | Novo — hook de dados operacionais |
+| `src/pages/OperationalDashboard.tsx` | Novo — página com gráficos |
+| `src/App.tsx` | Nova rota `/operational` |
+| `src/components/layout/AppSidebar.tsx` | Link no menu |
 
-### Resultado
-O técnico poderá cadastrar ativos diretamente na tela de atendimento sem perder o contexto. Os ativos criados assim serão marcados como "Manual" e protegidos da sincronização Datto.
+### Detalhes Técnicos
+- Recharts já está instalado e usado no projeto (BarChart, PieChart, LineChart)
+- Usa o padrão PageHeader existente
+- Sem necessidade de novas tabelas ou migrações
+- Acesso restrito a admin e técnicos
 
