@@ -39,6 +39,7 @@ const NetworkMonitor = lazy(() => import("./pages/NetworkMonitor"));
 const DattoCallback = lazy(() => import("./pages/DattoCallback"));
 const OperationalDashboard = lazy(() => import("./pages/OperationalDashboard"));
 const RoutePlanner = lazy(() => import("./pages/RoutePlanner"));
+const CompanyMap = lazy(() => import("./pages/CompanyMap"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -99,6 +100,7 @@ const App = () => (
               <Route path="/network-monitor" element={<NetworkMonitor />} />
               <Route path="/operational" element={<OperationalDashboard />} />
               <Route path="/route-planner" element={<RoutePlanner />} />
+              <Route path="/company-map" element={<CompanyMap />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
