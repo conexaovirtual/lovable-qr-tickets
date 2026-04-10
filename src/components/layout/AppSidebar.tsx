@@ -79,6 +79,7 @@ export function AppSidebar() {
 
   const mainItems = [
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, show: true },
+    { title: 'Painel Operacional', url: '/operational', icon: Activity, show: isAdminOrTech },
     { title: 'Agenda', url: '/agenda', icon: CalendarDays, show: true },
     { title: 'Chamados', url: '/tickets', icon: Ticket, show: isAdminOrTech, badge: newTicketsCount },
     { title: 'Atendimentos', url: '/daily-services', icon: ClipboardList, show: isAdminOrTech },
