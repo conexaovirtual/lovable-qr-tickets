@@ -580,7 +580,9 @@ export type Database = {
           email: string | null
           endereco: string | null
           id: string
+          latitude: number | null
           logo_url: string | null
+          longitude: number | null
           nome_fantasia: string
           razao_social: string | null
           sla_primeiro_atendimento_horas: number | null
@@ -598,7 +600,9 @@ export type Database = {
           email?: string | null
           endereco?: string | null
           id?: string
+          latitude?: number | null
           logo_url?: string | null
+          longitude?: number | null
           nome_fantasia: string
           razao_social?: string | null
           sla_primeiro_atendimento_horas?: number | null
@@ -616,7 +620,9 @@ export type Database = {
           email?: string | null
           endereco?: string | null
           id?: string
+          latitude?: number | null
           logo_url?: string | null
+          longitude?: number | null
           nome_fantasia?: string
           razao_social?: string | null
           sla_primeiro_atendimento_horas?: number | null
