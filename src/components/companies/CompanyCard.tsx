@@ -147,6 +147,17 @@ export const CompanyCard = memo(({ company, onEdit, onUpdate, canDelete }: Compa
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <MapPin className="h-4 w-4" />
               <span className="truncate">{company.endereco}</span>
+              {company.latitude && company.longitude && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${company.latitude},${company.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-auto text-primary hover:underline text-xs whitespace-nowrap"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Navegar
+                </a>
+              )}
             </div>
           )}
 

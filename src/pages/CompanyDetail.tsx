@@ -155,6 +155,36 @@ export default function CompanyDetail() {
                   )}
                 </div>
 
+                {company.latitude && company.longitude && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${company.latitude},${company.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded-md transition-colors"
+                    >
+                      <MapPin className="h-3.5 w-3.5" />
+                      Google Maps
+                    </a>
+                    <a
+                      href={`https://waze.com/ul?ll=${company.latitude},${company.longitude}&navigate=yes`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded-md transition-colors"
+                    >
+                      <MapPin className="h-3.5 w-3.5" />
+                      Waze
+                    </a>
+                    <a
+                      href={`maps://maps.apple.com/?daddr=${company.latitude},${company.longitude}`}
+                      className="inline-flex items-center gap-1.5 text-sm bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded-md transition-colors"
+                    >
+                      <MapPin className="h-3.5 w-3.5" />
+                      Apple Maps
+                    </a>
+                  </div>
+                )}
+
                 {(company.sla_primeiro_atendimento_horas !== null && company.sla_solucao_horas !== null) && (
                   <div className="flex items-center gap-1.5 mt-2 text-sm">
                     <Clock className="h-4 w-4 text-muted-foreground" />

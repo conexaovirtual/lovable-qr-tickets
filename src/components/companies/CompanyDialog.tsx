@@ -6,6 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 import { companySchema, type CompanyFormData } from '@/lib/validations';
 import { formatCNPJ, formatPhone } from '@/lib/formatters';
 import { useCNPJLookup } from '@/hooks/useCNPJLookup';
+import { useGeolocation } from '@/hooks/useGeolocation';
+import { GeolocationCapture } from '@/components/ui/GeolocationCapture';
 import { Search, Loader2, CheckCircle2, AlertCircle, RotateCw, Upload, X, Edit } from 'lucide-react';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -38,12 +40,15 @@ interface CompanyDialogProps {
 export function CompanyDialog({ open, onOpenChange, company, onSuccess }: CompanyDialogProps) {
   const { toast } = useToast();
   const { lookupCNPJ, isLoading: isLoadingCNPJ, error, isRateLimitError } = useCNPJLookup();
+  const { position: geoPosition, loading: geoLoading, error: geoError, captureLocation } = useGeolocation();
   const [cnpjValidated, setCnpjValidated] = useState(false);
   const [companySituation, setCompanySituation] = useState<'ativa' | 'baixada' | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [cnpjEditConfirmed, setCnpjEditConfirmed] = useState(false);
   const [dattoSiteId, setDattoSiteId] = useState<string>('');
+  const [companyLatitude, setCompanyLatitude] = useState<number | null>(null);
+  const [companyLongitude, setCompanyLongitude] = useState<number | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout>();
   
   const form = useForm<CompanyFormData>({
@@ -81,6 +86,8 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       setLogoUrl(company.logo_url || null);
       setCnpjEditConfirmed(false);
       setDattoSiteId(company.datto_site_id || '');
+      setCompanyLatitude(company.latitude ?? null);
+      setCompanyLongitude(company.longitude ?? null);
     } else {
       form.reset({
         nome_fantasia: '',
@@ -100,6 +107,8 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       setLogoUrl(null);
       setCnpjEditConfirmed(false);
       setDattoSiteId('');
+      setCompanyLatitude(null);
+      setCompanyLongitude(null);
     }
   }, [company, form]);
 
@@ -236,7 +245,8 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         cleanedData.logo_url = null;
       }
       cleanedData.datto_site_id = dattoSiteId.trim() || null;
-
+      cleanedData.latitude = companyLatitude;
+      cleanedData.longitude = companyLongitude;
       if (company) {
         // Se CNPJ foi alterado, verificar duplicidade
         const newCnpj = cleanedData.cnpj?.replace(/[^\d]/g, '');
@@ -620,6 +630,26 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
                   </FormItem>
                 )}
               />
+
+              <div className="md:col-span-2">
+                <GeolocationCapture
+                  label="Localização GPS da Empresa"
+                  position={companyLatitude && companyLongitude ? {
+                    latitude: companyLatitude,
+                    longitude: companyLongitude,
+                    timestamp: Date.now(),
+                  } : null}
+                  loading={geoLoading}
+                  error={geoError}
+                  onCapture={async () => {
+                    const pos = await captureLocation();
+                    if (pos) {
+                      setCompanyLatitude(pos.latitude);
+                      setCompanyLongitude(pos.longitude);
+                    }
+                  }}
+                />
+              </div>
 
               <FormField
                 control={form.control}
