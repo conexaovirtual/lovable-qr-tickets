@@ -61,7 +61,7 @@ export function useOperationalDashboard(period: PeriodFilter = '14d') {
   const offlineDevices = assets.filter(a => a.datto_status === 'offline').length;
   const alertDevices = assets.filter(a => a.datto_status === 'alert' || (a.datto_status && !['online', 'offline'].includes(a.datto_status))).length;
 
-  const openTickets = tickets.filter(t => ['novo', 'em_atendimento', 'aguardando_cliente'].includes(t.status || '')).length;
+  const openTickets = tickets.filter(t => ['novo', 'em_atendimento', 'aguardando_usuario', 'aguardando_peca', 'triagem', 'validando_cliente'].includes(t.status || '')).length;
   const resolvedTickets = tickets.filter(t => ['resolvido', 'fechado'].includes(t.status || '')).length;
   const resolutionRate = tickets.length > 0 ? Math.round((resolvedTickets / tickets.length) * 100) : 0;
 
