@@ -183,7 +183,7 @@ export default function CompanyDetail() {
                       Apple Maps
                     </a>
                   </div>
-                )
+                )}
 
                 {(company.sla_primeiro_atendimento_horas !== null && company.sla_solucao_horas !== null) && (
                   <div className="flex items-center gap-1.5 mt-2 text-sm">
