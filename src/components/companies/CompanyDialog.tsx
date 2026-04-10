@@ -245,7 +245,8 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
         cleanedData.logo_url = null;
       }
       cleanedData.datto_site_id = dattoSiteId.trim() || null;
-
+      cleanedData.latitude = companyLatitude;
+      cleanedData.longitude = companyLongitude;
       if (company) {
         // Se CNPJ foi alterado, verificar duplicidade
         const newCnpj = cleanedData.cnpj?.replace(/[^\d]/g, '');
