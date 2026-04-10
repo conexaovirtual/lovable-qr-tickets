@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/sidebar';
 import {
   LayoutDashboard,
+  Activity,
   Ticket,
   ClipboardList,
   Building2,
