@@ -38,6 +38,7 @@ import {
   Network,
   Wifi,
   Route,
+  Map,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
@@ -87,6 +88,7 @@ export function AppSidebar() {
     { title: 'Atendimentos', url: '/daily-services', icon: ClipboardList, show: isAdminOrTech },
     { title: 'Empresas', url: '/companies', icon: Building2, show: isAdminOrTech },
     { title: 'Rotas', url: '/route-planner', icon: Route, show: isAdminOrTech },
+    { title: 'Mapa', url: '/company-map', icon: Map, show: isAdminOrTech },
     { title: 'Ordens de Serviço', url: '/reports?tab=service-orders', icon: FileText, show: true },
   ];
 
