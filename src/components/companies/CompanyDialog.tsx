@@ -6,6 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 import { companySchema, type CompanyFormData } from '@/lib/validations';
 import { formatCNPJ, formatPhone } from '@/lib/formatters';
 import { useCNPJLookup } from '@/hooks/useCNPJLookup';
+import { useGeolocation } from '@/hooks/useGeolocation';
+import { GeolocationCapture } from '@/components/ui/GeolocationCapture';
 import { Search, Loader2, CheckCircle2, AlertCircle, RotateCw, Upload, X, Edit } from 'lucide-react';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -38,12 +40,15 @@ interface CompanyDialogProps {
 export function CompanyDialog({ open, onOpenChange, company, onSuccess }: CompanyDialogProps) {
   const { toast } = useToast();
   const { lookupCNPJ, isLoading: isLoadingCNPJ, error, isRateLimitError } = useCNPJLookup();
+  const { position: geoPosition, loading: geoLoading, error: geoError, captureLocation } = useGeolocation();
   const [cnpjValidated, setCnpjValidated] = useState(false);
   const [companySituation, setCompanySituation] = useState<'ativa' | 'baixada' | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [cnpjEditConfirmed, setCnpjEditConfirmed] = useState(false);
   const [dattoSiteId, setDattoSiteId] = useState<string>('');
+  const [companyLatitude, setCompanyLatitude] = useState<number | null>(null);
+  const [companyLongitude, setCompanyLongitude] = useState<number | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout>();
   
   const form = useForm<CompanyFormData>({
@@ -81,6 +86,8 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       setLogoUrl(company.logo_url || null);
       setCnpjEditConfirmed(false);
       setDattoSiteId(company.datto_site_id || '');
+      setCompanyLatitude(company.latitude ?? null);
+      setCompanyLongitude(company.longitude ?? null);
     } else {
       form.reset({
         nome_fantasia: '',
@@ -100,6 +107,8 @@ export function CompanyDialog({ open, onOpenChange, company, onSuccess }: Compan
       setLogoUrl(null);
       setCnpjEditConfirmed(false);
       setDattoSiteId('');
+      setCompanyLatitude(null);
+      setCompanyLongitude(null);
     }
   }, [company, form]);
 
