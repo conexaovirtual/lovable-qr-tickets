@@ -200,6 +200,15 @@ export default function Dashboard() {
                 <Ticket className="h-4 w-4 mr-1" />
                 Chamados
               </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="bg-white/20 hover:bg-white/30 text-primary-foreground border-0"
+                onClick={() => navigate('/daily-services')}
+              >
+                <ClipboardList className="h-4 w-4 mr-1" />
+                Atendimentos
+              </Button>
             </div>
           </div>
         </div>
