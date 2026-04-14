@@ -415,7 +415,7 @@ Deno.serve(async (req) => {
       console.log(`[FullSync] Criando empresa automaticamente: "${nomeFantasia}" (siteId: ${siteId})`);
       const insertData: Record<string, unknown> = {
         nome_fantasia: nomeFantasia,
-        tipo_contrato: "avulso",
+        tipo_contrato: "eventual",
         status: true,
       };
       if (siteId) insertData.datto_site_id = String(siteId);
