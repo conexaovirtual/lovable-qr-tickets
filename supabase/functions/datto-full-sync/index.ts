@@ -483,6 +483,16 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Log hardware changes to asset_changelog before updating
+        const directFieldsForLog: Record<string, unknown> = {};
+        if (os) directFieldsForLog.sistema_operacional = String(os);
+        if (serial) directFieldsForLog.numero_serie = String(serial);
+        if (fabricante) directFieldsForLog.fabricante = String(fabricante);
+        if (modelo) directFieldsForLog.modelo = String(modelo);
+        if (updateData.tipo) directFieldsForLog.tipo = updateData.tipo;
+
+        await logAssetChanges(supabase, existingAsset.id, existingAsset, directFieldsForLog, configuracoes);
+
         await supabase.from("assets").update(updateData).eq("id", existingAsset.id);
         updated++;
       } else {
