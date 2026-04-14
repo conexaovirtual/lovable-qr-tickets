@@ -251,6 +251,84 @@ function buildConfiguracoes(detail: any): Record<string, unknown> {
   return config;
 }
 
+// ── Changelog helpers ──
+
+const TRACKED_DIRECT_FIELDS = ["fabricante", "modelo", "numero_serie", "sistema_operacional", "tipo"];
+const TRACKED_CONFIG_KEYS = [
+  "processador", "processador_cores", "processador_threads", "processador_ghz",
+  "memoria_ram_gb", "memoria_ram_slots", "memoria_ram_tipo",
+  "placa_video", "placa_video_memoria_gb",
+  "ip_interno", "ip_externo", "mac_address", "ultimo_usuario", "dominio",
+  "fabricante_sistema", "modelo_sistema",
+];
+
+function sortedStringify(val: unknown): string | null {
+  if (val === undefined || val === null) return null;
+  if (typeof val === "object") return JSON.stringify(val, Object.keys(val as any).sort());
+  return String(val);
+}
+
+function normalizedStringify(val: unknown): string | null {
+  if (val === undefined || val === null) return null;
+  if (Array.isArray(val)) {
+    return JSON.stringify(val.map((item: any) => {
+      if (typeof item === "object" && item !== null) {
+        const sorted: Record<string, unknown> = {};
+        for (const k of Object.keys(item).sort()) sorted[k] = item[k];
+        return sorted;
+      }
+      return item;
+    }));
+  }
+  if (typeof val === "object") return JSON.stringify(val, Object.keys(val as any).sort());
+  return String(val);
+}
+
+async function logAssetChanges(
+  supabase: any,
+  assetId: string,
+  oldAsset: any,
+  newDirectFields: Record<string, unknown>,
+  newConfiguracoes: Record<string, unknown>,
+): Promise<number> {
+  const rows: any[] = [];
+
+  // Compare direct fields
+  for (const field of TRACKED_DIRECT_FIELDS) {
+    if (!(field in newDirectFields) || newDirectFields[field] === undefined || newDirectFields[field] === null) continue;
+    const oldVal = sortedStringify(oldAsset[field]);
+    const newVal = sortedStringify(newDirectFields[field]);
+    if (oldVal !== newVal && newVal) {
+      rows.push({ asset_id: assetId, campo: field, valor_anterior: oldVal, valor_novo: newVal, observacao: "Sincronização Datto RMM" });
+    }
+  }
+
+  // Compare configuracoes keys (scalar values)
+  const oldConfig = (oldAsset.configuracoes && typeof oldAsset.configuracoes === "object") ? oldAsset.configuracoes as Record<string, unknown> : {};
+  for (const key of TRACKED_CONFIG_KEYS) {
+    if (!(key in newConfiguracoes) || newConfiguracoes[key] === undefined || newConfiguracoes[key] === null) continue;
+    const oldVal = sortedStringify(oldConfig[key]);
+    const newVal = sortedStringify(newConfiguracoes[key]);
+    if (oldVal !== newVal && newVal) {
+      rows.push({ asset_id: assetId, campo: `configuracoes.${key}`, valor_anterior: oldVal, valor_novo: newVal, observacao: "Sincronização Datto RMM" });
+    }
+  }
+
+  // Compare armazenamento (array) with normalized key order
+  if (newConfiguracoes.armazenamento) {
+    const oldStorage = normalizedStringify(oldConfig.armazenamento);
+    const newStorage = normalizedStringify(newConfiguracoes.armazenamento);
+    if (oldStorage !== newStorage) {
+      rows.push({ asset_id: assetId, campo: "configuracoes.armazenamento", valor_anterior: oldStorage, valor_novo: newStorage, observacao: "Sincronização Datto RMM" });
+    }
+  }
+
+  if (rows.length > 0) {
+    await supabase.from("asset_changelog").insert(rows);
+  }
+  return rows.length;
+}
+
 // ── Main handler ──
 
 Deno.serve(async (req) => {
@@ -288,7 +366,7 @@ Deno.serve(async (req) => {
 
     const { data: existingAssets } = await supabase
       .from("assets")
-      .select("id, datto_device_uid, datto_device_id, company_id")
+      .select("id, datto_device_uid, datto_device_id, company_id, fabricante, modelo, numero_serie, sistema_operacional, tipo, configuracoes")
       .or("datto_device_id.not.is.null,datto_device_uid.not.is.null");
 
     const assetByUid = new Map<string, any>();
@@ -353,7 +431,7 @@ Deno.serve(async (req) => {
       console.log(`[FullSync] Criando empresa automaticamente: "${nomeFantasia}" (siteId: ${siteId})`);
       const insertData: Record<string, unknown> = {
         nome_fantasia: nomeFantasia,
-        tipo_contrato: "avulso",
+        tipo_contrato: "eventual",
         status: true,
       };
       if (siteId) insertData.datto_site_id = String(siteId);
@@ -420,6 +498,16 @@ Deno.serve(async (req) => {
             console.log(`[FullSync] Reatribuindo "${hostname}" de empresa ${existingAsset.company_id} para ${correctCompanyId} (site ${siteId})`);
           }
         }
+
+        // Log hardware changes to asset_changelog before updating
+        const directFieldsForLog: Record<string, unknown> = {};
+        if (os) directFieldsForLog.sistema_operacional = String(os);
+        if (serial) directFieldsForLog.numero_serie = String(serial);
+        if (fabricante) directFieldsForLog.fabricante = String(fabricante);
+        if (modelo) directFieldsForLog.modelo = String(modelo);
+        if (updateData.tipo) directFieldsForLog.tipo = updateData.tipo;
+
+        await logAssetChanges(supabase, existingAsset.id, existingAsset, directFieldsForLog, configuracoes);
 
         await supabase.from("assets").update(updateData).eq("id", existingAsset.id);
         updated++;
