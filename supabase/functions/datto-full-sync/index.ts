@@ -296,28 +296,28 @@ async function logAssetChanges(
   // Compare direct fields
   for (const field of TRACKED_DIRECT_FIELDS) {
     if (!(field in newDirectFields) || newDirectFields[field] === undefined || newDirectFields[field] === null) continue;
-    const oldVal = stringifyValue(oldAsset[field]);
-    const newVal = stringifyValue(newDirectFields[field]);
+    const oldVal = sortedStringify(oldAsset[field]);
+    const newVal = sortedStringify(newDirectFields[field]);
     if (oldVal !== newVal && newVal) {
       rows.push({ asset_id: assetId, campo: field, valor_anterior: oldVal, valor_novo: newVal, observacao: "Sincronização Datto RMM" });
     }
   }
 
-  // Compare configuracoes keys
+  // Compare configuracoes keys (scalar values)
   const oldConfig = (oldAsset.configuracoes && typeof oldAsset.configuracoes === "object") ? oldAsset.configuracoes as Record<string, unknown> : {};
   for (const key of TRACKED_CONFIG_KEYS) {
     if (!(key in newConfiguracoes) || newConfiguracoes[key] === undefined || newConfiguracoes[key] === null) continue;
-    const oldVal = stringifyValue(oldConfig[key]);
-    const newVal = stringifyValue(newConfiguracoes[key]);
+    const oldVal = sortedStringify(oldConfig[key]);
+    const newVal = sortedStringify(newConfiguracoes[key]);
     if (oldVal !== newVal && newVal) {
       rows.push({ asset_id: assetId, campo: `configuracoes.${key}`, valor_anterior: oldVal, valor_novo: newVal, observacao: "Sincronização Datto RMM" });
     }
   }
 
-  // Compare armazenamento (array) specially
+  // Compare armazenamento (array) with normalized key order
   if (newConfiguracoes.armazenamento) {
-    const oldStorage = stringifyValue(oldConfig.armazenamento);
-    const newStorage = stringifyValue(newConfiguracoes.armazenamento);
+    const oldStorage = normalizedStringify(oldConfig.armazenamento);
+    const newStorage = normalizedStringify(newConfiguracoes.armazenamento);
     if (oldStorage !== newStorage) {
       rows.push({ asset_id: assetId, campo: "configuracoes.armazenamento", valor_anterior: oldStorage, valor_novo: newStorage, observacao: "Sincronização Datto RMM" });
     }
