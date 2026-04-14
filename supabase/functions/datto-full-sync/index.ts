@@ -251,6 +251,68 @@ function buildConfiguracoes(detail: any): Record<string, unknown> {
   return config;
 }
 
+// ── Changelog helpers ──
+
+const TRACKED_DIRECT_FIELDS = ["fabricante", "modelo", "numero_serie", "sistema_operacional", "tipo"];
+const TRACKED_CONFIG_KEYS = [
+  "processador", "processador_cores", "processador_threads", "processador_ghz",
+  "memoria_ram_gb", "memoria_ram_slots", "memoria_ram_tipo",
+  "placa_video", "placa_video_memoria_gb",
+  "ip_interno", "ip_externo", "mac_address", "ultimo_usuario", "dominio",
+  "fabricante_sistema", "modelo_sistema",
+];
+
+function stringifyValue(val: unknown): string | null {
+  if (val === undefined || val === null) return null;
+  if (typeof val === "object") return JSON.stringify(val);
+  return String(val);
+}
+
+async function logAssetChanges(
+  supabase: any,
+  assetId: string,
+  oldAsset: any,
+  newDirectFields: Record<string, unknown>,
+  newConfiguracoes: Record<string, unknown>,
+): Promise<number> {
+  const rows: any[] = [];
+
+  // Compare direct fields
+  for (const field of TRACKED_DIRECT_FIELDS) {
+    if (!(field in newDirectFields) || newDirectFields[field] === undefined || newDirectFields[field] === null) continue;
+    const oldVal = stringifyValue(oldAsset[field]);
+    const newVal = stringifyValue(newDirectFields[field]);
+    if (oldVal !== newVal && newVal) {
+      rows.push({ asset_id: assetId, campo: field, valor_anterior: oldVal, valor_novo: newVal, observacao: "Sincronização Datto RMM" });
+    }
+  }
+
+  // Compare configuracoes keys
+  const oldConfig = (oldAsset.configuracoes && typeof oldAsset.configuracoes === "object") ? oldAsset.configuracoes as Record<string, unknown> : {};
+  for (const key of TRACKED_CONFIG_KEYS) {
+    if (!(key in newConfiguracoes) || newConfiguracoes[key] === undefined || newConfiguracoes[key] === null) continue;
+    const oldVal = stringifyValue(oldConfig[key]);
+    const newVal = stringifyValue(newConfiguracoes[key]);
+    if (oldVal !== newVal && newVal) {
+      rows.push({ asset_id: assetId, campo: `configuracoes.${key}`, valor_anterior: oldVal, valor_novo: newVal, observacao: "Sincronização Datto RMM" });
+    }
+  }
+
+  // Compare armazenamento (array) specially
+  if (newConfiguracoes.armazenamento) {
+    const oldStorage = stringifyValue(oldConfig.armazenamento);
+    const newStorage = stringifyValue(newConfiguracoes.armazenamento);
+    if (oldStorage !== newStorage) {
+      rows.push({ asset_id: assetId, campo: "configuracoes.armazenamento", valor_anterior: oldStorage, valor_novo: newStorage, observacao: "Sincronização Datto RMM" });
+    }
+  }
+
+  if (rows.length > 0) {
+    await supabase.from("asset_changelog").insert(rows);
+  }
+  return rows.length;
+}
+
 // ── Main handler ──
 
 Deno.serve(async (req) => {
