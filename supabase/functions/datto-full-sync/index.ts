@@ -262,9 +262,25 @@ const TRACKED_CONFIG_KEYS = [
   "fabricante_sistema", "modelo_sistema",
 ];
 
-function stringifyValue(val: unknown): string | null {
+function sortedStringify(val: unknown): string | null {
   if (val === undefined || val === null) return null;
-  if (typeof val === "object") return JSON.stringify(val);
+  if (typeof val === "object") return JSON.stringify(val, Object.keys(val as any).sort());
+  return String(val);
+}
+
+function normalizedStringify(val: unknown): string | null {
+  if (val === undefined || val === null) return null;
+  if (Array.isArray(val)) {
+    return JSON.stringify(val.map((item: any) => {
+      if (typeof item === "object" && item !== null) {
+        const sorted: Record<string, unknown> = {};
+        for (const k of Object.keys(item).sort()) sorted[k] = item[k];
+        return sorted;
+      }
+      return item;
+    }));
+  }
+  if (typeof val === "object") return JSON.stringify(val, Object.keys(val as any).sort());
   return String(val);
 }
 
