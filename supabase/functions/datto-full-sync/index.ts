@@ -253,7 +253,7 @@ function buildConfiguracoes(detail: any): Record<string, unknown> {
 
 // ── Changelog helpers ──
 
-const TRACKED_DIRECT_FIELDS = ["fabricante", "modelo", "numero_serie", "sistema_operacional", "tipo"];
+const TRACKED_DIRECT_FIELDS = ["nome", "fabricante", "modelo", "numero_serie", "sistema_operacional", "tipo"];
 const TRACKED_CONFIG_KEYS = [
   "processador", "processador_cores", "processador_threads", "processador_ghz",
   "memoria_ram_gb", "memoria_ram_slots", "memoria_ram_tipo",
