@@ -477,6 +477,11 @@ Deno.serve(async (req) => {
           updated_at: now,
           ...(siteId ? { datto_site_id: siteId } : {}),
         };
+        // Update hostname if changed in Datto
+        if (hostname && hostname !== "Sem nome" && hostname !== existingAsset.nome) {
+          updateData.nome = hostname;
+          console.log(`[FullSync] Renomeando "${existingAsset.nome}" → "${hostname}"`);
+        }
         if (Object.keys(configuracoes).length > 0) updateData.configuracoes = configuracoes;
         if (os) updateData.sistema_operacional = String(os);
         if (serial) updateData.numero_serie = String(serial);
