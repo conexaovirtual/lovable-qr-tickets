@@ -506,6 +506,7 @@ Deno.serve(async (req) => {
 
         // Log hardware changes to asset_changelog before updating
         const directFieldsForLog: Record<string, unknown> = {};
+        if (updateData.nome) directFieldsForLog.nome = updateData.nome;
         if (os) directFieldsForLog.sistema_operacional = String(os);
         if (serial) directFieldsForLog.numero_serie = String(serial);
         if (fabricante) directFieldsForLog.fabricante = String(fabricante);
