@@ -253,7 +253,7 @@ function buildConfiguracoes(detail: any): Record<string, unknown> {
 
 // ── Changelog helpers ──
 
-const TRACKED_DIRECT_FIELDS = ["fabricante", "modelo", "numero_serie", "sistema_operacional", "tipo"];
+const TRACKED_DIRECT_FIELDS = ["nome", "fabricante", "modelo", "numero_serie", "sistema_operacional", "tipo"];
 const TRACKED_CONFIG_KEYS = [
   "processador", "processador_cores", "processador_threads", "processador_ghz",
   "memoria_ram_gb", "memoria_ram_slots", "memoria_ram_tipo",
@@ -366,7 +366,7 @@ Deno.serve(async (req) => {
 
     const { data: existingAssets } = await supabase
       .from("assets")
-      .select("id, datto_device_uid, datto_device_id, company_id, fabricante, modelo, numero_serie, sistema_operacional, tipo, configuracoes")
+      .select("id, nome, datto_device_uid, datto_device_id, company_id, fabricante, modelo, numero_serie, sistema_operacional, tipo, configuracoes")
       .or("datto_device_id.not.is.null,datto_device_uid.not.is.null");
 
     const assetByUid = new Map<string, any>();
@@ -477,6 +477,11 @@ Deno.serve(async (req) => {
           updated_at: now,
           ...(siteId ? { datto_site_id: siteId } : {}),
         };
+        // Update hostname if changed in Datto
+        if (hostname && hostname !== "Sem nome" && hostname !== existingAsset.nome) {
+          updateData.nome = hostname;
+          console.log(`[FullSync] Renomeando "${existingAsset.nome}" → "${hostname}"`);
+        }
         if (Object.keys(configuracoes).length > 0) updateData.configuracoes = configuracoes;
         if (os) updateData.sistema_operacional = String(os);
         if (serial) updateData.numero_serie = String(serial);
@@ -501,6 +506,7 @@ Deno.serve(async (req) => {
 
         // Log hardware changes to asset_changelog before updating
         const directFieldsForLog: Record<string, unknown> = {};
+        if (updateData.nome) directFieldsForLog.nome = updateData.nome;
         if (os) directFieldsForLog.sistema_operacional = String(os);
         if (serial) directFieldsForLog.numero_serie = String(serial);
         if (fabricante) directFieldsForLog.fabricante = String(fabricante);
