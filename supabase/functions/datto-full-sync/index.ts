@@ -366,7 +366,7 @@ Deno.serve(async (req) => {
 
     const { data: existingAssets } = await supabase
       .from("assets")
-      .select("id, datto_device_uid, datto_device_id, company_id, fabricante, modelo, numero_serie, sistema_operacional, tipo, configuracoes")
+      .select("id, nome, datto_device_uid, datto_device_id, company_id, fabricante, modelo, numero_serie, sistema_operacional, tipo, configuracoes")
       .or("datto_device_id.not.is.null,datto_device_uid.not.is.null");
 
     const assetByUid = new Map<string, any>();
