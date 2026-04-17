@@ -1,0 +1,1 @@
+UPDATE public.waba_conversations SET ai_enabled = true WHERE ai_enabled = false;
