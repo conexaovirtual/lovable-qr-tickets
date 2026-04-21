@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -9,101 +9,55 @@ export interface UserProfile {
   telefone: string | null;
   company_id: string | null;
   avatar_url: string | null;
-  phone_visibility?: 'everyone' | 'managers_only' | 'private'; // Phase 3: Privacy enhancement
-  roles: string[]; // Primary roles from user_roles table (SECURITY: Separate table prevents privilege escalation)
+  phone_visibility?: 'everyone' | 'managers_only' | 'private';
+  roles: string[];
 }
 
-export function useAuth() {
+interface AuthContextValue {
+  user: User | null;
+  session: Session | null;
+  profile: UserProfile | null;
+  loading: boolean;
+  signOut: () => Promise<void>;
+  isAuthenticated: boolean;
+  hasRole: (role: string) => boolean;
+  isAdmin: () => boolean;
+}
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Set up auth state listener FIRST (non-async to prevent deadlock)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Defer Supabase calls with setTimeout to prevent deadlock
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserProfile(session.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
-          setLoading(false);
-        }
-      }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = useCallback(async (userId: string) => {
     try {
-      if (import.meta.env.DEV) {
-        console.log('[useAuth] Fetching profile for user:', userId);
-      }
-      
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
-      
-      if (import.meta.env.DEV) {
-        console.log('[useAuth] Profile data:', profileData);
-        console.log('[useAuth] Profile error:', profileError);
-      }
-      
+
       if (profileError) throw profileError;
-      
-      // Fetch roles from user_roles table (SECURITY: Using separate table to prevent privilege escalation)
-      if (import.meta.env.DEV) {
-        console.log('[useAuth] Fetching roles for user:', userId);
-      }
+
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId);
-      
-      if (import.meta.env.DEV) {
-        console.log('[useAuth] Roles data:', rolesData);
-        console.log('[useAuth] Roles error:', rolesError);
-      }
-      
+
       if (rolesError && rolesError.code !== 'PGRST116') {
         console.error('[useAuth] Error fetching roles:', rolesError);
       }
-      
+
       if (profileData) {
-        const userProfile = {
+        setProfile({
           ...profileData,
-          roles: rolesData?.map(r => r.role) || []
-        };
-        if (import.meta.env.DEV) {
-          console.log('[useAuth] Setting profile:', userProfile);
-        }
-        setProfile(userProfile);
+          roles: rolesData?.map((r) => r.role) || [],
+        });
       } else {
-        if (import.meta.env.DEV) {
-          console.warn('[useAuth] No profile data found for user:', userId);
-        }
         setProfile(null);
       }
     } catch (error) {
@@ -112,29 +66,73 @@ export function useAuth() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+
+      // Defer Supabase calls to prevent deadlock
+      if (newSession?.user) {
+        setTimeout(() => {
+          fetchUserProfile(newSession.user.id);
+        }, 0);
+      } else {
+        setProfile(null);
+        setLoading(false);
+      }
+    });
+
+    // THEN check existing session
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
+
+      if (existingSession?.user) {
+        fetchUserProfile(existingSession.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [fetchUserProfile]);
+
+  const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     navigate('/auth');
-  };
+  }, [navigate]);
 
-  const hasRole = (role: string): boolean => {
-    return profile?.roles?.includes(role) || false;
-  };
+  const hasRole = useCallback(
+    (role: string): boolean => profile?.roles?.includes(role) || false,
+    [profile?.roles]
+  );
 
-  const isAdmin = (): boolean => {
-    return hasRole('admin_provedor');
-  };
+  const isAdmin = useCallback((): boolean => hasRole('admin_provedor'), [hasRole]);
 
-  return {
-    user,
-    session,
-    profile,
-    loading,
-    signOut,
-    isAuthenticated: !!user,
-    hasRole,
-    isAdmin,
-  };
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      session,
+      profile,
+      loading,
+      signOut,
+      isAuthenticated: !!user,
+      hasRole,
+      isAdmin,
+    }),
+    [user, session, profile, loading, signOut, hasRole, isAdmin]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return ctx;
 }
