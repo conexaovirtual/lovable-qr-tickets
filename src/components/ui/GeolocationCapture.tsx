@@ -16,9 +16,12 @@ function StaticMapPreview({ latitude, longitude }: { latitude: number; longitude
   const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.003},${latitude - 0.002},${longitude + 0.003},${latitude + 0.002}&layer=mapnik&marker=${latitude},${longitude}`;
   const linkUrl = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=${zoom}/${latitude}/${longitude}`;
 
+  const mapKey = `${latitude.toFixed(5)}-${longitude.toFixed(5)}`;
+
   return (
     <div className="relative rounded-md overflow-hidden border bg-muted">
       <iframe
+        key={mapKey}
         title="Localização GPS"
         src={mapUrl}
         className="w-full h-[120px] pointer-events-none"
