@@ -64,7 +64,7 @@ export default function Dashboard() {
     } else if (profile) {
       loadDashboardData();
     }
-  }, [profile, authLoading, navigate]);
+  }, [profile?.id, authLoading, navigate]);
 
   const loadDashboardData = async () => {
     setLoading(true);
