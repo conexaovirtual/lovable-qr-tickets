@@ -1,51 +1,53 @@
 
 
-## Plano: Restringir envio do PIX (CNPJ) apenas a pedidos explícitos
+## Plano: Resolver lentidão geral do sistema (causa raiz: `useAuth` duplicado em todo o app)
 
 ### Diagnóstico
-Hoje o prompt do agente (`supabase/functions/waba-ai-agent/index.ts`) instrui a IA a fornecer o CNPJ `06.906.723/0001-30` como chave PIX sempre que o assunto "PIX" aparece. Como a regra é frouxa, qualquer menção casual à palavra "pix" (ex.: *"o pix não caiu lá"*, *"tem outra forma além do pix?"*, *"meu banco do pix tá fora"*) dispara o envio do CNPJ — expondo o documento da empresa indevidamente.
+Os logs do console mostram o `useAuth` rodando **10+ vezes em poucos segundos** apenas para abrir o Dashboard. A razão: o hook é importado em **34 arquivos** e em uma página típica é instanciado por **6 a 10 componentes simultaneamente** (AppLayout, AppSidebar, AppHeader, Dashboard, SmartAlertsPanel, DattoMonitoringPanel, etc.).
 
-### Estratégia
+Cada instância do hook:
+- Cria seu próprio listener `onAuthStateChange` no Supabase
+- Chama `supabase.auth.getSession()` independentemente
+- Executa **2 queries** ao banco (`profiles` + `user_roles`) — totalizando dezenas de queries redundantes a cada navegação
+- Mantém seu próprio `useState`, disparando re-renders em cascata
 
-Endurecer a regra do PIX no system prompt para que o CNPJ só seja enviado quando o cliente fizer um **pedido explícito e direto** da chave/dados de pagamento.
+Resultado: o app fica lento, "trava" no carregamento, e cada clique dispara nova rodada de fetches. Isso também explica re-renders excessivos do Dashboard (que chama o `loadDashboardData` toda vez que `profile` muda de referência).
 
-**Critérios para liberar o envio do CNPJ (todos do tipo "pedido direto"):**
-- *"Me passa o pix"*, *"qual o pix de vocês?"*, *"manda a chave pix"*, *"qual a chave pix da empresa?"*
-- *"Como faço pra pagar?"*, *"quero pagar via pix"*, *"me envia os dados pra pagamento"*
-- *"Qual o CNPJ pra transferir?"*
+### Estratégia: transformar `useAuth` em um Context global
 
-**Casos onde a IA NÃO deve enviar o CNPJ (mesmo com a palavra "pix" presente):**
-- Menções casuais: *"o pix não caiu"*, *"o pix tá fora do ar"*, *"recebi um pix estranho"*
-- Perguntas sobre métodos: *"vocês aceitam pix?"* → responder "sim, aceitamos" SEM enviar o CNPJ; só enviar se o cliente pedir em seguida
-- Conversas sem relação clara com pagamento ao prestador
+Em vez de cada componente buscar o profile sozinho, **um único Provider** mantém o estado de autenticação no topo da árvore e todos os componentes consomem via `useContext`. Resultado: **1 listener, 1 fetch de profile, 1 fetch de roles** — para o app inteiro.
 
-**Comportamento padrão quando houver dúvida:**
-A IA deve **confirmar a intenção** antes de enviar: *"Você quer fazer um pagamento pra gente? Posso te passar a chave."* — só envia depois do "sim".
+### Mudanças
 
-### Arquivo a alterar
+**1. `src/hooks/useAuth.tsx` — transformar em Context Provider**
+- Criar `AuthContext` com `createContext`
+- Criar `AuthProvider` que contém toda a lógica atual (listener, fetchUserProfile, signOut, etc.) — executada **uma única vez**
+- O hook `useAuth()` passa a ser apenas `useContext(AuthContext)` — não cria mais estado nem dispara fetches
+- Memorizar o objeto de retorno com `useMemo` para evitar re-renders desnecessários
+- Remover os `console.log` de debug (eles disparam a cada render também)
 
-**`supabase/functions/waba-ai-agent/index.ts`** — na seção do `buildSystemPrompt` que trata de PIX/pagamento, substituir a regra atual por um bloco mais rigoroso:
+**2. `src/App.tsx` — envolver o app com `<AuthProvider>`**
+- Mover `<AuthProvider>` para dentro do `<BrowserRouter>` (porque `useAuth` usa `useNavigate`)
+- Envolver `<Routes>` para que rotas públicas e privadas tenham acesso
 
-```
-💰 REGRA CRÍTICA — CHAVE PIX / CNPJ
-- A chave PIX da empresa é o CNPJ 06.906.723/0001-30 (Conexão Virtual).
-- SÓ envie o CNPJ quando o cliente PEDIR EXPLICITAMENTE a chave PIX ou dados pra pagamento.
-  Exemplos válidos: "me passa o pix", "qual a chave pix?", "como faço pra pagar?", "me envia os dados pra transferir".
-- NUNCA envie o CNPJ se a palavra "pix" aparecer em outro contexto:
-  - "o pix não caiu" → é problema técnico do cliente, NÃO mande o CNPJ
-  - "vocês aceitam pix?" → responda só "sim, aceitamos" e pergunte se quer os dados
-  - menções genéricas a pix em conversa → ignore
-- Em caso de dúvida, confirme antes: "Você quer fazer um pagamento? Posso te passar a chave."
-- O CNPJ é dado sensível da empresa — proteja como tal.
-```
+**3. Sem mudanças** nos 34 arquivos consumidores — a API do hook (`useAuth()` retornando `{ user, profile, loading, signOut, hasRole, isAdmin, ... }`) permanece idêntica. Eles só passam a consumir do contexto compartilhado.
 
-### Memória a atualizar
+**4. Pequena otimização extra no `Dashboard.tsx`**
+- O `useEffect` depende de `profile` (objeto), o que pode disparar reloads desnecessários. Trocar a dependência para `profile?.id` (string estável). Sem isso, a cada vez que `profile` é setado o Dashboard recarrega TODAS as 13 queries em paralelo.
 
-Atualizar `mem://features/whatsapp-ai-pix-payment-rules` — refinar a regra: CNPJ é enviado **somente sob pedido explícito**, com exemplos de gatilhos válidos vs. menções casuais a ignorar.
+### Impacto esperado
+- **Eliminação de ~90% das queries redundantes** ao banco em cada navegação (de ~26 para ~2 fetches do auth na carga inicial).
+- **App responsivo**, sem travamentos ao trocar de página, abrir sidebar ou clicar em diálogos.
+- **Menor consumo do plano Lovable Cloud** (menos requests à database).
+- **Sem mudanças visuais** — apenas correção de arquitetura interna.
 
 ### Detalhes técnicos
+- Manter compatibilidade total da API atual do hook (`profile`, `loading`, `hasRole`, `isAdmin`, `signOut`, `isAuthenticated`, `user`, `session`).
+- Preservar a lógica de `setTimeout(0)` para evitar deadlock do Supabase no `onAuthStateChange`.
+- Memorizar `hasRole` e `isAdmin` com `useCallback` para que componentes que dependem dessas funções não re-renderizem à toa.
+- Nenhuma mudança em RLS, edge functions, banco de dados, ou outras telas.
+- Nenhuma mudança em dependências (sem novos pacotes).
 
-- Apenas edição de texto do system prompt.
-- Sem mudanças em ferramentas, schema, banco, edge functions adicionais ou frontend.
-- Após editar, a função `waba-ai-agent` precisa ser redesployada (automático no Lovable).
+### Após aplicar
+Recarregar a aba (Ctrl+Shift+R) uma vez para limpar o estado anterior. Os logs do console devem mostrar apenas **1** `Fetching profile` por sessão, não dezenas.
 
