@@ -199,9 +199,28 @@ export function DattoMonitoringPanel() {
     localStorage.removeItem(CALLBACK_RESULT_KEY);
 
     try {
+      // Validar sessão antes de chamar a edge function — JWT pode estar stale após refactors
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session?.access_token) {
+        toast.error('Sessão inválida. Faça logout e login novamente para continuar.');
+        return;
+      }
+      // Tenta refrescar o token para garantir que o claim "sub" esteja presente
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        toast.error('Sua sessão expirou. Faça logout e login novamente.');
+        return;
+      }
+
       const redirectUri = `${window.location.origin}/datto-callback`;
       const { data, error } = await supabase.functions.invoke('datto-oauth-start', { body: { redirect_uri: redirectUri } });
-      if (error) throw new Error(error.message || 'Erro ao iniciar autorização');
+      if (error) {
+        const msg = (error.message || '').toLowerCase();
+        if (msg.includes('autorizado') || msg.includes('claim') || msg.includes('jwt')) {
+          throw new Error('Sessão inválida — faça logout e login novamente, depois tente autorizar.');
+        }
+        throw new Error(error.message || 'Erro ao iniciar autorização');
+      }
       if (!data?.authorize_url) throw new Error('URL de autorização não retornada');
       const popup = window.open(data.authorize_url, 'datto-oauth', 'width=600,height=700,menubar=no,toolbar=no,location=yes');
       if (!popup) toast.error('Popup bloqueado! Permita popups para este site.');
