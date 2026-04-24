@@ -1,53 +1,72 @@
+## Objetivo
 
+Ajustar o agente de IA do WhatsApp (`waba-ai-agent`) para ser **mais direto e objetivo**, parando de "conversar demais" com clientes. Explicações longas só quando o cliente pedir explicitamente por ajuda ou explicação.
 
-## Plano: Resolver lentidão geral do sistema (causa raiz: `useAuth` duplicado em todo o app)
+## Diagnóstico
 
-### Diagnóstico
-Os logs do console mostram o `useAuth` rodando **10+ vezes em poucos segundos** apenas para abrir o Dashboard. A razão: o hook é importado em **34 arquivos** e em uma página típica é instanciado por **6 a 10 componentes simultaneamente** (AppLayout, AppSidebar, AppHeader, Dashboard, SmartAlertsPanel, DattoMonitoringPanel, etc.).
+O prompt atual em `supabase/functions/waba-ai-agent/index.ts` (linhas ~505-568) incentiva ativamente comportamentos que os clientes estão reclamando:
 
-Cada instância do hook:
-- Cria seu próprio listener `onAuthStateChange` no Supabase
-- Chama `supabase.auth.getSession()` independentemente
-- Executa **2 queries** ao banco (`profiles` + `user_roles`) — totalizando dezenas de queries redundantes a cada navegação
-- Mantém seu próprio `useState`, disparando re-renders em cascata
+- Empatia obrigatória antes de cada ação ("Que chato isso 😕", "Pô, entendo...")
+- Frases de transição humanizadas ("Deixa eu ver aqui...", "Boa pergunta")
+- Demonstrar interesse genuíno ("Conta mais", "Como assim?")
+- Confirmações intermediárias ("Show, anotei!", "Perfeito.", "Boa.")
+- Variar aberturas com saudações calorosas
+- Empatia + ação em duas frases sempre que "fizer sentido"
+- Quebrar info em 2 mensagens curtas
+- Permissão ampla de emojis e gírias
 
-Resultado: o app fica lento, "trava" no carregamento, e cada clique dispara nova rodada de fetches. Isso também explica re-renders excessivos do Dashboard (que chama o `loadDashboardData` toda vez que `profile` muda de referência).
+Isso somado faz a IA enviar muitas mensagens curtas e "conversa fiada" antes de resolver.
 
-### Estratégia: transformar `useAuth` em um Context global
+## Mudanças propostas
 
-Em vez de cada componente buscar o profile sozinho, **um único Provider** mantém o estado de autenticação no topo da árvore e todos os componentes consomem via `useContext`. Resultado: **1 listener, 1 fetch de profile, 1 fetch de roles** — para o app inteiro.
+Reescrever as seções **🎭 Identidade e Tom**, **🤝 Rapport e Empatia**, **📏 Formato das Respostas** e **🎯 Primeira Interação** do prompt do sistema com novas diretrizes:
 
-### Mudanças
+### Novo princípio central
+> "Resolva, não converse. Cada mensagem deve mover o atendimento adiante. Sem floreios, sem confirmações vazias, sem empatia performática."
 
-**1. `src/hooks/useAuth.tsx` — transformar em Context Provider**
-- Criar `AuthContext` com `createContext`
-- Criar `AuthProvider` que contém toda a lógica atual (listener, fetchUserProfile, signOut, etc.) — executada **uma única vez**
-- O hook `useAuth()` passa a ser apenas `useContext(AuthContext)` — não cria mais estado nem dispara fetches
-- Memorizar o objeto de retorno com `useMemo` para evitar re-renders desnecessários
-- Remover os `console.log` de debug (eles disparam a cada render também)
+### Regras de objetividade
+- **1 mensagem por turno**, não 2. Sem mensagens de confirmação separadas ("Show!" + pergunta).
+- **Tipicamente 1 frase**, máximo 2 quando indispensável. Eliminado o "1-3 frases".
+- **Não reconhecer emocionalmente** o problema antes da ação — vai direto à pergunta técnica ou à execução da ferramenta.
+- **Sem frases de transição** ("Deixa eu ver aqui", "Só um instante", "Boa pergunta").
+- **Sem confirmações intermediárias** ("Anotei!", "Perfeito.", "Boa.") — exceto quando é a resposta final de um fluxo concluído.
+- **Sem perguntas abertas de interesse** ("Conta mais", "Como assim?") — pergunte algo específico ou execute a ferramenta.
+- **Emojis raros**: no máximo em saudação inicial e confirmação final. Nunca no meio do atendimento.
+- **Gírias minimizadas**: tom profissional cordial, não "colega de bar". Mantém português natural mas enxuto.
 
-**2. `src/App.tsx` — envolver o app com `<AuthProvider>`**
-- Mover `<AuthProvider>` para dentro do `<BrowserRouter>` (porque `useAuth` usa `useNavigate`)
-- Envolver `<Routes>` para que rotas públicas e privadas tenham acesso
+### Quando explicar
+Explicações detalhadas, passo a passo, ou textos longos **somente quando**:
+1. O cliente pedir explicitamente ("como faço?", "me explica", "não entendi", "pode detalhar?")
+2. O cliente pedir ajuda para resolver algo ele mesmo
+3. For necessário para o cliente decidir entre opções
 
-**3. Sem mudanças** nos 34 arquivos consumidores — a API do hook (`useAuth()` retornando `{ user, profile, loading, signOut, hasRole, isAdmin, ... }`) permanece idêntica. Eles só passam a consumir do contexto compartilhado.
+Caso contrário: a IA pergunta o mínimo necessário, executa a ferramenta, confirma com 1 frase.
 
-**4. Pequena otimização extra no `Dashboard.tsx`**
-- O `useEffect` depende de `profile` (objeto), o que pode disparar reloads desnecessários. Trocar a dependência para `profile?.id` (string estável). Sem isso, a cada vez que `profile` é setado o Dashboard recarrega TODAS as 13 queries em paralelo.
+### Primeira interação
+- Saudação curta e direta, 1 frase. Ex.: "Oi, [nome]! Como posso ajudar?" / "Olá! Conexão Virtual. Em que posso ajudar?"
+- Sem variações elaboradas ("Tudo bem? Tudo certo? Manda aí o que tá rolando").
 
-### Impacto esperado
-- **Eliminação de ~90% das queries redundantes** ao banco em cada navegação (de ~26 para ~2 fetches do auth na carga inicial).
-- **App responsivo**, sem travamentos ao trocar de página, abrir sidebar ou clicar em diálogos.
-- **Menor consumo do plano Lovable Cloud** (menos requests à database).
-- **Sem mudanças visuais** — apenas correção de arquitetura interna.
+### Empatia (apenas em casos específicos)
+Mantida **só** quando o cliente expressar frustração explícita ou urgência grave — uma frase curta de reconhecimento ("Entendi, vou priorizar.") + ação. Em problemas técnicos comuns, pular direto para a pergunta diagnóstica.
 
-### Detalhes técnicos
-- Manter compatibilidade total da API atual do hook (`profile`, `loading`, `hasRole`, `isAdmin`, `signOut`, `isAuthenticated`, `user`, `session`).
-- Preservar a lógica de `setTimeout(0)` para evitar deadlock do Supabase no `onAuthStateChange`.
-- Memorizar `hasRole` e `isAdmin` com `useCallback` para que componentes que dependem dessas funções não re-renderizem à toa.
-- Nenhuma mudança em RLS, edge functions, banco de dados, ou outras telas.
-- Nenhuma mudança em dependências (sem novos pacotes).
+### Mantido sem alteração
+- Identidade humana (nunca dizer que é IA/bot).
+- Proibição de markdown, bullets, blocos longos.
+- Regras de identificação orgânica (sem menu numérico, sem formulário de cara).
+- Escalonamento imediato via `escalate_to_human`.
+- Toda a lógica de tool-calling, fluxos, capacidades, base de conhecimento.
 
-### Após aplicar
-Recarregar a aba (Ctrl+Shift+R) uma vez para limpar o estado anterior. Os logs do console devem mostrar apenas **1** `Fetching profile` por sessão, não dezenas.
+## Arquivos afetados
 
+- `supabase/functions/waba-ai-agent/index.ts` — substituir blocos do prompt entre linhas ~505-568.
+- `mem://features/whatsapp-ai-agent-identity-and-style` — atualizar memória para refletir o novo tom objetivo (substituindo a diretriz de empatia obrigatória e formato 1-3 frases).
+
+## Riscos / considerações
+
+- Risco de soar **frio demais**. Mitigação: manter saudação cordial e cordialidade básica em respostas de fechamento, só cortar o "enchimento" do meio do atendimento.
+- Mudança afeta **todos os clientes ativos no WhatsApp** imediatamente após o deploy da edge function.
+- Não altera comportamento de tool-calling, agendamento, escalonamento ou identificação — só o estilo textual.
+
+## Validação após implementação
+
+Acompanhar 5-10 conversas reais nas próximas horas via painel WhatsApp para confirmar se o tom ficou no ponto certo (objetivo sem ser ríspido). Se necessário, calibrar mais.
