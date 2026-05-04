@@ -277,8 +277,13 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
 
   console.log(`Message saved from ${phoneNumber}: ${content.substring(0, 80)}`);
 
+  // Global AI kill-switch: set WABA_AI_DISABLED=true in secrets to fully disable AI replies
+  const aiGloballyDisabled = (Deno.env.get("WABA_AI_DISABLED") || "").toLowerCase() === "true";
   // Trigger AI Agent for text and audio messages
-  const shouldTriggerAI = (messageType === "text" && content && content !== "[Mensagem sem texto]") || messageType === "audio";
+  const shouldTriggerAI = !aiGloballyDisabled && ((messageType === "text" && content && content !== "[Mensagem sem texto]") || messageType === "audio");
+  if (aiGloballyDisabled) {
+    console.log("AI globally disabled via WABA_AI_DISABLED — skipping AI agent invocation");
+  }
   if (shouldTriggerAI) {
     try {
       const aiResponse = await fetch(
