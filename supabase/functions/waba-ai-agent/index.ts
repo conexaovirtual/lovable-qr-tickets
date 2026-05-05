@@ -502,6 +502,13 @@ ${historyText || "  Nenhum chamado anterior para este ativo."}
     ? "Estamos em HORÁRIO COMERCIAL (seg-sex 08:00-18:00 BRT). A equipe está disponível."
     : `Estamos FORA DO HORÁRIO COMERCIAL (agora são ${String(brtHour).padStart(2, "0")}:${String(now.getUTCMinutes()).padStart(2, "0")} BRT). Nosso horário é seg-sex 08:00-18:00. Registre o chamado normalmente, mas informe que o retorno da equipe será no próximo dia útil.`;
 
+  // Saudação por horário (BRT)
+  const greetingByHour = brtHour >= 5 && brtHour < 12
+    ? "Bom dia"
+    : brtHour >= 12 && brtHour < 18
+      ? "Boa tarde"
+      : "Boa noite";
+
   return `Você é um membro da equipe de suporte da Conexão Virtual conversando por WhatsApp. Responda SEMPRE em português brasileiro.
 
 ═══════════════════════════════════════

@@ -1,72 +1,55 @@
-## Objetivo
-
-Ajustar o agente de IA do WhatsApp (`waba-ai-agent`) para ser **mais direto e objetivo**, parando de "conversar demais" com clientes. Explicações longas só quando o cliente pedir explicitamente por ajuda ou explicação.
-
 ## Diagnóstico
 
-O prompt atual em `supabase/functions/waba-ai-agent/index.ts` (linhas ~505-568) incentiva ativamente comportamentos que os clientes estão reclamando:
+Hoje o agente (`waba-ai-agent/index.ts`, linhas ~505-577) está no extremo "RESOLVA, NÃO CONVERSE" — foi calibrado contra reclamações de "fala demais". O efeito colateral é justamente o que você quer corrigir agora: clientes sentindo que estão falando com IA fria/robotizada e rejeitando.
 
-- Empatia obrigatória antes de cada ação ("Que chato isso 😕", "Pô, entendo...")
-- Frases de transição humanizadas ("Deixa eu ver aqui...", "Boa pergunta")
-- Demonstrar interesse genuíno ("Conta mais", "Como assim?")
-- Confirmações intermediárias ("Show, anotei!", "Perfeito.", "Boa.")
-- Variar aberturas com saudações calorosas
-- Empatia + ação em duas frases sempre que "fizer sentido"
-- Quebrar info em 2 mensagens curtas
-- Permissão ampla de emojis e gírias
+Suas respostas indicam: **direto mas caloroso**, saudações com **"Bom dia/Boa tarde, [nome]!"**, sem bordões fixos, manter objetividade mas remover a secura.
 
-Isso somado faz a IA enviar muitas mensagens curtas e "conversa fiada" antes de resolver.
+## Mudanças no prompt do sistema
 
-## Mudanças propostas
-
-Reescrever as seções **🎭 Identidade e Tom**, **🤝 Rapport e Empatia**, **📏 Formato das Respostas** e **🎯 Primeira Interação** do prompt do sistema com novas diretrizes:
+Reescrever as seções **🎯 PRINCÍPIO CENTRAL**, **🎭 IDENTIDADE**, **📏 FORMATO**, **🤝 EMPATIA** e **🎯 PRIMEIRA INTERAÇÃO** com novo equilíbrio:
 
 ### Novo princípio central
-> "Resolva, não converse. Cada mensagem deve mover o atendimento adiante. Sem floreios, sem confirmações vazias, sem empatia performática."
+> "Atenda como um técnico humano e cordial. Resolva com agilidade, mas sem soar robotizado. Calor humano na abertura e no fechamento, objetividade no meio do atendimento."
 
-### Regras de objetividade
-- **1 mensagem por turno**, não 2. Sem mensagens de confirmação separadas ("Show!" + pergunta).
-- **Tipicamente 1 frase**, máximo 2 quando indispensável. Eliminado o "1-3 frases".
-- **Não reconhecer emocionalmente** o problema antes da ação — vai direto à pergunta técnica ou à execução da ferramenta.
-- **Sem frases de transição** ("Deixa eu ver aqui", "Só um instante", "Boa pergunta").
-- **Sem confirmações intermediárias** ("Anotei!", "Perfeito.", "Boa.") — exceto quando é a resposta final de um fluxo concluído.
-- **Sem perguntas abertas de interesse** ("Conta mais", "Como assim?") — pergunte algo específico ou execute a ferramenta.
-- **Emojis raros**: no máximo em saudação inicial e confirmação final. Nunca no meio do atendimento.
-- **Gírias minimizadas**: tom profissional cordial, não "colega de bar". Mantém português natural mas enxuto.
+### Identidade / tom
+- "Direto mas caloroso": ágil sem ser rude. Pode reconhecer o cliente brevemente antes de agir quando faz sentido.
+- Manter proibição de se identificar como IA/bot.
+- Português brasileiro natural. Cordialidade discreta permitida ("claro", "com certeza", "perfeito") — sem virar bordão repetido.
 
-### Quando explicar
-Explicações detalhadas, passo a passo, ou textos longos **somente quando**:
-1. O cliente pedir explicitamente ("como faço?", "me explica", "não entendi", "pode detalhar?")
-2. O cliente pedir ajuda para resolver algo ele mesmo
-3. For necessário para o cliente decidir entre opções
+### Formato (afrouxar com limite)
+- **1 a 2 frases por mensagem** (subindo de "tipicamente 1"). 3 frases só quando o conteúdo exigir.
+- Continua **1 mensagem por turno** (sem quebrar em duas).
+- Permitir **1 reconhecimento curto** antes da pergunta diagnóstica quando o cliente relata problema ("Entendi, deixa eu verificar." + ação na mesma frase, OU pergunta técnica direta com tom cordial).
+- Remover proibições absolutas tipo "PROIBIDO 'Entendi'" — passa a ser "use com moderação, não toda mensagem".
+- Emojis: 1 emoji opcional na saudação inicial e/ou fechamento. Ainda raros no meio.
+- Manter proibição de markdown, bullets, blocos longos.
 
-Caso contrário: a IA pergunta o mínimo necessário, executa a ferramenta, confirma com 1 frase.
+### Saudação (alinhada ao seu estilo)
+Substituir "Oi, [nome]! Como posso ajudar?" por padrão **sensível ao horário** (BRT já é calculada no prompt):
+- 05h–11h59: "Bom dia, [nome]! Como posso ajudar?"
+- 12h–17h59: "Boa tarde, [nome]! Como posso ajudar?"
+- 18h–04h59: "Boa noite, [nome]! Como posso ajudar?"
 
-### Primeira interação
-- Saudação curta e direta, 1 frase. Ex.: "Oi, [nome]! Como posso ajudar?" / "Olá! Conexão Virtual. Em que posso ajudar?"
-- Sem variações elaboradas ("Tudo bem? Tudo certo? Manda aí o que tá rolando").
+Para não-identificado: "Bom dia/Boa tarde! Aqui é da Conexão Virtual, em que posso ajudar?"
 
-### Empatia (apenas em casos específicos)
-Mantida **só** quando o cliente expressar frustração explícita ou urgência grave — uma frase curta de reconhecimento ("Entendi, vou priorizar.") + ação. Em problemas técnicos comuns, pular direto para a pergunta diagnóstica.
+### Empatia
+- Liberar reconhecimento curto de problemas (1 frase, sem performance): "Entendi, vamos verificar." / "Tranquilo, já olho aqui." — em vez de pular direto à pergunta técnica.
+- Continuar proibido enchimento performático ("que chato isso 😕", "pô, imagina como você tá se sentindo").
 
 ### Mantido sem alteração
-- Identidade humana (nunca dizer que é IA/bot).
-- Proibição de markdown, bullets, blocos longos.
-- Regras de identificação orgânica (sem menu numérico, sem formulário de cara).
-- Escalonamento imediato via `escalate_to_human`.
-- Toda a lógica de tool-calling, fluxos, capacidades, base de conhecimento.
+- Tool-calling, fluxos, identificação orgânica, escalonamento, base de conhecimento, regras de PIX, identificação humana.
 
 ## Arquivos afetados
 
-- `supabase/functions/waba-ai-agent/index.ts` — substituir blocos do prompt entre linhas ~505-568.
-- `mem://features/whatsapp-ai-agent-identity-and-style` — atualizar memória para refletir o novo tom objetivo (substituindo a diretriz de empatia obrigatória e formato 1-3 frases).
+- `supabase/functions/waba-ai-agent/index.ts` — substituir blocos do prompt entre linhas ~505-577.
+- `mem://features/whatsapp-ai-agent-identity-and-style` — atualizar memória para refletir o novo equilíbrio (humano-cordial, saudação por horário, 1-2 frases).
 
 ## Riscos / considerações
 
-- Risco de soar **frio demais**. Mitigação: manter saudação cordial e cordialidade básica em respostas de fechamento, só cortar o "enchimento" do meio do atendimento.
-- Mudança afeta **todos os clientes ativos no WhatsApp** imediatamente após o deploy da edge function.
-- Não altera comportamento de tool-calling, agendamento, escalonamento ou identificação — só o estilo textual.
+- Risco oposto ao anterior: voltar a soar prolixo. Mitigação: manter o teto de 2 frases e proibição de quebrar mensagem.
+- Saudação por horário aumenta percepção de atendimento humano com baixíssimo custo de prompt.
+- Mudança afeta todos os clientes ativos imediatamente após deploy.
 
-## Validação após implementação
+## Validação
 
-Acompanhar 5-10 conversas reais nas próximas horas via painel WhatsApp para confirmar se o tom ficou no ponto certo (objetivo sem ser ríspido). Se necessário, calibrar mais.
+Acompanhar 5-10 conversas reais nas primeiras horas. Se ainda parecer frio, próximo passo seria liberar 2 mensagens por turno (1 reconhecimento + 1 pergunta) — mas só fazemos isso depois de medir.
