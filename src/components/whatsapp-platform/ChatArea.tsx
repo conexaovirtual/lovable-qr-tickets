@@ -107,7 +107,63 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
     }
   };
 
-  const toggleAI = async (enabled: boolean) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !conversation) return;
+    if (file.size > 16 * 1024 * 1024) {
+      toast.error("Arquivo muito grande (máx. 16MB)");
+      e.target.value = "";
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `${conversation.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("waba-attachments")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("waba-attachments").getPublicUrl(path);
+
+      const mediaType = file.type.startsWith("image/")
+        ? "image"
+        : file.type.startsWith("video/")
+        ? "video"
+        : file.type.startsWith("audio/")
+        ? "audio"
+        : "document";
+
+      const { error } = await supabase.functions.invoke("waba-send", {
+        body: {
+          action: "send_media",
+          phone: conversation.phone_number,
+          media_url: pub.publicUrl,
+          filename: file.name,
+          caption: newMessage || "",
+          media_type: mediaType,
+          conversation_id: conversation.id,
+        },
+      });
+      if (error) throw error;
+      setNewMessage("");
+      if (conversation.ai_enabled) {
+        await supabase
+          .from("waba_conversations")
+          .update({ ai_enabled: false })
+          .eq("id", conversation.id);
+        toast.success("Anexo enviado — IA desativada");
+      } else {
+        toast.success("Anexo enviado");
+      }
+    } catch (err: any) {
+      toast.error("Erro ao enviar anexo: " + (err.message || ""));
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+
     if (!conversation) return;
     const { error } = await supabase
       .from("waba_conversations")
