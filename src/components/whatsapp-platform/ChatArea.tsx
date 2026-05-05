@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Send, Bot, UserRound, Phone, CheckCheck, Check, Clock,
   MessageSquare, Info, Ticket, ArrowLeft, AlertTriangle, CheckCircle2,
-  Sparkles, Headphones, Shield
+  Sparkles, Headphones, Shield, Paperclip, Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
