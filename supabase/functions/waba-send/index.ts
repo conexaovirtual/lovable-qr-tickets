@@ -95,37 +95,26 @@ serve(async (req: Request) => {
       case "send_media": {
         const { phone, media_url, filename, caption, media_type, conversation_id } = params;
 
-        // Try multiple Mabbix payload variants until one is accepted as media
-        const variants = [
-          // Variant A: top-level mediaUrl + fileName
-          { number: phone, openTicket: "0", queueId: "0", body: caption || "", mediaUrl: media_url, fileName: filename || "arquivo" },
-          // Variant B: medias array (legacy)
-          { number: phone, openTicket: "0", queueId: "0", body: caption || "", medias: [{ url: media_url, filename: filename || "arquivo" }] },
-          // Variant C: url + filename
-          { number: phone, openTicket: "0", queueId: "0", body: caption || "", url: media_url, filename: filename || "arquivo" },
-          // Variant D: mediaMessage object
-          { number: phone, openTicket: "0", queueId: "0", body: caption || "", mediaMessage: { url: media_url, fileName: filename || "arquivo", mediaType: media_type || "document" } },
-        ];
+        // Mabbix/Whaticket expects multipart/form-data with binary file in `medias` field
+        const fileResp = await fetch(media_url);
+        if (!fileResp.ok) throw new Error(`Failed to fetch media: ${fileResp.status}`);
+        const contentType = fileResp.headers.get("content-type") || "application/octet-stream";
+        const fileBlob = new Blob([await fileResp.arrayBuffer()], { type: contentType });
 
-        let response: Response | null = null;
-        let result: any = null;
-        let usedVariant = -1;
-        for (let i = 0; i < variants.length; i++) {
-          response = await fetch(`${MABBIX_BACKEND_URL}/api/messages/send`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${MABBIX_CONNECTION_TOKEN}`,
-            },
-            body: JSON.stringify(variants[i]),
-          });
-          result = await response.json();
-          const msg = JSON.stringify(result).toLowerCase();
-          console.log(`Mabbix media variant ${i} response:`, JSON.stringify(result).substring(0, 300));
-          // Stop if response indicates a media-type message was sent (not "TEXTO")
-          if (!msg.includes("texto")) { usedVariant = i; break; }
-        }
-        console.log("Used variant:", usedVariant);
+        const form = new FormData();
+        form.append("number", phone);
+        form.append("openTicket", "0");
+        form.append("queueId", "0");
+        form.append("body", caption || "");
+        form.append("medias", fileBlob, filename || "arquivo");
+
+        const response = await fetch(`${MABBIX_BACKEND_URL}/api/messages/send`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${MABBIX_CONNECTION_TOKEN}` },
+          body: form,
+        });
+        const result = await response.json();
+        console.log("Mabbix media (multipart) response:", JSON.stringify(result).substring(0, 400));
 
         const messageId = result?.id || result?.message?.id || result?.retorno?.id || null;
         await supabase.from("waba_messages").insert({
