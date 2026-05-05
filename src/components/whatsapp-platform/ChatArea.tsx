@@ -163,7 +163,7 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
     }
   };
 
-
+  const toggleAI = async (enabled: boolean) => {
     if (!conversation) return;
     const { error } = await supabase
       .from("waba_conversations")
