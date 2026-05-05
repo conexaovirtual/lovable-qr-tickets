@@ -1686,6 +1686,44 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
               modalidade: slot.modalidade,
             };
             console.log(`Schedule created: OS #${os.numero_os} on ${slot.data} at ${slot.hora_inicio}`);
+
+            // === NOTIFICAR TÉCNICO via WhatsApp sobre novo agendamento criado pela IA ===
+            try {
+              const TECNICO_PHONE_SCHED = "5562999522470";
+              const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
+              const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
+              const schedContactName = context.contact?.contact_name || phone;
+              const schedCompanyName = context.contact?.company?.nome_fantasia || "Não identificada";
+              if (MABBIX_URL && MABBIX_TOKEN) {
+                const schedMsg = `📅 *Novo Agendamento criado pela IA*\n\n` +
+                  `🆔 *OS:* #${os.numero_os}\n` +
+                  `👤 *Cliente:* ${schedContactName}\n` +
+                  `📞 *Telefone:* ${phone}\n` +
+                  `🏢 *Empresa:* ${schedCompanyName}\n\n` +
+                  `📋 *Título:* ${args.titulo}\n` +
+                  `📝 *Descrição:* ${args.descricao}\n\n` +
+                  `🗓️ *Data:* ${slot.data}\n` +
+                  `⏰ *Horário:* ${slot.hora_inicio} - ${slot.hora_fim}\n` +
+                  `🛠️ *Modalidade:* ${slot.modalidade}`;
+
+                await fetch(`${MABBIX_URL}/api/messages/send`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${MABBIX_TOKEN}`,
+                  },
+                  body: JSON.stringify({
+                    number: TECNICO_PHONE_SCHED,
+                    body: schedMsg,
+                    openTicket: "0",
+                    queueId: "0",
+                  }),
+                });
+                console.log(`WhatsApp schedule notification sent to ${TECNICO_PHONE_SCHED}`);
+              }
+            } catch (schedNotifErr) {
+              console.error("Failed to notify technician about new schedule:", schedNotifErr);
+            }
           }
         } catch (schedErr: any) {
           result = { success: false, error: schedErr.message };
