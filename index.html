@@ -20,6 +20,41 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      // Recover from stale chunk errors after a deploy by clearing SW + caches and reloading once.
+      (function () {
+        var KEY = 'lovable:chunk-reloaded';
+        function isChunkError(msg) {
+          if (!msg) return false;
+          msg = String(msg);
+          return msg.indexOf('Importing a module script failed') !== -1 ||
+                 msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
+                 msg.indexOf('error loading dynamically imported module') !== -1;
+        }
+        async function recover() {
+          if (sessionStorage.getItem(KEY)) return;
+          sessionStorage.setItem(KEY, '1');
+          try {
+            if ('serviceWorker' in navigator) {
+              var regs = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(regs.map(function (r) { return r.unregister(); }));
+            }
+            if ('caches' in window) {
+              var keys = await caches.keys();
+              await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+            }
+          } catch (e) { /* noop */ }
+          window.location.reload();
+        }
+        window.addEventListener('error', function (e) {
+          if (isChunkError(e && (e.message || (e.error && e.error.message)))) recover();
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          var r = e && e.reason;
+          if (isChunkError(r && (r.message || r))) recover();
+        });
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

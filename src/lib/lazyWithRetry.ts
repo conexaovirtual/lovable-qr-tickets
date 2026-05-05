@@ -30,6 +30,19 @@ export function lazyWithRetry<T extends ComponentType<any>>(
 
       if (isChunkError && !sessionStorage.getItem(reloadKey)) {
         sessionStorage.setItem(reloadKey, '1');
+        // Clear stale service worker + caches that may be serving old index.html
+        try {
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+          }
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          }
+        } catch (e) {
+          console.warn('Failed to clear SW/caches before reload', e);
+        }
         window.location.reload();
         // Return a never-resolving promise so React doesn't try to render
         return new Promise<{ default: T }>(() => {});
