@@ -428,17 +428,35 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
           </div>
         )}
         <div className="flex gap-2 p-3 max-w-3xl mx-auto">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileSelect}
+            accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 shrink-0 rounded-lg"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || uploading}
+            title="Anexar arquivo"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+          </Button>
           <Input
-            placeholder={conversation.ai_enabled ? "Intervir manualmente..." : "Digite uma mensagem..."}
+            placeholder={conversation.ai_enabled ? "Intervir manualmente..." : "Digite uma mensagem ou legenda..."}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-            disabled={sending}
+            disabled={sending || uploading}
             className="flex-1 h-10 bg-muted/50 border-0 focus-visible:ring-1"
           />
           <Button
             onClick={handleSend}
-            disabled={!newMessage.trim() || sending}
+            disabled={!newMessage.trim() || sending || uploading}
             size="icon"
             className="h-10 w-10 shrink-0 rounded-lg"
           >
