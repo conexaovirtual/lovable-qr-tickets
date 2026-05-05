@@ -951,7 +951,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
       case "create_ticket": {
         const contactName = context.contact?.contact_name || phone;
         const TECNICO_ID = "e336e78e-c11a-48b5-8d69-2bb48cf6bb3b";
-        const TECNICO_PHONE = "5562984515801";
+        const TECNICO_PHONE = "5562999522470";
 
         const { data: ticket, error } = await supabase
           .from("tickets")
@@ -1331,7 +1331,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
 
         // 2. WhatsApp notification para técnico via Mabbix
         try {
-          const TECNICO_PHONE_ESCALATE = "5562984515801";
+          const TECNICO_PHONE_ESCALATE = "5562999522470";
           const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
           const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
           if (MABBIX_URL && MABBIX_TOKEN) {
@@ -1430,7 +1430,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
 
         // WhatsApp notification to technician for partial escalation
         try {
-          const TECNICO_PHONE_PARTIAL = "5562984515801";
+          const TECNICO_PHONE_PARTIAL = "5562999522470";
           const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
           const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
           if (MABBIX_URL && MABBIX_TOKEN) {
