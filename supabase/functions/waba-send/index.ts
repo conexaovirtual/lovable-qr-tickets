@@ -95,6 +95,20 @@ serve(async (req: Request) => {
       case "send_media": {
         const { phone, media_url, filename, caption, media_type, conversation_id } = params;
 
+        // Fetch the file and convert to base64 data URI (Mabbix sends like audio path)
+        const fileResp = await fetch(media_url);
+        if (!fileResp.ok) throw new Error(`Failed to fetch media: ${fileResp.status}`);
+        const contentType = fileResp.headers.get("content-type") || "application/octet-stream";
+        const buf = new Uint8Array(await fileResp.arrayBuffer());
+        // Base64 encode in chunks to avoid stack overflow
+        let binary = "";
+        const chunkSize = 0x8000;
+        for (let i = 0; i < buf.length; i += chunkSize) {
+          binary += String.fromCharCode.apply(null, Array.from(buf.subarray(i, i + chunkSize)) as any);
+        }
+        const base64 = btoa(binary);
+        const dataUri = `data:${contentType};base64,${base64}`;
+
         const response = await fetch(
           `${MABBIX_BACKEND_URL}/api/messages/send`,
           {
@@ -107,8 +121,9 @@ serve(async (req: Request) => {
               number: phone,
               openTicket: "0",
               queueId: "0",
-              body: caption || "",
-              medias: [{ url: media_url, filename: filename || "arquivo" }],
+              body: dataUri,
+              fileName: filename || "arquivo",
+              caption: caption || "",
             }),
           }
         );
