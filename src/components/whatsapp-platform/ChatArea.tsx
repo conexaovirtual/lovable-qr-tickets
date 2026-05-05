@@ -183,7 +183,7 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
   });
 
   return (
-    <div className="flex-1 flex flex-col min-w-0">
+    <div className="flex-1 flex flex-col min-w-0" translate="no">
       {/* Chat Header - Professional Infradesk style */}
       <div className="h-14 border-b px-3 sm:px-4 flex items-center gap-3 bg-card shrink-0">
         {onBack && (
