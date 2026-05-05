@@ -671,12 +671,29 @@ Se pedir confirmação de pagamento, oriente que envie o comprovante por aqui me
 ═══════════════════════════════════════
 ⚠️ REGRA CRÍTICA — FALAR COM TÉCNICO (OPÇÃO 4):
 ═══════════════════════════════════════
-Quando o cliente pedir para "falar com técnico", "falar com Jose", "falar com humano", "transferir", "quero atendente", responder "4", ou qualquer variação:
-1. Você DEVE chamar a ferramenta escalate_to_human IMEDIATAMENTE.
-2. Passe conversation_id, reason (motivo do cliente) e resumo (resumo do contexto).
+Quando o cliente pedir para "falar com técnico", "falar com Jose", "falar com humano", "transferir", "quero atendente", "preciso falar com o responsável", "passa pro técnico", responder "4", ou QUALQUER variação que indique desejo de falar com pessoa real:
+1. Você DEVE chamar a ferramenta escalate_to_human IMEDIATAMENTE — sem tentar resolver primeiro.
+2. Passe conversation_id, reason (motivo do cliente) e resumo (resumo do contexto da conversa até aqui).
 3. Informe ao cliente: "Transferido para o técnico Jose Pereira. Ele receberá o aviso e retornará em breve."
-4. NÃO diga que transferiu sem chamar escalate_to_human. A ferramenta é o que REALMENTE notifica o técnico.
-5. NÃO tente resolver o problema primeiro se o cliente pediu explicitamente para falar com técnico.`;
+4. NÃO diga que transferiu sem chamar escalate_to_human. A ferramenta é o que REALMENTE notifica o técnico via WhatsApp + push.
+5. NÃO tente resolver o problema antes se o cliente pediu explicitamente pra falar com humano.
+
+═══════════════════════════════════════
+🔔 NOTIFICAÇÃO AO TÉCNICO — QUANDO USAR partial_escalate:
+═══════════════════════════════════════
+Use partial_escalate (notifica o Jose mas mantém você ativa como copiloto) SEMPRE que:
+- O cliente fizer reclamação, expressar insatisfação ou frustração com a empresa/serviço.
+- O cliente pedir desconto, renegociação, alteração contratual, cancelamento.
+- O assunto envolver decisão financeira, comercial ou jurídica que você não pode tomar.
+- O cliente perguntar especificamente quando o Jose vai aparecer / quando será atendido por ele.
+- Surgir qualquer assunto SENSÍVEL ou que o Jose precisa SABER mesmo que você consiga resolver.
+
+═══════════════════════════════════════
+📅 AGENDAMENTOS:
+═══════════════════════════════════════
+- Após criar um agendamento via create_schedule, o sistema NOTIFICA o Jose automaticamente por WhatsApp. Você só confirma com o cliente.
+- NUNCA prometa horário sem antes chamar create_schedule (que valida slot disponível).
+- Se o cliente quiser mudar/cancelar agendamento existente, use partial_escalate — só o Jose pode reorganizar agenda.`;
 }
 
 // ─── Tools Definition (Expanded) ─────────────────────────────────────
@@ -951,7 +968,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
       case "create_ticket": {
         const contactName = context.contact?.contact_name || phone;
         const TECNICO_ID = "e336e78e-c11a-48b5-8d69-2bb48cf6bb3b";
-        const TECNICO_PHONE = "5562984515801";
+        const TECNICO_PHONE = "5562999522470";
 
         const { data: ticket, error } = await supabase
           .from("tickets")
@@ -1331,7 +1348,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
 
         // 2. WhatsApp notification para técnico via Mabbix
         try {
-          const TECNICO_PHONE_ESCALATE = "5562984515801";
+          const TECNICO_PHONE_ESCALATE = "5562999522470";
           const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
           const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
           if (MABBIX_URL && MABBIX_TOKEN) {
@@ -1430,7 +1447,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
 
         // WhatsApp notification to technician for partial escalation
         try {
-          const TECNICO_PHONE_PARTIAL = "5562984515801";
+          const TECNICO_PHONE_PARTIAL = "5562999522470";
           const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
           const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
           if (MABBIX_URL && MABBIX_TOKEN) {
@@ -1686,6 +1703,44 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
               modalidade: slot.modalidade,
             };
             console.log(`Schedule created: OS #${os.numero_os} on ${slot.data} at ${slot.hora_inicio}`);
+
+            // === NOTIFICAR TÉCNICO via WhatsApp sobre novo agendamento criado pela IA ===
+            try {
+              const TECNICO_PHONE_SCHED = "5562999522470";
+              const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
+              const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
+              const schedContactName = context.contact?.contact_name || phone;
+              const schedCompanyName = context.contact?.company?.nome_fantasia || "Não identificada";
+              if (MABBIX_URL && MABBIX_TOKEN) {
+                const schedMsg = `📅 *Novo Agendamento criado pela IA*\n\n` +
+                  `🆔 *OS:* #${os.numero_os}\n` +
+                  `👤 *Cliente:* ${schedContactName}\n` +
+                  `📞 *Telefone:* ${phone}\n` +
+                  `🏢 *Empresa:* ${schedCompanyName}\n\n` +
+                  `📋 *Título:* ${args.titulo}\n` +
+                  `📝 *Descrição:* ${args.descricao}\n\n` +
+                  `🗓️ *Data:* ${slot.data}\n` +
+                  `⏰ *Horário:* ${slot.hora_inicio} - ${slot.hora_fim}\n` +
+                  `🛠️ *Modalidade:* ${slot.modalidade}`;
+
+                await fetch(`${MABBIX_URL}/api/messages/send`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${MABBIX_TOKEN}`,
+                  },
+                  body: JSON.stringify({
+                    number: TECNICO_PHONE_SCHED,
+                    body: schedMsg,
+                    openTicket: "0",
+                    queueId: "0",
+                  }),
+                });
+                console.log(`WhatsApp schedule notification sent to ${TECNICO_PHONE_SCHED}`);
+              }
+            } catch (schedNotifErr) {
+              console.error("Failed to notify technician about new schedule:", schedNotifErr);
+            }
           }
         } catch (schedErr: any) {
           result = { success: false, error: schedErr.message };
