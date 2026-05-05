@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Send, Bot, UserRound, Phone, CheckCheck, Check, Clock,
   MessageSquare, Info, Ticket, ArrowLeft, AlertTriangle, CheckCircle2,
-  Sparkles, Headphones, Shield
+  Sparkles, Headphones, Shield, Paperclip, Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -39,6 +39,8 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,6 +104,62 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
       toast.error("Erro ao enviar: " + err.message);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !conversation) return;
+    if (file.size > 16 * 1024 * 1024) {
+      toast.error("Arquivo muito grande (máx. 16MB)");
+      e.target.value = "";
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `${conversation.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("waba-attachments")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("waba-attachments").getPublicUrl(path);
+
+      const mediaType = file.type.startsWith("image/")
+        ? "image"
+        : file.type.startsWith("video/")
+        ? "video"
+        : file.type.startsWith("audio/")
+        ? "audio"
+        : "document";
+
+      const { error } = await supabase.functions.invoke("waba-send", {
+        body: {
+          action: "send_media",
+          phone: conversation.phone_number,
+          media_url: pub.publicUrl,
+          filename: file.name,
+          caption: newMessage || "",
+          media_type: mediaType,
+          conversation_id: conversation.id,
+        },
+      });
+      if (error) throw error;
+      setNewMessage("");
+      if (conversation.ai_enabled) {
+        await supabase
+          .from("waba_conversations")
+          .update({ ai_enabled: false })
+          .eq("id", conversation.id);
+        toast.success("Anexo enviado — IA desativada");
+      } else {
+        toast.success("Anexo enviado");
+      }
+    } catch (err: any) {
+      toast.error("Erro ao enviar anexo: " + (err.message || ""));
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -370,17 +428,35 @@ export function ChatArea({ conversation, onToggleInfo, showInfo, onBack }: ChatA
           </div>
         )}
         <div className="flex gap-2 p-3 max-w-3xl mx-auto">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileSelect}
+            accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 shrink-0 rounded-lg"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || uploading}
+            title="Anexar arquivo"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+          </Button>
           <Input
-            placeholder={conversation.ai_enabled ? "Intervir manualmente..." : "Digite uma mensagem..."}
+            placeholder={conversation.ai_enabled ? "Intervir manualmente..." : "Digite uma mensagem ou legenda..."}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-            disabled={sending}
+            disabled={sending || uploading}
             className="flex-1 h-10 bg-muted/50 border-0 focus-visible:ring-1"
           />
           <Button
             onClick={handleSend}
-            disabled={!newMessage.trim() || sending}
+            disabled={!newMessage.trim() || sending || uploading}
             size="icon"
             className="h-10 w-10 shrink-0 rounded-lg"
           >

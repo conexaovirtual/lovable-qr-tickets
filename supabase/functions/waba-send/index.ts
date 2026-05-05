@@ -92,6 +92,59 @@ serve(async (req: Request) => {
         });
       }
 
+      case "send_media": {
+        const { phone, media_url, filename, caption, media_type, conversation_id } = params;
+
+        const response = await fetch(
+          `${MABBIX_BACKEND_URL}/api/messages/send`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${MABBIX_CONNECTION_TOKEN}`,
+            },
+            body: JSON.stringify({
+              number: phone,
+              openTicket: "0",
+              queueId: "0",
+              body: caption || "",
+              medias: [{ url: media_url, filename: filename || "arquivo" }],
+            }),
+          }
+        );
+
+        const result = await response.json();
+        console.log("Mabbix media response:", JSON.stringify(result).substring(0, 300));
+
+        const messageId = result?.id || result?.message?.id || null;
+        await supabase.from("waba_messages").insert({
+          conversation_id,
+          wamid: messageId ? String(messageId) : null,
+          direction: "outbound",
+          message_type: media_type || "document",
+          content: caption || `[${filename || "Arquivo"}]`,
+          media_url,
+          status: "sent",
+          sender_type: "agent",
+        });
+
+        const { data: conv } = await supabase
+          .from("waba_conversations")
+          .select("first_response_at, queue_status")
+          .eq("id", conversation_id)
+          .single();
+
+        const updates: any = { last_message_at: new Date().toISOString() };
+        if (!conv?.first_response_at) updates.first_response_at = new Date().toISOString();
+        if (conv?.queue_status === "waiting") updates.queue_status = "assigned";
+
+        await supabase.from("waba_conversations").update(updates).eq("id", conversation_id);
+
+        return new Response(JSON.stringify(result), {
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+
       case "send_audio": {
         const { phone, audio_base64, conversation_id } = params;
 
