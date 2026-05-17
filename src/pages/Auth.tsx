@@ -17,6 +17,7 @@ export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectUrl = searchParams.get('redirect');
+  const { profile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,19 +25,11 @@ export default function Auth() {
   const [passwordStrength, setPasswordStrength] = useState<number>(0);
 
   useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (import.meta.env.DEV) {
-        console.log('[Auth] Checking session:', session);
-      }
-      if (session) {
-        if (import.meta.env.DEV) {
-          console.log('[Auth] Session found, redirecting to /dashboard');
-        }
-        navigate('/dashboard');
-      }
-    });
-  }, [navigate]);
+    // Only redirect when profile is actually loaded (prevents loop with AppLayout)
+    if (!authLoading && profile) {
+      navigate(redirectUrl || '/dashboard', { replace: true });
+    }
+  }, [authLoading, profile, navigate, redirectUrl]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
