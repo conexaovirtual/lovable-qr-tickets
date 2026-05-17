@@ -381,13 +381,13 @@ async function gatherContext(supabase: any, phone: string, message: string) {
         .select("id, nome, tipo, estado, fabricante, modelo, setor, local")
         .eq("company_id", companyId)
         .order("updated_at", { ascending: false })
-        .limit(20),
+        .limit(8),
       supabase
         .from("daily_service_records")
         .select("titulo, descricao, solucao, status, data_atendimento, canal")
         .eq("company_id", companyId)
         .order("data_atendimento", { ascending: false })
-        .limit(10),
+        .limit(3),
     ]);
 
     openTickets = ticketsResult.data || [];
