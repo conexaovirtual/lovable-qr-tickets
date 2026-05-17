@@ -1,55 +1,65 @@
 ## Diagnóstico
 
-Hoje o agente (`waba-ai-agent/index.ts`, linhas ~505-577) está no extremo "RESOLVA, NÃO CONVERSE" — foi calibrado contra reclamações de "fala demais". O efeito colateral é justamente o que você quer corrigir agora: clientes sentindo que estão falando com IA fria/robotizada e rejeitando.
+Hoje a IA está calibrada como "técnico humano cordial" (waba-ai-agent linhas ~512–696), mas com 3 fatores que causam a reclamação:
 
-Suas respostas indicam: **direto mas caloroso**, saudações com **"Bom dia/Boa tarde, [nome]!"**, sem bordões fixos, manter objetividade mas remover a secura.
+1. **Contexto pesado no prompt** — toda mensagem recebe chamados abertos, ativos, agenda do dia, visitas e atendimentos recentes. O modelo "vê" tudo isso e tenta usar (ex: cliente manda "bom dia" e ela já comenta um chamado em aberto).
+2. **`tool_choice: "auto"` + permissão para inferir** — o agente é incentivado a agir sem confirmar ("INFIRA dados quando possível", "Use find_company direto SEM perguntar").
+3. **Formato de 1–2 frases** que ainda permite "reconhecimento + pergunta + ação" na mesma mensagem.
 
-## Mudanças no prompt do sistema
+Você escolheu: **Super objetiva** / **Só cumprimentar quando o cliente cumprimentar** / **Perguntar antes de inferir**. O plano abaixo aplica isso de forma cirúrgica, sem mexer em ferramentas/integrações que já funcionam (chamados, OS, escalonamento, Mabbix, PIX).
 
-Reescrever as seções **🎯 PRINCÍPIO CENTRAL**, **🎭 IDENTIDADE**, **📏 FORMATO**, **🤝 EMPATIA** e **🎯 PRIMEIRA INTERAÇÃO** com novo equilíbrio:
+## Mudanças
 
-### Novo princípio central
-> "Atenda como um técnico humano e cordial. Resolva com agilidade, mas sem soar robotizado. Calor humano na abertura e no fechamento, objetividade no meio do atendimento."
+### 1. Reescrever o prompt do sistema (`buildSystemPrompt`)
 
-### Identidade / tom
-- "Direto mas caloroso": ágil sem ser rude. Pode reconhecer o cliente brevemente antes de agir quando faz sentido.
-- Manter proibição de se identificar como IA/bot.
-- Português brasileiro natural. Cordialidade discreta permitida ("claro", "com certeza", "perfeito") — sem virar bordão repetido.
+Substituir as seções de princípio, identidade, formato, empatia, primeira interação e regras com novo equilíbrio "super objetiva, anti-iniciativa":
 
-### Formato (afrouxar com limite)
-- **1 a 2 frases por mensagem** (subindo de "tipicamente 1"). 3 frases só quando o conteúdo exigir.
-- Continua **1 mensagem por turno** (sem quebrar em duas).
-- Permitir **1 reconhecimento curto** antes da pergunta diagnóstica quando o cliente relata problema ("Entendi, deixa eu verificar." + ação na mesma frase, OU pergunta técnica direta com tom cordial).
-- Remover proibições absolutas tipo "PROIBIDO 'Entendi'" — passa a ser "use com moderação, não toda mensagem".
-- Emojis: 1 emoji opcional na saudação inicial e/ou fechamento. Ainda raros no meio.
-- Manter proibição de markdown, bullets, blocos longos.
+- **Princípio central:** "Responda APENAS o que o cliente perguntou. Nunca traga assunto novo. Nunca antecipe. Uma frase é o suficiente na maioria dos casos."
+- **Formato:** 1 frase por padrão; 2 só se o cliente fez uma pergunta que exige. Sem reconhecimento performático ("entendi, deixa eu verificar") — vai direto à resposta/pergunta única.
+- **Regra de cumprimento isolado:** Se a mensagem do cliente for só saudação ("oi", "bom dia", "boa tarde", "tudo bem?", emoji, "tá aí?"), a resposta é EXATAMENTE: `"{Saudação por horário}, {nome}! Como posso ajudar?"` (ou versão sem nome se não identificado). Proibido citar chamados, agenda, ativos, OS ou contexto nessa primeira resposta.
+- **Anti-adivinhação:** Remover instruções "INFIRA quando possível" e "use find_company SEM perguntar". Substituir por: "Nunca execute ferramenta sem o cliente ter pedido explicitamente o que aquela ferramenta resolve. Em dúvida, pergunte uma frase curta."
+- **Sem trazer contexto não solicitado:** Adicionar regra explícita: "Você tem acesso a chamados, ativos, agenda e histórico do cliente. NUNCA mencione esses dados a menos que o cliente PERGUNTE sobre eles especificamente."
+- **Empatia:** Reduzir a "responda curto e objetivo, sem reconhecimento decorativo". Manter apenas reconhecimento de frustração explícita.
+- **Confirmação antes de ação:** Reforçar que `create_ticket`, `create_schedule`, `find_company`, `link_contact`, `register_asset` só rodam após o cliente pedir/confirmar de forma clara.
 
-### Saudação (alinhada ao seu estilo)
-Substituir "Oi, [nome]! Como posso ajudar?" por padrão **sensível ao horário** (BRT já é calculada no prompt):
-- 05h–11h59: "Bom dia, [nome]! Como posso ajudar?"
-- 12h–17h59: "Boa tarde, [nome]! Como posso ajudar?"
-- 18h–04h59: "Boa noite, [nome]! Como posso ajudar?"
+### 2. Encolher o contexto entregue ao modelo
 
-Para não-identificado: "Bom dia/Boa tarde! Aqui é da Conexão Virtual, em que posso ajudar?"
+Em `gatherContext` (linhas 261–436) o conteúdo continua sendo coletado (precisamos dele para quando o cliente perguntar), mas em `buildSystemPrompt` os blocos pesados passam a ficar sob um rótulo "DISPONÍVEL SOB CONSULTA — não cite sem ser perguntado":
 
-### Empatia
-- Liberar reconhecimento curto de problemas (1 frase, sem performance): "Entendi, vamos verificar." / "Tranquilo, já olho aqui." — em vez de pular direto à pergunta técnica.
-- Continuar proibido enchimento performático ("que chato isso 😕", "pô, imagina como você tá se sentindo").
+- Chamados abertos, ativos, atendimentos recentes, visitas e agenda do dia passam a ser apresentados como referência silenciosa, com prefixo "[Use somente se o cliente perguntar especificamente]".
+- Limites menores: chamados abertos top 5 (era 10), ativos top 8 (era 20), atendimentos recentes top 3 (era 10).
+- Saudação por horário e empresa/contato continuam visíveis (são identidade, não conteúdo).
 
-### Mantido sem alteração
-- Tool-calling, fluxos, identificação orgânica, escalonamento, base de conhecimento, regras de PIX, identificação humana.
+### 3. Calibração da chamada à AI
+
+- Manter `tool_choice: "auto"` (precisa para PIX, escalonamento, etc.) mas adicionar no prompt: "Em mensagens com até 3 palavras ou só saudação, NÃO chame ferramenta nenhuma — só responda a saudação."
+- Adicionar instrução de auto-revisão antes de enviar: "Reveja sua resposta: ela introduz algum assunto novo que o cliente não pediu? Se sim, reescreva enxugando."
+
+### 4. Atualizar a memória de estilo
+
+Atualizar `mem://features/whatsapp-ai-agent-identity-and-style` para refletir a Versão 4 (super objetiva, anti-iniciativa, cumprimento isolado responde só cumprimento). Manter o histórico das versões anteriores como referência.
+
+### 5. Validação em produção
+
+Após deploy:
+- Eu mesmo disparo 2 testes via `supabase--curl_edge_functions` simulando inbound:
+  - "bom dia" → deve responder só "Bom dia! Como posso ajudar?" sem citar nada.
+  - "qual o status do meu chamado?" → deve perguntar o número ou listar (comportamento legítimo, pois foi perguntado).
+- Você observa as próximas 5–10 conversas reais. Se ainda achar verbosa, o próximo ajuste é reduzir contexto a quase zero e forçar `tool_choice: "none"` em mensagens curtas.
 
 ## Arquivos afetados
 
-- `supabase/functions/waba-ai-agent/index.ts` — substituir blocos do prompt entre linhas ~505-577.
-- `mem://features/whatsapp-ai-agent-identity-and-style` — atualizar memória para refletir o novo equilíbrio (humano-cordial, saudação por horário, 1-2 frases).
+- `supabase/functions/waba-ai-agent/index.ts` — reescrever `buildSystemPrompt` (~512–696) e ajustar limites em `gatherContext` (~363–397).
+- `mem://features/whatsapp-ai-agent-identity-and-style` — versão 4.
 
-## Riscos / considerações
+## O que NÃO muda
 
-- Risco oposto ao anterior: voltar a soar prolixo. Mitigação: manter o teto de 2 frases e proibição de quebrar mensagem.
-- Saudação por horário aumenta percepção de atendimento humano com baixíssimo custo de prompt.
-- Mudança afeta todos os clientes ativos imediatamente após deploy.
+- Nenhuma ferramenta é removida (PIX, escalonamento, criação de chamado, OS, agenda continuam iguais).
+- Mabbix, webhook, deduplicação, transcrição de áudio, notificações ao José: intactos.
+- Reativação automática da IA após 30min de silêncio do humano: intacta.
+- Fluxo do QR Code de etiqueta: intacto.
 
-## Validação
+## Riscos
 
-Acompanhar 5-10 conversas reais nas primeiras horas. Se ainda parecer frio, próximo passo seria liberar 2 mensagens por turno (1 reconhecimento + 1 pergunta) — mas só fazemos isso depois de medir.
+- Risco de "fria demais" volta à mesa. Mitigação: o tom continua com "Bom dia, {nome}! Como posso ajudar?" — humano básico, só sem se adiantar. Se reclamarem de frieza de novo, próximo passo é liberar 1 confirmação cordial após resolução ("Pronto, anotado. Mais alguma coisa?").
+- Cliente que escreve só "bom dia" e espera que a IA puxe assunto: minoria, e exatamente o que você quer eliminar.
