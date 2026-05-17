@@ -368,7 +368,7 @@ async function gatherContext(supabase: any, phone: string, message: string) {
         .eq("company_id", companyId)
         .in("status", ["novo", "em_atendimento"])
         .order("created_at", { ascending: false })
-        .limit(10),
+        .limit(5),
       supabase
         .from("visit_schedules")
         .select("proxima_visita, motivo, status, prioridade")
