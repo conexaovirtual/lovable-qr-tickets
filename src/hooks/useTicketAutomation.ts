@@ -1,60 +1,106 @@
-import { useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-
 /**
- * Subscribes to realtime ticket events and surfaces toasts for the logged-in user.
- * - INSERT: notifies about new tickets.
- * - UPDATE: notifies about status changes.
- * Skips events triggered by the current user to avoid duplicate toasts.
+ * useTicketAutomation
+ * Hook que roda automações periódicas:
+ *  1. Escalonamento por SLA: tickets vencendo em < 2h → notifica via push
+ *  2. Fechamento automático: tickets "resolvido" há > 72h → fecha automaticamente
  */
+import { useEffect, useRef, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+
+const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
+const SLA_ALERT_HOURS = 2;
+const AUTO_CLOSE_HOURS = 72;
+
 export function useTicketAutomation() {
-  const { profile, user } = useAuth();
-  const { toast } = useToast();
-  const seen = useRef<Set<string>>(new Set());
+  const { profile } = useAuth();
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastRunRef = useRef<number>(0);
+
+  const runAutomations = useCallback(async () => {
+    if (!profile) return;
+    const now = Date.now();
+    if (now - lastRunRef.current < 60_000) return;
+    lastRunRef.current = now;
+
+    try {
+      await Promise.allSettled([escalateSLATickets(profile), autoCloseResolvedTickets()]);
+    } catch (err) {
+      console.error("[useTicketAutomation] Erro:", err);
+    }
+  }, [profile]);
 
   useEffect(() => {
-    if (!profile || !user) return;
+    if (!profile?.roles?.includes("admin_provedor") && !profile?.roles?.includes("tecnico")) return;
 
-    const channel = supabase
-      .channel('ticket-automation')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'tickets' },
-        (payload) => {
-          const t: any = payload.new;
-          if (!t?.id) return;
-          const key = `i:${t.id}`;
-          if (seen.current.has(key)) return;
-          seen.current.add(key);
-          if (t.solicitante_id === user.id) return;
-          toast({
-            title: `Novo ticket #${t.numero ?? ''}`.trim(),
-            description: t.titulo ?? 'Um novo ticket foi criado.',
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'tickets' },
-        (payload) => {
-          const newT: any = payload.new;
-          const oldT: any = payload.old;
-          if (!newT?.id || newT.status === oldT?.status) return;
-          const key = `u:${newT.id}:${newT.status}`;
-          if (seen.current.has(key)) return;
-          seen.current.add(key);
-          toast({
-            title: `Ticket #${newT.numero ?? ''}`.trim(),
-            description: `Status: ${newT.status}`,
-          });
-        }
-      )
-      .subscribe();
+    runAutomations();
 
+    timerRef.current = setInterval(runAutomations, POLL_INTERVAL_MS);
     return () => {
-      supabase.removeChannel(channel);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [profile, user, toast]);
+  }, [profile, runAutomations]);
+}
+
+async function escalateSLATickets(profile: any) {
+  const alertThreshold = new Date(Date.now() + SLA_ALERT_HOURS * 60 * 60 * 1000).toISOString();
+  const now = new Date().toISOString();
+
+  const { data: ticketsAtRisk } = await supabase
+    .from("tickets")
+    .select("id, numero, titulo, sla_solucao_limite, tecnico_id, companies(nome_fantasia)")
+    .in("status", ["novo", "em_atendimento"])
+    .not("sla_solucao_limite", "is", null)
+    .lt("sla_solucao_limite", alertThreshold)
+    .gt("sla_solucao_limite", now)
+    .is("sla_escalado", null);
+
+  if (!ticketsAtRisk?.length) return;
+
+  for (const ticket of ticketsAtRisk) {
+    await supabase
+      .from("tickets")
+      .update({ sla_escalado: new Date().toISOString() } as any)
+      .eq("id", ticket.id);
+
+    await supabase.functions
+      .invoke("send-push-notification", {
+        body: {
+          user_id: ticket.tecnico_id || profile.id,
+          title: `⚠️ SLA em risco — #${ticket.numero}`,
+          body: `"${ticket.titulo}" vence em menos de ${SLA_ALERT_HOURS}h`,
+          url: `/tickets/${ticket.id}`,
+        },
+      })
+      .catch(() => {});
+  }
+
+  if (ticketsAtRisk.length > 0) {
+    toast.warning(`${ticketsAtRisk.length} chamado(s) com SLA em risco foram escalonados.`);
+  }
+}
+
+async function autoCloseResolvedTickets() {
+  const closeThreshold = new Date(Date.now() - AUTO_CLOSE_HOURS * 60 * 60 * 1000).toISOString();
+
+  const { data: toClose } = await supabase
+    .from("tickets")
+    .select("id, numero")
+    .eq("status", "resolvido")
+    .lt("updated_at", closeThreshold);
+
+  if (!toClose?.length) return;
+
+  const ids = toClose.map((t) => t.id);
+
+  await supabase
+    .from("tickets")
+    .update({
+      status: "fechado",
+      updated_at: new Date().toISOString(),
+    } as any)
+    .in("id", ids);
+
+  console.log(`[Automação] ${ids.length} ticket(s) fechados automaticamente.`);
 }
