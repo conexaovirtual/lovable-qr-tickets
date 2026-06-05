@@ -1,19 +1,16 @@
 import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, QrCode, Wrench, Building2, Tag } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
 
 export default function PublicTicket() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const assetId = searchParams.get("asset");
   const token = searchParams.get("token");
 
@@ -23,13 +20,7 @@ export default function PublicTicket() {
   const [asset, setAsset] = useState<any>(null);
   const [company, setCompany] = useState<any>(null);
   const [createdTicket, setCreatedTicket] = useState<any>(null);
-  
-
-  const [formData, setFormData] = useState({
-    nome: "",
-    contato: "",
-    descricao: "",
-  });
+  const [formData, setFormData] = useState({ nome: "", contato: "", descricao: "" });
 
   useEffect(() => {
     if (!assetId || !token) {
@@ -41,41 +32,31 @@ export default function PublicTicket() {
       setLoading(false);
       return;
     }
-
     loadAssetData();
   }, [assetId, token]);
 
   const loadAssetData = async () => {
     try {
       setLoading(true);
-
-      // Verificar token e buscar ativo
-      const { data: assetData, error: assetError } = await supabase
+      const { data: assetData, error } = await supabase
         .from("assets")
         .select("*, companies(*)")
-        .eq("id", assetId)
-        .eq("qrcode_token", token)
+        .eq("id", assetId!)
+        .eq("qrcode_token", token!)
         .single();
 
-      if (assetError || !assetData) {
+      if (error || !assetData) {
         toast({
-          title: "Token inválido",
+          title: "QR Code inválido",
           description: "Este QR Code não é válido ou expirou.",
           variant: "destructive",
         });
-        setLoading(false);
         return;
       }
-
       setAsset(assetData);
       setCompany(assetData.companies);
-    } catch (error) {
-      console.error("Error loading asset:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os dados do ativo.",
-        variant: "destructive",
-      });
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -83,26 +64,19 @@ export default function PublicTicket() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData.nome || !formData.contato || !formData.descricao) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos.",
-        variant: "destructive",
-      });
+      toast({ title: "Campos obrigatórios", description: "Preencha todos os campos.", variant: "destructive" });
       return;
     }
 
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-
-      // Criar ticket público
-      const { data: ticket, error: ticketError } = await supabase
+      const { data: ticket, error } = await supabase
         .from("tickets")
         .insert({
           company_id: company.id,
           asset_id: asset.id,
-          titulo: `Chamado via QR Code - ${asset.nome}`,
+          titulo: `Chamado via QR Code — ${asset.nome}`,
           descricao: formData.descricao,
           public_request: true,
           solicitante_nome: formData.nome,
@@ -115,42 +89,34 @@ export default function PublicTicket() {
         .select()
         .single();
 
-      if (ticketError) throw ticketError;
-
-      // Chamar edge function para notificar
-      const { error: notifyError } = await supabase.functions.invoke("notify-ticket-created", {
-        body: {
-          ticketId: ticket.id,
-          ticketNumero: ticket.numero,
-          assetNome: asset.nome,
-          assetTipo: asset.tipo,
-          assetTag: asset.tag_patrimonial,
-          companyNome: company.nome_fantasia,
-          solicitanteNome: formData.nome,
-          solicitanteContato: formData.contato,
-          descricao: formData.descricao,
-        },
-      });
-
-      if (notifyError) {
-        console.error("Error sending notification:", notifyError);
-      }
+      if (error) throw error;
 
       setCreatedTicket(ticket);
       setSuccess(true);
-      
 
-      // Chamar auto-resposta IA (fire and forget)
-      supabase.functions.invoke('ai-auto-response', {
-        body: { ticket_id: ticket.id, descricao: formData.descricao },
-      }).catch(err => console.error('AI auto-response error:', err));
-      
-      toast({
-        title: "Chamado criado!",
-        description: "Seu chamado foi registrado com sucesso. Em breve entraremos em contato.",
-      });
-    } catch (error) {
-      console.error("Error creating ticket:", error);
+      await Promise.allSettled([
+        supabase.functions.invoke("notify-ticket-created", {
+          body: {
+            ticketId: ticket.id,
+            ticketNumero: ticket.numero,
+            assetNome: asset.nome,
+            assetTipo: asset.tipo,
+            assetTag: asset.tag_patrimonial,
+            companyNome: company.nome_fantasia,
+            solicitanteNome: formData.nome,
+            solicitanteContato: formData.contato,
+            descricao: formData.descricao,
+          },
+        }),
+        supabase.functions.invoke("ai-auto-response", {
+          body: { ticket_id: ticket.id, descricao: formData.descricao },
+        }),
+        supabase.functions.invoke("ai-ticket-triage", {
+          body: { ticket_id: ticket.id },
+        }),
+      ]);
+    } catch (err) {
+      console.error(err);
       toast({
         title: "Erro",
         description: "Não foi possível criar o chamado. Tente novamente.",
@@ -164,9 +130,9 @@ export default function PublicTicket() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Carregando...</p>
+        <div className="text-center space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-sm text-muted-foreground">Verificando QR Code...</p>
         </div>
       </div>
     );
@@ -175,17 +141,15 @@ export default function PublicTicket() {
   if (!asset || !company) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-5 w-5" />
-              <CardTitle>Link Inválido</CardTitle>
-            </div>
-            <CardDescription>
-              Este link de abertura de chamado não é válido ou expirou.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <div className="max-w-sm w-full text-center space-y-4">
+          <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+          </div>
+          <h1 className="text-xl font-semibold">Link inválido</h1>
+          <p className="text-sm text-muted-foreground">
+            Este QR Code não é válido ou expirou. Solicite um novo código ao suporte técnico.
+          </p>
+        </div>
       </div>
     );
   }
@@ -193,147 +157,139 @@ export default function PublicTicket() {
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle2 className="h-5 w-5" />
-              <CardTitle>Chamado Criado!</CardTitle>
+        <div className="max-w-sm w-full text-center space-y-6">
+          <div className="relative flex items-center justify-center">
+            <div className="h-24 w-24 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center animate-in zoom-in duration-300">
+              <CheckCircle2 className="h-12 w-12 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <CardDescription>
-              Seu chamado foi registrado com sucesso. Em breve entraremos em contato através do{" "}
-              {formData.contato}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm font-medium mb-2">Detalhes do chamado:</p>
-                <div className="space-y-2 text-sm">
-                  <p>
-                    <span className="text-muted-foreground">Número:</span> #{createdTicket?.numero}
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">Ativo:</span> {asset.nome}
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">Empresa:</span> {company.nome_fantasia}
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">Solicitante:</span> {formData.nome}
-                  </p>
-                </div>
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">Chamado aberto!</h1>
+            <p className="text-sm text-muted-foreground">
+              Seu chamado foi registrado com sucesso. Nossa equipe técnica já foi notificada e entrará em contato via{" "}
+              <span className="font-medium text-foreground">{formData.contato}</span>.
+            </p>
+          </div>
+
+          <div className="bg-muted rounded-xl p-4 text-left space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Número do chamado</span>
+              <span className="font-mono font-bold text-primary">#{createdTicket?.numero}</span>
+            </div>
+            <div className="border-t border-border pt-3 space-y-2 text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Wrench className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{asset.nome}</span>
               </div>
-              
-              <p className="text-sm text-muted-foreground text-center">
-                Você pode fechar esta página agora. Nossa equipe técnica já foi notificada.
-              </p>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Building2 className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{company.nome_fantasia}</span>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          <p className="text-xs text-muted-foreground">Você pode fechar esta página agora.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-2xl mx-auto py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">📋 Abertura de Chamado Técnico</CardTitle>
-            <CardDescription>
-              Preencha o formulário abaixo para abrir um chamado de suporte técnico
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Informações do Ativo */}
-              <div className="space-y-3 p-4 bg-muted rounded-lg">
-                <h3 className="font-semibold flex items-center gap-2">
-                  🖥️ Equipamento
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Ativo:</span>
-                    <span className="font-medium">{asset.nome}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Tipo:</span>
-                    <Badge variant="outline" className="capitalize">
-                      {asset.tipo}
-                    </Badge>
-                  </div>
-                  {asset.tag_patrimonial && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Tag:</span>
-                      <span className="font-mono text-xs">{asset.tag_patrimonial}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+    <div className="min-h-screen bg-background">
+      <div className="bg-primary px-4 py-5 text-primary-foreground">
+        <div className="max-w-lg mx-auto flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+            <QrCode className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="font-semibold text-sm">Abertura de Chamado</h1>
+            <p className="text-xs text-primary-foreground/70">{company.nome_fantasia}</p>
+          </div>
+        </div>
+      </div>
 
-              {/* Informações da Empresa */}
-              <div className="space-y-3 p-4 bg-muted rounded-lg">
-                <h3 className="font-semibold flex items-center gap-2">
-                  🏢 Empresa
-                </h3>
-                <div className="text-sm">
-                  <span className="font-medium">{company.nome_fantasia}</span>
-                </div>
-              </div>
-
-              {/* Formulário */}
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="nome">Seu nome *</Label>
-                  <Input
-                    id="nome"
-                    placeholder="Digite seu nome completo"
-                    value={formData.nome}
-                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="contato">Email ou Telefone *</Label>
-                  <Input
-                    id="contato"
-                    placeholder="seu@email.com ou (11) 99999-9999"
-                    value={formData.contato}
-                    onChange={(e) => setFormData({ ...formData, contato: e.target.value })}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Usaremos este contato para retornar sobre o chamado
-                  </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="descricao">Descrição do problema *</Label>
-                  <Textarea
-                    id="descricao"
-                    placeholder="Descreva o problema ou solicitação..."
-                    value={formData.descricao}
-                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                    rows={5}
-                    required
-                  />
-                </div>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enviando...
-                  </>
-                ) : (
-                  "Enviar Chamado"
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
+        <div className="bg-card border rounded-xl p-4 space-y-3">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Equipamento identificado</p>
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Wrench className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium text-sm leading-tight">{asset.nome}</p>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <Badge variant="outline" className="text-xs capitalize">
+                  {asset.tipo}
+                </Badge>
+                {asset.tag_patrimonial && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Tag className="h-3 w-3" />
+                    {asset.tag_patrimonial}
+                  </span>
                 )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="nome">
+              Seu nome <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="nome"
+              placeholder="Digite seu nome completo"
+              value={formData.nome}
+              onChange={(e) => setFormData((p) => ({ ...p, nome: e.target.value }))}
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="contato">
+              E-mail ou WhatsApp <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="contato"
+              placeholder="email@empresa.com ou (62) 99999-9999"
+              value={formData.contato}
+              onChange={(e) => setFormData((p) => ({ ...p, contato: e.target.value }))}
+              required
+            />
+            <p className="text-xs text-muted-foreground">Usaremos este contato para retornar sobre o chamado</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="descricao">
+              Descreva o problema <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="descricao"
+              placeholder="O que está acontecendo? Descreva com o máximo de detalhes possível..."
+              value={formData.descricao}
+              onChange={(e) => setFormData((p) => ({ ...p, descricao: e.target.value }))}
+              rows={5}
+              required
+            />
+          </div>
+
+          <Button type="submit" className="w-full h-11 text-base" disabled={submitting}>
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Registrando chamado...
+              </>
+            ) : (
+              "Enviar chamado"
+            )}
+          </Button>
+        </form>
+
+        <p className="text-center text-xs text-muted-foreground pb-4">
+          Conexão Virtual Soluções Tecnológicas — Suporte TI
+        </p>
       </div>
     </div>
   );
