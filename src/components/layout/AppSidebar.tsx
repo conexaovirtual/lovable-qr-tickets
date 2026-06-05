@@ -144,3 +144,28 @@ export function AppSidebar() {
                   <span className="text-sm font-medium truncate w-full">{profile.nome}</span>
                   <span className="text-xs text-sidebar-foreground/50 capitalize truncate w-full">
                     {profile.roles?.[0]?.replace(/_/g, ' ') || 'Usuário'}
+                  </span>
+                </div>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <NavLink to="/profile/settings" className="flex items-center gap-2 cursor-pointer">
+                <User className="h-4 w-4" />
+                <span>Perfil</span>
+              </NavLink>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+              <LogOut className="h-4 w-4 mr-2" />
+              <span>Sair</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
