@@ -1,17 +1,20 @@
-import { useEffect } from 'react';
-import { useNavigate, Outlet } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { AppSidebar } from './AppSidebar';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useEffect } from "react";
+import { useNavigate, Outlet } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "./AppSidebar";
+import { AppHeader } from "./AppHeader";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useTicketAutomation } from "@/hooks/useTicketAutomation";
 
 export function AppLayout() {
   const { profile, loading } = useAuth();
   const navigate = useNavigate();
+  useTicketAutomation();
 
   useEffect(() => {
     if (!loading && !profile) {
-      navigate('/auth');
+      navigate("/auth");
     }
   }, [loading, profile, navigate]);
 
@@ -30,9 +33,7 @@ export function AppLayout() {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="sticky top-0 z-50 h-12 flex items-center border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 px-4 md:px-6">
-            <SidebarTrigger className="mr-4" />
-          </header>
+          <AppHeader />
           <main className="flex-1">
             <Outlet />
           </main>
