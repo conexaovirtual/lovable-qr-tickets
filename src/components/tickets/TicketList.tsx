@@ -64,4 +64,71 @@ export function TicketList({ filters }: TicketListProps) {
       console.error('Error loading tickets:', fetchError);
       setError(true);
     } else {
-      if (data
+      if (data) setTickets(data);
+      setTotalCount(count || 0);
+    }
+    setLoading(false);
+  }, [profile, page, filters]);
+
+  useEffect(() => { loadTickets(); }, [loadTickets]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive mb-3" />
+        <p className="text-muted-foreground mb-4">Erro ao carregar chamados.</p>
+        <Button onClick={loadTickets} variant="outline">
+          <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
+  if (tickets.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        Nenhum chamado encontrado.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {tickets.map(ticket => <TicketCard key={ticket.id} ticket={ticket} />)}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Página {page} de {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
+            Próxima <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
