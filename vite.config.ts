@@ -90,16 +90,20 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-tabs'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-tabs', '@radix-ui/react-dropdown-menu', '@radix-ui/react-popover', '@radix-ui/react-tooltip'],
           'chart-vendor': ['recharts'],
+          'map-vendor': ['leaflet', 'react-leaflet'],
+          'pdf-vendor': ['jspdf', 'jspdf-autotable'],
+          'qr-vendor': ['qrcode'],
           'supabase': ['@supabase/supabase-js'],
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          'query-vendor': ['@tanstack/react-query'],
         },
       },
     },
     chunkSizeWarningLimit: 1000,
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', '@supabase/supabase-js', 'date-fns'],
+    include: ['react', 'react-dom', '@supabase/supabase-js', 'date-fns', '@tanstack/react-query', 'recharts', 'sonner'],
   },
 }));

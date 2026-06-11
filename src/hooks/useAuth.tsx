@@ -69,30 +69,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    let currentUserId: string | null = null;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
+      const newUserId = newSession?.user?.id ?? null;
 
-      // Defer Supabase calls to prevent deadlock
-      if (newSession?.user) {
-        setTimeout(() => {
-          fetchUserProfile(newSession.user.id);
-        }, 0);
+      // Sempre atualiza session (necessário para token refresh)
+      setSession(prev =>
+        prev?.access_token === newSession?.access_token ? prev : newSession
+      );
+      setUser(prev => (prev?.id === newUserId ? prev : (newSession?.user ?? null)));
+
+      if (newUserId) {
+        // Só busca perfil se o usuário mudou (evita re-fetch em token refresh)
+        if (newUserId !== currentUserId) {
+          currentUserId = newUserId;
+          // Garante loading=true ANTES de buscar — evita janela onde
+          // loading=false e profile=null (causa flash + redirect indevido para /auth)
+          setLoading(true);
+          setTimeout(() => fetchUserProfile(newUserId), 0);
+        }
       } else {
+        currentUserId = null;
         setProfile(null);
-        setLoading(false);
-      }
-    });
-
-    // THEN check existing session
-    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
-      setSession(existingSession);
-      setUser(existingSession?.user ?? null);
-
-      if (existingSession?.user) {
-        fetchUserProfile(existingSession.user.id);
-      } else {
         setLoading(false);
       }
     });

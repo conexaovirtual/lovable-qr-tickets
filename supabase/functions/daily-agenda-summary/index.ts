@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const AI_GATEWAY_URL = "https://api.openai.com/v1/chat/completions";
 const JOSE_PHONE = "5562984515801";
 
 serve(async (req: Request) => {
@@ -15,11 +15,11 @@ serve(async (req: Request) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL")?.replace("//chat.mabbix.com.br", "//apichat.mabbix.com.br");
     const MABBIX_CONNECTION_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
 
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
     if (!MABBIX_BACKEND_URL || !MABBIX_CONNECTION_TOKEN) throw new Error("Mabbix not configured");
 
     const supabase = createClient(
@@ -136,11 +136,11 @@ serve(async (req: Request) => {
     const aiResponse = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",

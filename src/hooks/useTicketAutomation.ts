@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
+const SMART_ALERTS_INTERVAL_MS = 60 * 60 * 1000; // 1 hora
 const SLA_ALERT_HOURS = 2;
 const AUTO_CLOSE_HOURS = 72;
 
@@ -29,6 +30,15 @@ export function useTicketAutomation() {
     } catch (err) {
       console.error("[useTicketAutomation] Erro:", err);
     }
+  }, [profile]);
+
+  // Gerar alertas inteligentes a cada hora no background
+  useEffect(() => {
+    if (!profile?.roles?.includes("admin_provedor")) return;
+    const timer = setInterval(() => {
+      supabase.functions.invoke("ai-smart-alerts", { body: {} }).catch(() => {});
+    }, SMART_ALERTS_INTERVAL_MS);
+    return () => clearInterval(timer);
   }, [profile]);
 
   useEffect(() => {

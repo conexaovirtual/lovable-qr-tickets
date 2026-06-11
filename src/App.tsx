@@ -46,10 +46,19 @@ const CompanyMap = lazyWithRetry(() => import("./pages/CompanyMap"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
-      gcTime: 10 * 60 * 1000,
+      staleTime: 5 * 60 * 1000,       // dados válidos por 5 min
+      gcTime: 15 * 60 * 1000,          // mantém em memória 15 min
       refetchOnWindowFocus: false,
-      retry: 1,
+      refetchOnReconnect: true,
+      retry: (failureCount, error: any) => {
+        // não tenta novamente em erros 4xx (auth, not found)
+        if (error?.status >= 400 && error?.status < 500) return false;
+        return failureCount < 2;
+      },
+      networkMode: 'offlineFirst',
+    },
+    mutations: {
+      retry: 0,
     },
   },
 });

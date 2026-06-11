@@ -54,13 +54,35 @@ export function TicketStatusUpdate({ ticket, onUpdate }: TicketStatusUpdateProps
         title: 'Chamado atualizado',
       });
       
-      // Gerar artigo de conhecimento automaticamente ao resolver
       if (status === 'resolvido' && solucao.trim()) {
+        // Gerar artigo de conhecimento automaticamente
         supabase.functions.invoke('ai-knowledge-generator', {
           body: { ticket_id: ticket.id },
         }).catch(err => console.error('Knowledge generation error:', err));
+
+        // Gerar e salvar resumo IA automaticamente
+        supabase.functions.invoke('ai-service-summary', {
+          body: { service_type: 'ticket', service_id: ticket.id },
+        }).then(async ({ data }) => {
+          if (!data || data.error) return;
+          await supabase.from('ai_summaries').insert({
+            source_type: 'ticket',
+            source_id: ticket.id,
+            resumo: data.resumo_executivo,
+            problema_identificado: data.problema_identificado,
+            solucao_aplicada: data.solucao_aplicada,
+            tempo_estimado_futuro: data.tempo_estimado_futuro,
+            padrao_detectado: data.padrao_detectado,
+            recomendacao_preventiva: data.recomendacao_preventiva,
+            tags_sugeridas: data.tags_sugeridas,
+            padroes: { padrao_detectado: data.padrao_detectado },
+            recomendacoes: data.recomendacao_preventiva,
+          }).then(({ error }) => {
+            if (!error) toast({ title: '✨ Resumo IA gerado automaticamente' });
+          });
+        }).catch(err => console.error('AI summary error:', err));
       }
-      
+
       onUpdate();
     }
     setLoading(false);

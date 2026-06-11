@@ -53,7 +53,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL");
+    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL")?.replace("//chat.mabbix.com.br", "//apichat.mabbix.com.br");
     const MABBIX_CONNECTION_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
 
     if (!MABBIX_BACKEND_URL || !MABBIX_CONNECTION_TOKEN) {

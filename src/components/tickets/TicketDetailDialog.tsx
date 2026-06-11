@@ -39,16 +39,24 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: TicketDetai
         .select(`
           *,
           companies:company_id(nome_fantasia),
-          categories(nome, cor),
-          subcategories(nome),
-          assets(tipo, tag_patrimonial, numero_serie, fabricante, modelo),
-          tecnico:profiles!tickets_tecnico_id_fkey(nome)
+          categories:category_id(nome, cor),
+          subcategories:subcategory_id(nome),
+          assets:asset_id(tipo, tag_patrimonial, numero_serie, fabricante, modelo),
+          tecnico:tecnico_id(nome)
         `)
         .eq('id', ticketId)
         .single();
 
       if (error) {
         console.error('Erro ao carregar chamado:', error);
+        // Tenta query simplificada como fallback
+        const { data: basic } = await supabase
+          .from('tickets')
+          .select('*, companies:company_id(nome_fantasia)')
+          .eq('id', ticketId)
+          .single();
+        if (basic) setTicket(basic);
+        return;
       }
       if (data) setTicket(data);
     } catch (err) {

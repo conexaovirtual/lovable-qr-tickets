@@ -6,8 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const AI_MODEL = "google/gemini-3-flash-preview";
+const AI_GATEWAY_URL = "https://api.openai.com/v1/chat/completions";
+const AI_MODEL = "gpt-4o-mini";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -15,11 +15,11 @@ serve(async (req: Request) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL")?.replace("//chat.mabbix.com.br", "//apichat.mabbix.com.br");
     const MABBIX_CONNECTION_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
 
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
     if (!MABBIX_BACKEND_URL || !MABBIX_CONNECTION_TOKEN) throw new Error("Mabbix API not configured");
 
     const supabase = createClient(
@@ -65,7 +65,7 @@ serve(async (req: Request) => {
     let effectiveMessage = message_content || "";
     if (isAudioMessage && media_url) {
       console.log("Transcribing audio from:", media_url);
-      const transcription = await transcribeAudio(media_url, LOVABLE_API_KEY);
+      const transcription = await transcribeAudio(media_url, OPENAI_API_KEY);
       console.log("Audio transcription:", transcription.substring(0, 200));
       effectiveMessage = `[O cliente enviou uma mensagem de voz que foi transcrita automaticamente]: ${transcription}`;
     }
@@ -111,7 +111,7 @@ serve(async (req: Request) => {
     const aiResponse = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -173,7 +173,7 @@ serve(async (req: Request) => {
       const followUpResponse = await fetch(AI_GATEWAY_URL, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -205,7 +205,7 @@ serve(async (req: Request) => {
       const fallbackResponse = await fetch(AI_GATEWAY_URL, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -1057,7 +1057,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
               `📝 *Descrição:*\n${args.descricao}${osInfo}\n\n` +
               `${args.asset_id ? `🖥️ *Ativo vinculado:* Sim` : `🖥️ *Ativo:* Não vinculado`}`;
 
-            const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
+            const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL")?.replace("//chat.mabbix.com.br", "//apichat.mabbix.com.br");
             const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
             if (MABBIX_URL && MABBIX_TOKEN) {
               await fetch(`${MABBIX_URL}/api/messages/send`, {
@@ -1327,7 +1327,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
         // 2. WhatsApp notification para técnico via Mabbix
         try {
           const TECNICO_PHONE_ESCALATE = "5562999522470";
-          const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
+          const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL")?.replace("//chat.mabbix.com.br", "//apichat.mabbix.com.br");
           const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
           if (MABBIX_URL && MABBIX_TOKEN) {
             const escalateMsg = `🚨 *Transferência de Atendimento*\n\n` +
@@ -1426,7 +1426,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
         // WhatsApp notification to technician for partial escalation
         try {
           const TECNICO_PHONE_PARTIAL = "5562999522470";
-          const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
+          const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL")?.replace("//chat.mabbix.com.br", "//apichat.mabbix.com.br");
           const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
           if (MABBIX_URL && MABBIX_TOKEN) {
             const partialMsg = `⚡ *Atenção — Atendimento IA (${args.urgencia?.toUpperCase() || "MEDIA"})*\n\n` +
@@ -1685,7 +1685,7 @@ async function handleToolCalls(supabase: any, toolCalls: any[], phone: string, c
             // === NOTIFICAR TÉCNICO via WhatsApp sobre novo agendamento criado pela IA ===
             try {
               const TECNICO_PHONE_SCHED = "5562999522470";
-              const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL");
+              const MABBIX_URL = Deno.env.get("MABBIX_BACKEND_URL")?.replace("//chat.mabbix.com.br", "//apichat.mabbix.com.br");
               const MABBIX_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
               const schedContactName = context.contact?.contact_name || phone;
               const schedCompanyName = context.contact?.company?.nome_fantasia || "Não identificada";
@@ -1873,9 +1873,9 @@ async function sendAudioReply(
   mabbixToken: string
 ) {
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.log("LOVABLE_API_KEY not configured, skipping audio reply");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      console.log("OPENAI_API_KEY not configured, skipping audio reply");
       return;
     }
 
@@ -1887,11 +1887,11 @@ async function sendAudioReply(
     const ttsResponse = await fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         modalities: ["AUDIO"],
         speech_config: {
           voice_config: {

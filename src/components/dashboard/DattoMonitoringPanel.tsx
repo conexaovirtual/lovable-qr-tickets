@@ -81,12 +81,17 @@ const deviceTypeIcon = (tipo: string) => {
   }
 };
 
+// Cache entre remontagens para evitar skeleton repetido
+let _cachedStats: DattoStats | null = null;
+let _cachedAlerts: RecentAlert[] = [];
+let _cachedHasDevices = false;
+
 export function DattoMonitoringPanel() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<DattoStats>({ online: 0, alert: 0, offline: 0 });
-  const [recentAlerts, setRecentAlerts] = useState<RecentAlert[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [hasDevices, setHasDevices] = useState(false);
+  const [stats, setStats] = useState<DattoStats>(_cachedStats ?? { online: 0, alert: 0, offline: 0 });
+  const [recentAlerts, setRecentAlerts] = useState<RecentAlert[]>(_cachedAlerts);
+  const [loading, setLoading] = useState(_cachedStats === null);
+  const [hasDevices, setHasDevices] = useState(_cachedHasDevices);
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isFullSyncing, setIsFullSyncing] = useState(false);
@@ -134,7 +139,7 @@ export function DattoMonitoringPanel() {
   };
 
   useEffect(() => {
-    loadData();
+    loadData(_cachedStats === null); // skeleton só se cache vazio
   }, []);
 
   useEffect(() => {
@@ -169,8 +174,8 @@ export function DattoMonitoringPanel() {
     };
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (showSkeleton = false) => {
+    if (showSkeleton) setLoading(true);
     const [devicesResult, alertsResult] = await Promise.all([
       supabase.from('assets').select('datto_status').not('datto_device_id', 'is', null),
       supabase.from('datto_alerts_log')
@@ -179,6 +184,7 @@ export function DattoMonitoringPanel() {
     ]);
 
     if (devicesResult.data && devicesResult.data.length > 0) {
+      _cachedHasDevices = true;
       setHasDevices(true);
       const counts: DattoStats = { online: 0, alert: 0, offline: 0 };
       devicesResult.data.forEach((d: any) => {
@@ -187,9 +193,15 @@ export function DattoMonitoringPanel() {
         else if (s === 'offline') counts.offline++;
         else counts.online++;
       });
+      _cachedStats = counts;
       setStats(counts);
+    } else {
+      _cachedStats = { online: 0, alert: 0, offline: 0 };
     }
-    if (alertsResult.data) setRecentAlerts(alertsResult.data as RecentAlert[]);
+    if (alertsResult.data) {
+      _cachedAlerts = alertsResult.data as RecentAlert[];
+      setRecentAlerts(_cachedAlerts);
+    }
     setLoading(false);
   };
 
@@ -261,7 +273,7 @@ export function DattoMonitoringPanel() {
 
   const handleFullSync = async () => {
     setIsFullSyncing(true);
-    setSyncReport(null);
+    // Não apaga syncReport aqui — evita layout shift brusco durante a varredura
     try {
       toast.info('Varredura completa iniciada. Isso pode levar alguns minutos...');
       const { data, error } = await supabase.functions.invoke('datto-full-sync');
@@ -321,22 +333,19 @@ export function DattoMonitoringPanel() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Full sync progress */}
-        {isFullSyncing && (
-          <div className="space-y-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
-            <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-              🔍 Varredura completa em andamento...
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Buscando dispositivos, coletando hardware e cadastrando ativos. Isso pode levar alguns minutos.
-            </p>
-            <Progress value={undefined} className="h-2" />
-          </div>
-        )}
+      {/* Barra de progresso da varredura — fora do CardContent para não deslocar o layout */}
+      {isFullSyncing && (
+        <div className="px-6 pb-2">
+          <Progress value={undefined} className="h-1 rounded-none" />
+          <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">
+            🔍 Varredura em andamento — isso pode levar alguns minutos...
+          </p>
+        </div>
+      )}
 
+      <CardContent className="space-y-4">
         {/* Full sync report - PERSISTS */}
-        {syncReport && !isFullSyncing && (
+        {syncReport && (
           <div className="space-y-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-green-700 dark:text-green-300">

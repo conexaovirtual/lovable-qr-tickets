@@ -12,7 +12,11 @@ serve(async (req: Request) => {
   }
 
   try {
-    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL");
+    // The secret may hold the frontend host (chat.mabbix.com.br); the API lives
+    // at apichat.mabbix.com.br. Rewrite defensively (anchored to "//" so an
+    // already-correct apichat URL is left untouched).
+    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL")
+      ?.replace("//chat.mabbix.com.br", "//apichat.mabbix.com.br");
     const MABBIX_CONNECTION_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
 
     if (!MABBIX_BACKEND_URL || !MABBIX_CONNECTION_TOKEN) {

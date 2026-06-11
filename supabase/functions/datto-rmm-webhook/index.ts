@@ -121,20 +121,20 @@ async function autoLinkOrCreateAsset(supabase: any, payload: DattoPayload) {
 
     if (companies && companies.length > 0 && siteName) {
       // Use AI to find best match
-      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-      if (lovableApiKey) {
+      const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+      if (openaiApiKey) {
         const companyList = companies.map((c: any) =>
           `ID: ${c.id} | Nome: ${c.nome_fantasia} | Razão: ${c.razao_social || 'N/A'}`
         ).join('\n');
 
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${lovableApiKey}`,
+            Authorization: `Bearer ${openaiApiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
+            model: "gpt-4o-mini",
             messages: [
               {
                 role: "system",
@@ -486,16 +486,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
           // Enrich alert with AI
           let descricao = '';
           try {
-            const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-            if (lovableApiKey) {
-              const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+            if (openaiApiKey) {
+              const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
                 headers: {
-                  Authorization: `Bearer ${lovableApiKey}`,
+                  Authorization: `Bearer ${openaiApiKey}`,
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  model: "google/gemini-3-flash-preview",
+                  model: "gpt-4o-mini",
                   messages: [
                     {
                       role: "system",
@@ -709,7 +709,7 @@ Reboot Pendente: ${payload.reboot_required ? 'Sim' : 'Não'}`
 
             // Send WhatsApp notification to technician
             try {
-              const MABBIX_BACKEND_URL = Deno.env.get('MABBIX_BACKEND_URL');
+              const MABBIX_BACKEND_URL = Deno.env.get('MABBIX_BACKEND_URL')?.replace('//chat.mabbix.com.br', '//apichat.mabbix.com.br');
               const MABBIX_CONNECTION_TOKEN = Deno.env.get('MABBIX_CONNECTION_TOKEN');
               if (MABBIX_BACKEND_URL && MABBIX_CONNECTION_TOKEN) {
                 const whatsappMsg = [

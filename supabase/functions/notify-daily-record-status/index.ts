@@ -8,9 +8,9 @@ const corsHeaders = {
 };
 
 const statusMessages: Record<string, string> = {
-  em_andamento: "🔧 *Atendimento em Andamento*\n\nSeu chamado está sendo atendido por nossa equipe técnica.",
-  concluido: "✅ *Atendimento Concluído*\n\nSeu chamado foi concluído com sucesso!",
-  pendente: "⏳ *Atendimento Pendente*\n\nSeu chamado está pendente e será retomado em breve.",
+  em_andamento: "🔧 *Atendimento em Andamento*\n\nSeu atendimento técnico está sendo realizado agora.",
+  concluido: "✅ *Comprovante de Atendimento*\n\nSeu atendimento foi concluído com sucesso!",
+  pendente: "⏳ *Atendimento Pendente*\n\nSeu atendimento está pendente e será retomado em breve.",
 };
 
 function formatPhone(contato: string): string | null {
@@ -44,7 +44,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL");
+    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL")?.replace("//chat.mabbix.com.br", "//apichat.mabbix.com.br");
     const MABBIX_CONNECTION_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
 
     if (!MABBIX_BACKEND_URL || !MABBIX_CONNECTION_TOKEN) {
@@ -134,26 +134,50 @@ serve(async (req: Request) => {
       );
     }
 
-    // Build message
-    let message = messageTemplate;
-    message += `\n\n📋 *Chamado:* ${record.titulo}`;
-
-    if (record.company_id) {
-      const { data: company } = await supabase
-        .from("companies")
-        .select("nome_fantasia")
-        .eq("id", record.company_id)
+    // Busca dados do técnico
+    let tecnico: { nome: string } | null = null;
+    if (record.tecnico_id) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("nome")
+        .eq("id", record.tecnico_id)
         .single();
-      if (company) {
-        message += `\n🏢 *Empresa:* ${company.nome_fantasia}`;
-      }
+      tecnico = data;
+    }
+
+    // Build message comprovante completo
+    const now = new Date();
+    const dataHora = now.toLocaleString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+
+    let message = messageTemplate;
+    message += `\n\n━━━━━━━━━━━━━━━━━━━`;
+    message += `\n📋 *Serviço:* ${record.titulo}`;
+
+    if (contactName) {
+      message += `\n🏢 *Empresa:* ${contactName}`;
+    }
+
+    if (tecnico?.nome) {
+      message += `\n👨‍💻 *Técnico:* ${tecnico.nome}`;
+    }
+
+    message += `\n📅 *Data/Hora:* ${dataHora}`;
+
+    if (record.descricao) {
+      message += `\n\n📝 *Descrição:*\n${record.descricao}`;
     }
 
     if (new_status === "concluido" && (observacao || record.solucao)) {
-      message += `\n\n📝 *Solução:* ${observacao || record.solucao}`;
+      message += `\n\n✅ *Solução Aplicada:*\n${observacao || record.solucao}`;
     }
 
-    message += "\n\n_Conexão Virtual - Help Desk TI_";
+    message += `\n\n━━━━━━━━━━━━━━━━━━━`;
+    message += `\n_Conexão Virtual Soluções Tecnológicas_`;
+    message += `\n_Este é um comprovante automático de atendimento._`;
 
     console.log(`Sending daily record notification to ${phone} (status: ${new_status})`);
 

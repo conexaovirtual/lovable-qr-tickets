@@ -17,7 +17,7 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL");
+    const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL")?.replace("//chat.mabbix.com.br", "//apichat.mabbix.com.br");
     const MABBIX_CONNECTION_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
 
     let synced = 0;
@@ -82,10 +82,8 @@ serve(async (req: Request) => {
       }
     }
 
-    // 3. Fetch profile photos via Evolution API (Mabbix)
-    const MABBIX_INSTANCE_NAME = Deno.env.get("MABBIX_INSTANCE_NAME");
-    
-    if (MABBIX_BACKEND_URL && MABBIX_CONNECTION_TOKEN && MABBIX_INSTANCE_NAME) {
+    // 3. Fetch profile photos via Mabbix API (Whaticket-based)
+    if (MABBIX_BACKEND_URL && MABBIX_CONNECTION_TOKEN) {
       const { data: convosWithoutPhoto } = await supabase
         .from("waba_conversations")
         .select("id, phone_number")
@@ -93,9 +91,8 @@ serve(async (req: Request) => {
         .limit(30);
 
       if (convosWithoutPhoto && convosWithoutPhoto.length > 0) {
-        const encodedInstance = encodeURIComponent(MABBIX_INSTANCE_NAME);
-        const endpoint = `${MABBIX_BACKEND_URL}/chat/fetchProfilePictureUrl/${encodedInstance}`;
-        console.log(`Fetching photos for ${convosWithoutPhoto.length} contacts via: ${endpoint}`);
+        const endpoint = `${MABBIX_BACKEND_URL}/api/contacts/getProfilePicUrl`;
+        console.log(`Fetching photos for ${convosWithoutPhoto.length} contacts via Mabbix: ${endpoint}`);
 
         for (const convo of convosWithoutPhoto) {
           try {
@@ -103,14 +100,14 @@ serve(async (req: Request) => {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "apikey": MABBIX_CONNECTION_TOKEN,
+                "Authorization": `Bearer ${MABBIX_CONNECTION_TOKEN}`,
               },
               body: JSON.stringify({ number: convo.phone_number }),
             });
 
             if (resp.ok) {
               const data = await resp.json();
-              const photoUrl = data?.profilePictureUrl || data?.profilePicUrl || data?.picture || data?.url || null;
+              const photoUrl = data?.profilePicUrl || data?.profilePictureUrl || data?.picture || data?.url || null;
               if (photoUrl) {
                 await supabase
                   .from("waba_conversations")
@@ -119,8 +116,7 @@ serve(async (req: Request) => {
                 photosUpdated++;
               }
             } else {
-              const errText = await resp.text();
-              console.log(`Photo error ${resp.status} for ${convo.phone_number}: ${errText.substring(0, 100)}`);
+              console.log(`Photo not available (${resp.status}) for ${convo.phone_number}`);
             }
 
             await new Promise((r) => setTimeout(r, 300));
@@ -131,7 +127,7 @@ serve(async (req: Request) => {
         console.log(`Photos updated: ${photosUpdated}`);
       }
     } else {
-      console.log("Mabbix API not fully configured (URL/TOKEN/INSTANCE), skipping photo sync");
+      console.log("Mabbix API não configurada (URL/TOKEN), pulando sync de fotos");
     }
 
     return new Response(

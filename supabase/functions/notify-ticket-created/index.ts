@@ -247,6 +247,41 @@ const handler = async (req: Request): Promise<Response> => {
       // Don't fail the main flow
     }
 
+    // Enviar WhatsApp de confirmação para o solicitante
+    try {
+      const MABBIX_BACKEND_URL = Deno.env.get("MABBIX_BACKEND_URL")?.replace("//chat.mabbix.com.br", "//apichat.mabbix.com.br");
+      const MABBIX_CONNECTION_TOKEN = Deno.env.get("MABBIX_CONNECTION_TOKEN");
+      const digits = solicitanteContato.replace(/\D/g, "");
+
+      if (MABBIX_BACKEND_URL && MABBIX_CONNECTION_TOKEN && digits.length >= 10) {
+        const phone = digits.startsWith("55") && digits.length >= 12 ? digits : `55${digits}`;
+
+        const mensagem =
+          `✅ *Chamado Recebido — #${ticketNumero}*\n\n` +
+          `Olá, *${solicitanteNome}*! Seu chamado foi registrado com sucesso.\n\n` +
+          `━━━━━━━━━━━━━━━━━━━\n` +
+          `🏢 *Empresa:* ${companyNome}\n` +
+          `🖥️ *Equipamento:* ${assetNome}\n` +
+          `📋 *Problema:* ${descricao.substring(0, 120)}${descricao.length > 120 ? "..." : ""}\n` +
+          `━━━━━━━━━━━━━━━━━━━\n\n` +
+          `Nossa equipe técnica já foi notificada e entrará em contato em breve.\n\n` +
+          `_Conexão Virtual Soluções Tecnológicas_`;
+
+        await fetch(`${MABBIX_BACKEND_URL}/api/messages/send`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${MABBIX_CONNECTION_TOKEN}`,
+          },
+          body: JSON.stringify({ number: phone, openTicket: "0", queueId: "0", body: mensagem }),
+        }).catch(e => console.error("WhatsApp confirmation error:", e));
+
+        console.log(`WhatsApp confirmation sent to ${phone} for ticket #${ticketNumero}`);
+      }
+    } catch (waErr) {
+      console.error("Error sending WhatsApp confirmation:", waErr);
+    }
+
     return new Response(JSON.stringify({ success: true, emailResponse: data }), {
       status: 200,
       headers: {

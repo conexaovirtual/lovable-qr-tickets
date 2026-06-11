@@ -23,7 +23,7 @@ interface ServiceOrderRow {
 
 // ─── Send WhatsApp via Mabbix ──────────────────────────────────────
 async function sendWhatsApp(phone: string, text: string) {
-  const MABBIX_BACKEND_URL = Deno.env.get('MABBIX_BACKEND_URL');
+  const MABBIX_BACKEND_URL = Deno.env.get('MABBIX_BACKEND_URL')?.replace('//chat.mabbix.com.br', '//apichat.mabbix.com.br');
   const MABBIX_CONNECTION_TOKEN = Deno.env.get('MABBIX_CONNECTION_TOKEN');
   if (!MABBIX_BACKEND_URL || !MABBIX_CONNECTION_TOKEN) {
     console.warn('Mabbix not configured, skipping WhatsApp');

@@ -74,20 +74,32 @@ export default function TicketDetail() {
     if (!id) return;
 
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('tickets')
       .select(`
         *,
-        categories(nome, cor),
-        subcategories(nome),
-        assets(tipo, tag_patrimonial, numero_serie, fabricante, modelo),
-        profiles!tickets_solicitante_id_fkey(nome, telefone),
-        tecnico:profiles!tickets_tecnico_id_fkey(nome)
+        companies:company_id(nome_fantasia),
+        categories:category_id(nome, cor),
+        subcategories:subcategory_id(nome),
+        assets:asset_id(tipo, tag_patrimonial, numero_serie, fabricante, modelo),
+        solicitante:solicitante_id(nome, telefone),
+        tecnico:tecnico_id(nome)
       `)
       .eq('id', id)
       .single();
 
-    if (data) setTicket(data);
+    if (error) {
+      console.error('Erro ao carregar chamado:', error);
+      // Fallback: query simplificada
+      const { data: basic } = await supabase
+        .from('tickets')
+        .select('*, companies:company_id(nome_fantasia)')
+        .eq('id', id)
+        .single();
+      if (basic) setTicket(basic);
+    } else if (data) {
+      setTicket(data);
+    }
     setLoading(false);
   };
 
@@ -387,9 +399,9 @@ export default function TicketDetail() {
                     <User className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div>
                       <p className="text-muted-foreground">Solicitante</p>
-                      <p className="font-medium">{ticket.profiles?.nome || ticket.solicitante_nome || 'N/A'}</p>
-                      {(ticket.profiles?.telefone || ticket.solicitante_contato) && (
-                        <p className="text-xs text-muted-foreground">{ticket.profiles?.telefone || ticket.solicitante_contato}</p>
+                      <p className="font-medium">{ticket.solicitante?.nome || ticket.solicitante_nome || 'N/A'}</p>
+                      {(ticket.solicitante?.telefone || ticket.solicitante_contato) && (
+                        <p className="text-xs text-muted-foreground">{ticket.solicitante?.telefone || ticket.solicitante_contato}</p>
                       )}
                     </div>
                   </div>

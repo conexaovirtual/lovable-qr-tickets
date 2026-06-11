@@ -51,13 +51,7 @@ serve(async (req: Request) => {
 
       const participantRaw = msg.participant || "";
       const senderBodyRaw = body.sender || "";
-      const participantPhone = extractPhone(participantRaw);
-      const senderPhone = extractPhone(senderBodyRaw);
-      const phoneNumber = (senderPhone && senderPhone.length >= 10 && senderPhone.length <= 15) 
-        ? senderPhone 
-        : (participantPhone && participantPhone.length >= 10 && participantPhone.length <= 15)
-          ? participantPhone
-          : senderPhone || participantPhone;
+      const phoneNumber = resolveConversationKey(senderBodyRaw, participantRaw);
       if (!phoneNumber) {
         console.log("No valid phone in message object payload, skipping");
         return okResponse();
@@ -96,7 +90,7 @@ serve(async (req: Request) => {
       }
 
       const senderRaw = body.sender;
-      const phoneNumber = extractPhone(senderRaw);
+      const phoneNumber = resolveConversationKey(senderRaw, "");
       if (!phoneNumber) {
         console.log("No phone in array payload, skipping");
         return okResponse();
@@ -153,6 +147,28 @@ function extractPhone(raw: string): string {
 
 function isGroupChat(raw: string): boolean {
   return raw.includes("@g.us");
+}
+
+function isLid(raw: string): boolean {
+  return raw.includes("@lid");
+}
+
+// Picks a single canonical conversation key so the same chat never splits into
+// multiple conversations. Group chats always key on the group JID; @lid
+// identifiers are only used when no real phone number is available.
+function resolveConversationKey(senderRaw: string, participantRaw: string): string {
+  if (isGroupChat(senderRaw)) return extractPhone(senderRaw);
+  if (isGroupChat(participantRaw)) return extractPhone(participantRaw);
+
+  const candidates = [senderRaw, participantRaw].filter(Boolean);
+  const realPhones = candidates
+    .filter((c) => !isLid(c))
+    .map(extractPhone)
+    .filter((p) => p.length >= 10 && p.length <= 15);
+  if (realPhones.length > 0) return realPhones[0];
+
+  // Last resort: lid digits (still stable per contact, avoids dropping the message)
+  return extractPhone(candidates[0] || "");
 }
 
 function detectMessageType(mediaType?: string, mediaUrl?: string): string {
@@ -253,8 +269,25 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
     }
   }
 
+  // Cross-format dedup: Mabbix delivers the same WhatsApp message in separate
+  // webhook events (acao "start" + "from_internal") with unrelated wamids, so
+  // also skip when identical inbound content just arrived in this conversation.
+  const dedupWindowStart = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+  const { data: contentDup } = await supabase
+    .from("waba_messages")
+    .select("id")
+    .eq("conversation_id", conversation.id)
+    .eq("direction", "inbound")
+    .eq("content", content)
+    .gte("created_at", dedupWindowStart)
+    .limit(1);
+  if (contentDup && contentDup.length > 0) {
+    console.log(`Duplicate by content skipped for conversation ${conversation.id}`);
+    return;
+  }
+
   // Insert message - rely on DB unique index as the definitive guard against race conditions
-  const { error: insertError } = await supabase.from("waba_messages").insert({
+  const { data: insertedMsg, error: insertError } = await supabase.from("waba_messages").insert({
     conversation_id: conversation.id,
     wamid: wamid || null,
     direction: "inbound",
@@ -264,7 +297,7 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
     status: "received",
     raw_payload: rawPayload,
     sender_type: "user",
-  });
+  }).select("id").single();
 
   if (insertError) {
     if (insertError.code === "23505") {
@@ -272,6 +305,24 @@ async function saveInboundMessage(supabase: any, data: InboundMessageData) {
       return;
     }
     console.error("Insert message error:", insertError);
+    return;
+  }
+
+  // Post-insert race guard: the two Mabbix events often arrive milliseconds
+  // apart, so both can pass the check above. Keep only the earliest copy; if
+  // ours lost the race, remove it and stop (the survivor drives the AI reply).
+  const { data: twins } = await supabase
+    .from("waba_messages")
+    .select("id, created_at")
+    .eq("conversation_id", conversation.id)
+    .eq("direction", "inbound")
+    .eq("content", content)
+    .gte("created_at", dedupWindowStart)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
+  if (twins && twins.length > 1 && twins[0].id !== insertedMsg.id) {
+    await supabase.from("waba_messages").delete().eq("id", insertedMsg.id);
+    console.log(`Race duplicate removed: ${insertedMsg.id}`);
     return;
   }
 
